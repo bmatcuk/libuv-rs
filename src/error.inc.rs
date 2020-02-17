@@ -1,3 +1,4 @@
+#[allow(non_camel_case_types)]
 #[derive(Clone, Copy, Debug)]
 pub enum Error {
     E2BIG,

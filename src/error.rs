@@ -1,4 +1,3 @@
-#![allow(non_camel_case_types)]
 include!("./error.inc.rs");
 
 use std::ffi::CStr;

@@ -1,8 +1,27 @@
+include!("./handle_types.inc.rs");
+
+use std::ffi::CStr;
 use uv::{
-    uv_close, uv_fileno, uv_handle_get_data, uv_handle_get_loop, uv_handle_get_type,
-    uv_handle_set_data, uv_handle_t, uv_handle_type_name, uv_has_ref, uv_is_active, uv_is_closing,
+    uv_close, uv_handle_get_data, uv_handle_get_loop, uv_handle_get_type, uv_handle_set_data,
+    uv_handle_t, uv_handle_type, uv_handle_type_name, uv_has_ref, uv_is_active, uv_is_closing,
     uv_recv_buffer_size, uv_ref, uv_send_buffer_size, uv_unref,
 };
+
+impl HandleType {
+    pub fn name(&self) -> String {
+        unsafe {
+            CStr::from_ptr(uv_handle_type_name(self.into()))
+                .to_string_lossy()
+                .into_owned()
+        }
+    }
+}
+
+impl std::fmt::Display for HandleType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.name())
+    }
+}
 
 /// Handle is the base type for all libuv handle types.
 pub struct Handle {
@@ -46,6 +65,63 @@ impl Handle {
     /// callbacks called asynchronously with status=UV_ECANCELED.
     pub fn close(&mut self) {
         unsafe { uv_close(self.handle, None) };
+    }
+
+    /// Reference the given handle. References are idempotent, that is, if a handle is already
+    /// referenced calling this function again will have no effect.
+    pub fn r#ref(&mut self) {
+        unsafe { uv_ref(self.handle) };
+    }
+
+    /// Un-reference the given handle. References are idempotent, that is, if a handle is not
+    /// referenced calling this function again will have no effect.
+    pub fn unref(&mut self) {
+        unsafe { uv_unref(self.handle) };
+    }
+
+    /// Returns true if the handle referenced, zero otherwise.
+    pub fn has_ref(&self) -> bool {
+        unsafe { uv_has_ref(self.handle) != 0 }
+    }
+
+    /// Gets or sets the size of the send buffer that the operating system uses for the socket.
+    ///
+    /// If value == 0, then it will return the current send buffer size. If value > 0 then it will
+    /// use value to set the new send buffer size and return that.
+    ///
+    /// This function works for TCP, pipe and UDP handles on Unix and for TCP and UDP handles on
+    /// Windows.
+    ///
+    /// Note: Linux will set double the size and return double the size of the original set value.
+    pub fn send_buffer_size(&mut self, value: i32) -> crate::Result<i32> {
+        let mut v = value;
+        crate::uvret(unsafe { uv_send_buffer_size(self.handle, &mut v as _) })?;
+        Ok(v)
+    }
+
+    /// Gets or sets the size of the receive buffer that the operating system uses for the socket.
+    ///
+    /// If value == 0, then it will return the current receive buffer size. If value > 0 then it
+    /// will use value to set the new receive buffer size and return that.
+    ///
+    /// This function works for TCP, pipe and UDP handles on Unix and for TCP and UDP handles on
+    /// Windows.
+    ///
+    /// Note: Linux will set double the size and return double the size of the original set value.
+    pub fn recv_buffer_size(&mut self, value: i32) -> crate::Result<i32> {
+        let mut v = value;
+        crate::uvret(unsafe { uv_recv_buffer_size(self.handle, &mut v as _) })?;
+        Ok(v)
+    }
+
+    /// Returns the Loop associated with this handle.
+    pub fn get_loop(&self) -> crate::Loop {
+        unsafe { uv_handle_get_loop(self.handle).into() }
+    }
+
+    /// Returns the type of the handle.
+    pub fn get_type(&self) -> HandleType {
+        unsafe { uv_handle_get_type(self.handle).into() }
     }
 }
 

@@ -9,7 +9,8 @@ END {
   indent = "    ";
   nerrors = asorti(errors);
 
-  print "#[derive(Clone, Copy, Debug)]"
+  print "#[allow(non_camel_case_types)]";
+  print "#[derive(Clone, Copy, Debug)]";
   print "pub enum Error {";
   for (i = 1; i <= nerrors; i++)
     print indent errors[i] ",";
@@ -25,12 +26,12 @@ END {
   print indent "}";
   print "}\n";
 
-  print "impl Error {"
+  print "impl Error {";
   print indent "fn code(&self) -> uv::uv_errno_t {";
   print indent indent "match self {";
   for (i = 1; i <= nerrors; i++)
     print indent indent indent "Error::" errors[i] " => uv::uv_errno_t_UV_" errors[i] ",";
-  print indent indent "}"
-  print indent "}"
+  print indent indent "}";
+  print indent "}";
   print "}"
 }
