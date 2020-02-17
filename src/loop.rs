@@ -1,8 +1,9 @@
 use uv::{
-    uv_backend_timeout, uv_default_loop, uv_loop_alive, uv_loop_close, uv_loop_configure,
-    uv_loop_delete, uv_loop_fork, uv_loop_get_data, uv_loop_init, uv_loop_new, uv_loop_set_data,
-    uv_loop_t, uv_now, uv_run, uv_run_mode, uv_run_mode_UV_RUN_DEFAULT, uv_run_mode_UV_RUN_NOWAIT,
-    uv_run_mode_UV_RUN_ONCE, uv_stop, uv_update_time, uv_walk,
+    uv_backend_timeout, uv_default_loop, uv_handle_t, uv_loop_alive, uv_loop_close, uv_loop_delete,
+    uv_loop_fork, uv_loop_get_data, uv_loop_init, uv_loop_new, uv_loop_set_data, uv_loop_t, uv_now,
+    uv_run, uv_run_mode, uv_run_mode_UV_RUN_DEFAULT, uv_run_mode_UV_RUN_NOWAIT,
+    uv_run_mode_UV_RUN_ONCE, uv_stop, uv_update_time, uv_walk, uv_loop_configure,
+    uv_loop_option_UV_LOOP_BLOCK_SIGNAL, uv_backend_fd,
 };
 
 /// Mode used to run the loop.
@@ -33,10 +34,13 @@ impl Into<uv_run_mode> for RunMode {
     }
 }
 
+unsafe extern "C" fn walk_cb(handle: *mut uv_handle_t, arg: *mut ::std::os::raw::c_void) {}
+
 /// The event loop is the central part of libuv’s functionality. It takes care of polling for i/o
 /// and scheduling callbacks to be run based on different sources of events.
 pub struct Loop {
     handle: *mut uv_loop_t,
+    should_drop: bool,
 }
 
 impl Loop {
@@ -52,7 +56,10 @@ impl Loop {
             return Err(crate::Error::from(ret as uv::uv_errno_t));
         }
 
-        Ok(Loop { handle })
+        Ok(Loop {
+            handle,
+            should_drop: true,
+        })
     }
 
     /// Returns the initialized default loop.
@@ -69,7 +76,19 @@ impl Loop {
             return Err(crate::Error::ENOMEM);
         }
 
-        Ok(Loop { handle })
+        Ok(Loop {
+            handle,
+            should_drop: false,
+        })
+    }
+
+    /// Block a signal when polling for new events. The second argument to configure() is the
+    /// signal number.
+    ///
+    /// This operation is currently only implemented for SIGPROF signals, to suppress unnecessary
+    /// wakeups when using a sampling profiler. Requesting other signals will fail with UV_EINVAL.
+    pub fn block_signal(&mut self, signum: i32) -> crate::Result<()> {
+        crate::uvret(unsafe { uv_loop_configure(self.handle, uv_loop_option_UV_LOOP_BLOCK_SIGNAL, signum) })
     }
 
     /// Releases all internal loop resources. Call this function only when the loop has finished
@@ -99,6 +118,22 @@ impl Loop {
         unsafe { uv_stop(self.handle) };
     }
 
+    /// Get backend file descriptor. Only kqueue, epoll and event ports are supported.
+    ///
+    /// This can be used in conjunction with run(NoWait) to poll in one thread and run the event
+    /// loop’s callbacks in another see test/test-embed.c for an example.
+    ///
+    /// Note: Embedding a kqueue fd in another kqueue pollset doesn’t work on all platforms. It’s
+    /// not an error to add the fd but it never generates events.
+    pub fn backend_fd(&self) -> i32 {
+        unsafe { uv_backend_fd(self.handle) as _ }
+    }
+
+    /// Get the poll timeout. The return value is in milliseconds, or -1 for no timeout.
+    pub fn backend_timeout(&self) -> i32 {
+        unsafe { uv_backend_timeout(self.handle) as _ }
+    }
+
     /// Return the current timestamp in milliseconds. The timestamp is cached at the start of the
     /// event loop tick, see update_time() for details and rationale.
     ///
@@ -117,12 +152,54 @@ impl Loop {
     pub fn update_time(&mut self) {
         unsafe { uv_update_time(self.handle) }
     }
+
+    /// Reinitialize any kernel state necessary in the child process after a fork(2) system call.
+    ///
+    /// Previously started watchers will continue to be started in the child process.
+    ///
+    /// It is necessary to explicitly call this function on every event loop created in the parent
+    /// process that you plan to continue to use in the child, including the default loop (even if
+    /// you don’t continue to use it in the parent). This function must be called before calling
+    /// run() or any other API function using the loop in the child. Failure to do so will result
+    /// in undefined behaviour, possibly including duplicate events delivered to both parent and
+    /// child or aborting the child process.
+    ///
+    /// When possible, it is preferred to create a new loop in the child process instead of reusing
+    /// a loop created in the parent. New loops created in the child process after the fork should
+    /// not use this function.
+    ///
+    /// This function is not implemented on Windows, where it returns UV_ENOSYS.
+    ///
+    /// Caution: This function is experimental. It may contain bugs, and is subject to change or
+    /// removal. API and ABI stability is not guaranteed.
+    ///
+    /// Note: On Mac OS X, if directory FS event handles were in use in the parent process for any
+    /// event loop, the child process will no longer be able to use the most efficient FSEvent
+    /// implementation. Instead, uses of directory FS event handles in the child will fall back to
+    /// the same implementation used for files and on other kqueue-based systems.
+    ///
+    /// Caution: On AIX and SunOS, FS event handles that were already started in the parent process
+    /// at the time of forking will not deliver events in the child process; they must be closed
+    /// and restarted. On all other platforms, they will continue to work normally without any
+    /// further intervention.
+    pub fn fork(&mut self) -> crate::Result<()> {
+        crate::uvret(unsafe { uv_loop_fork(self.handle) })
+    }
+}
+
+impl From<*mut uv_loop_t> for Loop {
+    fn from(handle: *mut uv_loop_t) -> Loop {
+        Loop { handle, should_drop: false }
+    }
 }
 
 impl Drop for Loop {
     fn drop(&mut self) {
         if !self.handle.is_null() {
-            unsafe { uv_loop_delete(self.handle) };
+            if self.should_drop {
+                unsafe { uv_loop_delete(self.handle) };
+            }
+            self.handle = std::ptr::null_mut();
         }
     }
 }

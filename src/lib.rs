@@ -11,6 +11,9 @@ pub use version::*;
 pub mod r#loop;
 pub use r#loop::*;
 
+pub mod handle;
+pub use handle::*;
+
 pub type Result<T> = std::result::Result<T, error::Error>;
 
 #[inline]
