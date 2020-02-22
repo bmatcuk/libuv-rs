@@ -46,7 +46,7 @@ impl From<uv::uv_handle_type> for HandleType {
     }
 }
 
-impl Into<uv_handle_type> for &HandleType {
+impl Into<uv::uv_handle_type> for &HandleType {
     fn into(self) -> uv::uv_handle_type {
         match self {
             HandleType::ASYNC => uv::uv_handle_type_UV_ASYNC,

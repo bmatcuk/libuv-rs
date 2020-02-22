@@ -34,7 +34,25 @@ impl Into<uv_run_mode> for RunMode {
     }
 }
 
-unsafe extern "C" fn walk_cb(handle: *mut uv_handle_t, arg: *mut ::std::os::raw::c_void) {}
+/// Data that we need to track with the loop.
+#[derive(Default)]
+pub(crate) struct LoopData {
+    walk_cb: Option<Box<dyn FnMut(crate::Handle)>>,
+}
+
+/// Callback for uv_walk
+extern "C" fn walk_cb(handle: *mut uv_handle_t, _: *mut ::std::os::raw::c_void) {
+    let handle: crate::Handle = handle.into();
+    let r#loop = handle.get_loop();
+    let dataptr = r#loop.get_data();
+    if !dataptr.is_null() {
+        unsafe {
+            if let Some(f) = (*dataptr).walk_cb.as_mut() {
+                f(handle);
+            }
+        }
+    }
+}
 
 /// The event loop is the central part of libuv’s functionality. It takes care of polling for i/o
 /// and scheduling callbacks to be run based on different sources of events.
@@ -56,10 +74,13 @@ impl Loop {
             return Err(crate::Error::from(ret as uv::uv_errno_t));
         }
 
-        Ok(Loop {
+        let mut r#loop = Loop {
             handle,
             should_drop: true,
-        })
+        };
+        r#loop.initialize_data();
+
+        Ok(r#loop)
     }
 
     /// Returns the initialized default loop.
@@ -76,10 +97,34 @@ impl Loop {
             return Err(crate::Error::ENOMEM);
         }
 
-        Ok(Loop {
+        let mut r#loop = Loop {
             handle,
             should_drop: false,
-        })
+        };
+        if r#loop.get_data().is_null() {
+            r#loop.initialize_data();
+        }
+
+        Ok(r#loop)
+    }
+
+    /// Initialize the loop's data.
+    fn initialize_data(&mut self) {
+        let data: Box<LoopData> = Box::new(Default::default());
+        let ptr = Box::into_raw(data);
+        unsafe { uv_loop_set_data(self.handle, ptr as _) };
+    }
+
+    /// Retrieve the loop's data.
+    fn get_data(&self) -> *mut LoopData {
+        unsafe { uv_loop_get_data(self.handle) as _ }
+    }
+
+    /// Free the loop's data.
+    fn free_data(&mut self) {
+        let ptr = self.get_data();
+        std::mem::drop(unsafe { Box::from_raw(ptr) });
+        unsafe { uv_loop_set_data(self.handle, std::ptr::null_mut()) };
     }
 
     /// Block a signal when polling for new events. The second argument to configure() is the
@@ -153,6 +198,17 @@ impl Loop {
         unsafe { uv_update_time(self.handle) }
     }
 
+    /// Walk the list of handles.
+    pub fn walk(&self, cb: impl FnMut(crate::Handle) + 'static) {
+        let cb = Box::new(cb);
+        let dataptr = self.get_data();
+        if !dataptr.is_null() {
+            unsafe { (*dataptr).walk_cb = Some(cb) };
+        }
+
+        unsafe { uv_walk(self.handle, Some(walk_cb), std::ptr::null_mut()) };
+    }
+
     /// Reinitialize any kernel state necessary in the child process after a fork(2) system call.
     ///
     /// Previously started watchers will continue to be started in the child process.
@@ -193,10 +249,17 @@ impl From<*mut uv_loop_t> for Loop {
     }
 }
 
+impl Into<*mut uv_loop_t> for &Loop {
+    fn into(self) -> *mut uv_loop_t {
+        self.handle
+    }
+}
+
 impl Drop for Loop {
     fn drop(&mut self) {
-        if !self.handle.is_null() {
-            if self.should_drop {
+        if self.should_drop {
+            if !self.handle.is_null() {
+                self.free_data();
                 unsafe { uv_loop_delete(self.handle) };
             }
             self.handle = std::ptr::null_mut();

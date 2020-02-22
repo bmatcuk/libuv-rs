@@ -8,6 +8,7 @@ use uv::{
 };
 
 impl HandleType {
+    /// Returns the name of the handle type.
     pub fn name(&self) -> String {
         unsafe {
             CStr::from_ptr(uv_handle_type_name(self.into()))
@@ -23,12 +24,50 @@ impl std::fmt::Display for HandleType {
     }
 }
 
+/// Data that we need to track with the handle.
+#[derive(Default)]
+pub(crate) struct HandleData {
+    close_cb: Option<Box<dyn FnMut(Handle)>>,
+}
+
+/// Callback for uv_close
+extern "C" fn close_cb(handle: *mut uv_handle_t) {
+    let handle: Handle = handle.into();
+    let dataptr = handle.get_data();
+    if !dataptr.is_null() {
+        unsafe {
+            if let Some(f) = (*dataptr).close_cb.as_mut() {
+                f(handle);
+            }
+        }
+    }
+}
+
 /// Handle is the base type for all libuv handle types.
 pub struct Handle {
     handle: *mut uv_handle_t,
 }
 
 impl Handle {
+    /// Initialize the handle's data.
+    pub(crate) fn initialize_data(&mut self) {
+        let data: Box<HandleData> = Box::new(Default::default());
+        let ptr = Box::into_raw(data);
+        unsafe { uv_handle_set_data(self.handle, ptr as _) };
+    }
+
+    /// Retrieve the handle's data.
+    pub(crate) fn get_data(&self) -> *mut HandleData {
+        unsafe { uv_handle_get_data(self.handle) as _ }
+    }
+
+    /// Free the handle's data.
+    pub(crate) fn free_data(&mut self) {
+        let ptr = self.get_data();
+        std::mem::drop(unsafe { Box::from_raw(ptr) });
+        unsafe { uv_handle_set_data(self.handle, std::ptr::null_mut()) };
+    }
+
     /// Returns non-zero if the handle is active, zero if it’s inactive. What “active” means
     /// depends on the type of handle:
     ///   * An AsyncHandle is always active and cannot be deactivated, except by closing it with
@@ -63,8 +102,18 @@ impl Handle {
     ///
     /// In-progress requests, like ConnectRequest or WriteRequest, are cancelled and have their
     /// callbacks called asynchronously with status=UV_ECANCELED.
-    pub fn close(&mut self) {
-        unsafe { uv_close(self.handle, None) };
+    pub fn close(&mut self, cb: Option<(impl FnMut(Handle) + 'static)>) {
+        // uv_cb is either Some(close_cb) or None
+        let uv_cb = cb.as_ref().map(|_| close_cb as _);
+
+        // cb is either Some(closure) or None - it is saved into data
+        let cb = cb.map(|f| Box::new(f) as _);
+        let dataptr = self.get_data();
+        if !dataptr.is_null() {
+            unsafe { (*dataptr).close_cb = cb };
+        }
+
+        unsafe { uv_close(self.handle, uv_cb) };
     }
 
     /// Reference the given handle. References are idempotent, that is, if a handle is already

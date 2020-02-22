@@ -27,7 +27,7 @@ END {
   print indent "}";
   print "}\n";
 
-  print "impl Into<uv_handle_type> for &HandleType {";
+  print "impl Into<uv::uv_handle_type> for &HandleType {";
   print indent "fn into(self) -> uv::uv_handle_type {";
   print indent indent "match self {";
   for (i = 1; i <= ntypes; i++)

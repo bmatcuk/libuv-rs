@@ -14,6 +14,12 @@ pub use r#loop::*;
 pub mod handle;
 pub use handle::*;
 
+pub mod req;
+pub use req::*;
+
+pub mod timer;
+pub use timer::*;
+
 pub type Result<T> = std::result::Result<T, error::Error>;
 
 #[inline]
