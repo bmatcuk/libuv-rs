@@ -11,6 +11,10 @@ pub use version::*;
 pub mod r#loop;
 pub use r#loop::*;
 
+mod addl_handle_data;
+use addl_handle_data::*;
+use addl_handle_data::AddlHandleData::*;
+
 pub mod handle;
 pub use handle::*;
 

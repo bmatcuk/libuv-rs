@@ -71,6 +71,7 @@ impl Loop {
 
         let ret = unsafe { uv_loop_init(handle) };
         if ret < 0 {
+            unsafe { uv_loop_delete(handle) };
             return Err(crate::Error::from(ret as uv::uv_errno_t));
         }
 

@@ -3,8 +3,8 @@ include!("./handle_types.inc.rs");
 use std::ffi::CStr;
 use uv::{
     uv_close, uv_handle_get_data, uv_handle_get_loop, uv_handle_get_type, uv_handle_set_data,
-    uv_handle_t, uv_handle_type, uv_handle_type_name, uv_has_ref, uv_is_active, uv_is_closing,
-    uv_recv_buffer_size, uv_ref, uv_send_buffer_size, uv_unref,
+    uv_handle_t, uv_handle_type_name, uv_has_ref, uv_is_active, uv_is_closing, uv_recv_buffer_size,
+    uv_ref, uv_send_buffer_size, uv_unref,
 };
 
 impl HandleType {
@@ -25,19 +25,18 @@ impl std::fmt::Display for HandleType {
 }
 
 /// Data that we need to track with the handle.
-#[derive(Default)]
 pub(crate) struct HandleData {
-    close_cb: Option<Box<dyn FnMut(Handle)>>,
+    close_cb: Option<Box<dyn FnMut(crate::Handle)>>,
+    pub(crate) addl: crate::AddlHandleData,
 }
 
 /// Callback for uv_close
 extern "C" fn close_cb(handle: *mut uv_handle_t) {
-    let handle: Handle = handle.into();
-    let dataptr = handle.get_data();
+    let dataptr = Handle::get_data(handle);
     if !dataptr.is_null() {
         unsafe {
             if let Some(f) = (*dataptr).close_cb.as_mut() {
-                f(handle);
+                f(handle.into());
             }
         }
     }
@@ -50,24 +49,41 @@ pub struct Handle {
 
 impl Handle {
     /// Initialize the handle's data.
-    pub(crate) fn initialize_data(&mut self) {
-        let data: Box<HandleData> = Box::new(Default::default());
+    pub(crate) fn initialize_data(handle: *mut uv_handle_t, addl: crate::AddlHandleData) {
+        let data: Box<HandleData> = Box::new(HandleData {
+            close_cb: None,
+            addl,
+        });
         let ptr = Box::into_raw(data);
-        unsafe { uv_handle_set_data(self.handle, ptr as _) };
+        unsafe { uv_handle_set_data(handle, ptr as _) };
     }
 
     /// Retrieve the handle's data.
-    pub(crate) fn get_data(&self) -> *mut HandleData {
-        unsafe { uv_handle_get_data(self.handle) as _ }
+    pub(crate) fn get_data(handle: *mut uv_handle_t) -> *mut HandleData {
+        unsafe { uv_handle_get_data(handle) as _ }
     }
 
     /// Free the handle's data.
-    pub(crate) fn free_data(&mut self) {
-        let ptr = self.get_data();
+    pub(crate) fn free_data(handle: *mut uv_handle_t) {
+        let ptr = Handle::get_data(handle);
         std::mem::drop(unsafe { Box::from_raw(ptr) });
-        unsafe { uv_handle_set_data(self.handle, std::ptr::null_mut()) };
+        unsafe { uv_handle_set_data(handle, std::ptr::null_mut()) };
     }
+}
 
+impl From<*mut uv_handle_t> for Handle {
+    fn from(handle: *mut uv_handle_t) -> Handle {
+        Handle { handle }
+    }
+}
+
+impl Into<*mut uv_handle_t> for Handle {
+    fn into(self) -> *mut uv_handle_t {
+        self.handle
+    }
+}
+
+pub trait HandleTrait: Into<*mut uv_handle_t> {
     /// Returns non-zero if the handle is active, zero if it’s inactive. What “active” means
     /// depends on the type of handle:
     ///   * An AsyncHandle is always active and cannot be deactivated, except by closing it with
@@ -80,16 +96,16 @@ impl Handle {
     ///
     /// Rule of thumb: if a handle start() function, then it’s active from the moment that function
     /// is called. Likewise, stop() deactivates the handle again.
-    pub fn is_active(&self) -> bool {
-        unsafe { uv_is_active(self.handle) != 0 }
+    fn is_active(&self) -> bool {
+        unsafe { uv_is_active((*self).into()) != 0 }
     }
 
     /// Returns non-zero if the handle is closing or closed, zero otherwise.
     ///
     /// Note: This function should only be used between the initialization of the handle and the
     /// arrival of the close callback.
-    pub fn is_closing(&self) -> bool {
-        unsafe { uv_is_closing(self.handle) != 0 }
+    fn is_closing(&self) -> bool {
+        unsafe { uv_is_closing((*self).into()) != 0 }
     }
 
     /// Request handle to be closed. close_cb will be called asynchronously after this call. This
@@ -102,35 +118,37 @@ impl Handle {
     ///
     /// In-progress requests, like ConnectRequest or WriteRequest, are cancelled and have their
     /// callbacks called asynchronously with status=UV_ECANCELED.
-    pub fn close(&mut self, cb: Option<(impl FnMut(Handle) + 'static)>) {
+    fn close(&mut self, cb: Option<(impl FnMut(Handle) + 'static)>) {
+        let handle = (*self).into();
+
         // uv_cb is either Some(close_cb) or None
         let uv_cb = cb.as_ref().map(|_| close_cb as _);
 
         // cb is either Some(closure) or None - it is saved into data
         let cb = cb.map(|f| Box::new(f) as _);
-        let dataptr = self.get_data();
+        let dataptr = Handle::get_data(handle);
         if !dataptr.is_null() {
             unsafe { (*dataptr).close_cb = cb };
         }
 
-        unsafe { uv_close(self.handle, uv_cb) };
+        unsafe { uv_close(handle, uv_cb) };
     }
 
     /// Reference the given handle. References are idempotent, that is, if a handle is already
     /// referenced calling this function again will have no effect.
-    pub fn r#ref(&mut self) {
-        unsafe { uv_ref(self.handle) };
+    fn r#ref(&mut self) {
+        unsafe { uv_ref((*self).into()) };
     }
 
     /// Un-reference the given handle. References are idempotent, that is, if a handle is not
     /// referenced calling this function again will have no effect.
-    pub fn unref(&mut self) {
-        unsafe { uv_unref(self.handle) };
+    fn unref(&mut self) {
+        unsafe { uv_unref((*self).into()) };
     }
 
     /// Returns true if the handle referenced, zero otherwise.
-    pub fn has_ref(&self) -> bool {
-        unsafe { uv_has_ref(self.handle) != 0 }
+    fn has_ref(&self) -> bool {
+        unsafe { uv_has_ref((*self).into()) != 0 }
     }
 
     /// Gets or sets the size of the send buffer that the operating system uses for the socket.
@@ -142,9 +160,9 @@ impl Handle {
     /// Windows.
     ///
     /// Note: Linux will set double the size and return double the size of the original set value.
-    pub fn send_buffer_size(&mut self, value: i32) -> crate::Result<i32> {
+    fn send_buffer_size(&mut self, value: i32) -> crate::Result<i32> {
         let mut v = value;
-        crate::uvret(unsafe { uv_send_buffer_size(self.handle, &mut v as _) })?;
+        crate::uvret(unsafe { uv_send_buffer_size((*self).into(), &mut v as _) })?;
         Ok(v)
     }
 
@@ -157,25 +175,21 @@ impl Handle {
     /// Windows.
     ///
     /// Note: Linux will set double the size and return double the size of the original set value.
-    pub fn recv_buffer_size(&mut self, value: i32) -> crate::Result<i32> {
+    fn recv_buffer_size(&mut self, value: i32) -> crate::Result<i32> {
         let mut v = value;
-        crate::uvret(unsafe { uv_recv_buffer_size(self.handle, &mut v as _) })?;
+        crate::uvret(unsafe { uv_recv_buffer_size((*self).into(), &mut v as _) })?;
         Ok(v)
     }
 
     /// Returns the Loop associated with this handle.
-    pub fn get_loop(&self) -> crate::Loop {
-        unsafe { uv_handle_get_loop(self.handle).into() }
+    fn get_loop(&self) -> crate::Loop {
+        unsafe { uv_handle_get_loop((*self).into()).into() }
     }
 
     /// Returns the type of the handle.
-    pub fn get_type(&self) -> HandleType {
-        unsafe { uv_handle_get_type(self.handle).into() }
+    fn get_type(&self) -> HandleType {
+        unsafe { uv_handle_get_type((*self).into()).into() }
     }
 }
 
-impl From<*mut uv_handle_t> for Handle {
-    fn from(handle: *mut uv_handle_t) -> Handle {
-        Handle { handle }
-    }
-}
+impl HandleTrait for Handle {}
