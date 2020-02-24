@@ -33,6 +33,12 @@ pub use check::*;
 pub mod idle;
 pub use idle::*;
 
+pub mod r#async;
+pub use r#async::*;
+
+pub mod signal;
+pub use signal::*;
+
 pub type Result<T> = std::result::Result<T, error::Error>;
 
 #[inline]
