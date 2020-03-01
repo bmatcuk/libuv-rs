@@ -1,7 +1,9 @@
 include!("./req_types.inc.rs");
 
 use std::ffi::CStr;
-use uv::{uv_req_t, uv_cancel, uv_req_get_data, uv_req_set_data, uv_req_get_type, uv_req_type_name};
+use uv::{
+    uv_cancel, uv_req_get_data, uv_req_get_type, uv_req_set_data, uv_req_t, uv_req_type_name,
+};
 
 impl ReqType {
     /// Returns the name of the request type.
@@ -26,6 +28,39 @@ pub struct Req {
 }
 
 impl Req {
+    /// Initialize the request's data.
+    pub(crate) fn initialize_data(req: *mut uv_req_t, data: crate::ReqData) {
+        let data = Box::new(data);
+        let ptr = Box::into_raw(data);
+        unsafe { uv_req_set_data(req, ptr as _) }
+    }
+
+    /// Retrieve the request's data.
+    pub(crate) fn get_data(req: *mut uv_req_t) -> *mut crate::ReqData {
+        unsafe { uv_req_get_data(req) as _ }
+    }
+
+    /// Free the request's data.
+    pub(crate) fn free_data(req: *mut uv_req_t) {
+        let ptr = Req::get_data(req);
+        std::mem::drop(unsafe { Box::from_raw(ptr) });
+        unsafe { uv_req_set_data(req, std::ptr::null_mut()) };
+    }
+}
+
+impl From<*mut uv_req_t> for Req {
+    fn from(req: *mut uv_req_t) -> Req {
+        Req { req }
+    }
+}
+
+impl Into<*mut uv_req_t> for Req {
+    fn into(self) -> *mut uv_req_t {
+        self.req
+    }
+}
+
+pub trait ReqTrait: Into<*mut uv_req_t> {
     /// Cancel a pending request. Fails if the request is executing or has finished executing.
     ///
     /// Only cancellation of FsReq, GetAddrInfoReq, GetNameInfoReq and WorkReq requests is
@@ -38,18 +73,14 @@ impl Req {
     ///   * A FsReq request has its req->result field set to UV_ECANCELED.
     ///   * A WorkReq, GetAddrInfoReq or GetNameInfoReq request has its callback invoked with
     ///     status == UV_ECANCELED.
-    pub fn cancel(&mut self) -> crate::Result<()> {
-        crate::uvret(unsafe { uv_cancel(self.req) })
+    fn cancel(&mut self) -> crate::Result<()> {
+        crate::uvret(unsafe { uv_cancel((*self).into()) })
     }
 
     /// Returns the type of the request.
-    pub fn get_type(&self) -> ReqType {
-        unsafe { uv_req_get_type(self.req).into() }
+    fn get_type(&self) -> ReqType {
+        unsafe { uv_req_get_type((*self).into()).into() }
     }
 }
 
-impl From<*mut uv_req_t> for Req {
-    fn from(req: *mut uv_req_t) -> Req {
-        Req { req }
-    }
-}
+impl ReqTrait for Req {}
