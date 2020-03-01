@@ -49,7 +49,6 @@ extern "C" fn signal_cb(handle: *mut uv_signal_t, signum: std::os::raw::c_int) {
 ///     and is strongly discouraged. Future versions of libuv may simply reject them.
 pub struct SignalHandle {
     handle: *mut uv_signal_t,
-    should_drop: bool,
 }
 
 impl SignalHandle {
@@ -69,10 +68,7 @@ impl SignalHandle {
 
         crate::Handle::initialize_data(uv_handle!(handle), crate::SignalData(Default::default()));
 
-        Ok(SignalHandle {
-            handle,
-            should_drop: true,
-        })
+        Ok(SignalHandle { handle })
     }
 
     /// Start the handle with the given callback, watching for the given signal.
@@ -126,10 +122,7 @@ impl SignalHandle {
 
 impl From<*mut uv_signal_t> for SignalHandle {
     fn from(handle: *mut uv_signal_t) -> SignalHandle {
-        SignalHandle {
-            handle,
-            should_drop: false,
-        }
+        SignalHandle { handle }
     }
 }
 
@@ -146,20 +139,6 @@ impl Into<*mut uv::uv_handle_t> for SignalHandle {
 }
 
 impl crate::HandleTrait for SignalHandle {}
-
-impl Drop for SignalHandle {
-    fn drop(&mut self) {
-        if self.should_drop {
-            if !self.handle.is_null() {
-                crate::Handle::free_data(uv_handle!(self.handle));
-
-                let layout = std::alloc::Layout::new::<uv_signal_t>();
-                unsafe { std::alloc::dealloc(self.handle as _, layout) };
-            }
-            self.handle = std::ptr::null_mut();
-        }
-    }
-}
 
 impl crate::Loop {
     /// Create and initialize a new signal handle

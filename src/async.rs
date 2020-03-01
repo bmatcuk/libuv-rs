@@ -24,7 +24,6 @@ extern "C" fn async_cb(handle: *mut uv_async_t) {
 /// thread.
 pub struct AsyncHandle {
     handle: *mut uv_async_t,
-    should_drop: bool,
 }
 
 impl AsyncHandle {
@@ -54,10 +53,7 @@ impl AsyncHandle {
             return Err(crate::Error::from(ret as uv::uv_errno_t));
         }
 
-        Ok(AsyncHandle {
-            handle,
-            should_drop: true,
-        })
+        Ok(AsyncHandle { handle })
     }
 
     /// Wake up the event loop and call the async handle’s callback.
@@ -79,10 +75,7 @@ impl AsyncHandle {
 
 impl From<*mut uv_async_t> for AsyncHandle {
     fn from(handle: *mut uv_async_t) -> AsyncHandle {
-        AsyncHandle {
-            handle,
-            should_drop: false,
-        }
+        AsyncHandle { handle }
     }
 }
 
@@ -99,20 +92,6 @@ impl Into<*mut uv::uv_handle_t> for AsyncHandle {
 }
 
 impl crate::HandleTrait for AsyncHandle {}
-
-impl Drop for AsyncHandle {
-    fn drop(&mut self) {
-        if self.should_drop {
-            if !self.handle.is_null() {
-                crate::Handle::free_data(uv_handle!(self.handle));
-
-                let layout = std::alloc::Layout::new::<uv_async_t>();
-                unsafe { std::alloc::dealloc(self.handle as _, layout) };
-            }
-            self.handle = std::ptr::null_mut();
-        }
-    }
-}
 
 impl crate::Loop {
     /// Create and initialize a new async handle

@@ -1,4 +1,7 @@
 #[macro_use]
+extern crate bitflags;
+
+#[macro_use]
 extern crate libuv_sys2 as uv;
 
 pub mod error;
@@ -38,6 +41,9 @@ pub use r#async::*;
 
 pub mod signal;
 pub use signal::*;
+
+pub mod process;
+pub use process::*;
 
 pub type Result<T> = std::result::Result<T, error::Error>;
 

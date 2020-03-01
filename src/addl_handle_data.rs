@@ -6,4 +6,5 @@ pub(crate) enum AddlHandleData {
     IdleData(crate::IdleDataFields),
     AsyncData(crate::AsyncDataFields),
     SignalData(crate::SignalDataFields),
+    ProcessData(crate::ProcessDataFields),
 }

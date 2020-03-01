@@ -26,7 +26,6 @@ extern "C" fn timer_cb(handle: *mut uv_timer_t) {
 /// Timer handles are used to schedule callbacks to be called in the future.
 pub struct TimerHandle {
     handle: *mut uv_timer_t,
-    should_drop: bool,
 }
 
 impl TimerHandle {
@@ -46,10 +45,7 @@ impl TimerHandle {
 
         crate::Handle::initialize_data(uv_handle!(handle), crate::TimerData(Default::default()));
 
-        Ok(TimerHandle {
-            handle,
-            should_drop: true,
-        })
+        Ok(TimerHandle { handle })
     }
 
     /// Start the timer. timeout and repeat are in milliseconds.
@@ -117,10 +113,7 @@ impl TimerHandle {
 
 impl From<*mut uv_timer_t> for TimerHandle {
     fn from(handle: *mut uv_timer_t) -> TimerHandle {
-        TimerHandle {
-            handle,
-            should_drop: false,
-        }
+        TimerHandle { handle }
     }
 }
 
@@ -137,20 +130,6 @@ impl Into<*mut uv::uv_handle_t> for TimerHandle {
 }
 
 impl crate::HandleTrait for TimerHandle {}
-
-impl Drop for TimerHandle {
-    fn drop(&mut self) {
-        if self.should_drop {
-            if !self.handle.is_null() {
-                crate::Handle::free_data(uv_handle!(self.handle));
-
-                let layout = std::alloc::Layout::new::<uv_timer_t>();
-                unsafe { std::alloc::dealloc(self.handle as _, layout) };
-            }
-            self.handle = std::ptr::null_mut();
-        }
-    }
-}
 
 impl crate::Loop {
     /// Create and initialize a new timer handle

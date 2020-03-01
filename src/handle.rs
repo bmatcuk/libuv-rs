@@ -1,5 +1,6 @@
 include!("./handle_types.inc.rs");
 
+use std::alloc::Layout;
 use std::ffi::CStr;
 use uv::{
     uv_close, uv_handle_get_data, uv_handle_get_loop, uv_handle_get_type, uv_handle_set_data,
@@ -24,6 +25,30 @@ impl std::fmt::Display for HandleType {
     }
 }
 
+impl Into<Option<Layout>> for HandleType {
+    fn into(self) -> Option<Layout> {
+        match self {
+            HandleType::ASYNC => Some(Layout::new::<uv::uv_async_t>()),
+            HandleType::CHECK => Some(Layout::new::<uv::uv_check_t>()),
+            HandleType::FS_EVENT => Some(Layout::new::<uv::uv_fs_event_t>()),
+            HandleType::FS_POLL => Some(Layout::new::<uv::uv_fs_poll_t>()),
+            HandleType::HANDLE => Some(Layout::new::<uv::uv_handle_t>()),
+            HandleType::IDLE => Some(Layout::new::<uv::uv_idle_t>()),
+            HandleType::NAMED_PIPE => Some(Layout::new::<uv::uv_pipe_t>()),
+            HandleType::POLL => Some(Layout::new::<uv::uv_poll_t>()),
+            HandleType::PREPARE => Some(Layout::new::<uv::uv_prepare_t>()),
+            HandleType::PROCESS => Some(Layout::new::<uv::uv_process_t>()),
+            HandleType::SIGNAL => Some(Layout::new::<uv::uv_signal_t>()),
+            HandleType::STREAM => Some(Layout::new::<uv::uv_stream_t>()),
+            HandleType::TCP => Some(Layout::new::<uv::uv_tcp_t>()),
+            HandleType::TIMER => Some(Layout::new::<uv::uv_timer_t>()),
+            HandleType::TTY => Some(Layout::new::<uv::uv_tty_t>()),
+            HandleType::UDP => Some(Layout::new::<uv::uv_udp_t>()),
+            _ => None
+        }
+    }
+}
+
 /// Data that we need to track with the handle.
 pub(crate) struct HandleData {
     close_cb: Option<Box<dyn FnMut(crate::Handle)>>,
@@ -32,13 +57,22 @@ pub(crate) struct HandleData {
 
 /// Callback for uv_close
 extern "C" fn close_cb(handle: *mut uv_handle_t) {
+    let handle_obj: Handle = handle.into();
     let dataptr = Handle::get_data(handle);
     if !dataptr.is_null() {
         unsafe {
             if let Some(f) = (*dataptr).close_cb.as_mut() {
-                f(handle.into());
+                f(handle_obj);
             }
         }
+    }
+
+    // free memory
+    Handle::free_data(handle);
+
+    let layout: Option<Layout> = handle_obj.get_type().into();
+    if let Some(layout) = layout {
+        unsafe { std::alloc::dealloc(handle as _, layout) };
     }
 }
 
@@ -121,9 +155,6 @@ pub trait HandleTrait: Into<*mut uv_handle_t> {
     fn close(&mut self, cb: Option<(impl FnMut(Handle) + 'static)>) {
         let handle = (*self).into();
 
-        // uv_cb is either Some(close_cb) or None
-        let uv_cb = cb.as_ref().map(|_| close_cb as _);
-
         // cb is either Some(closure) or None - it is saved into data
         let cb = cb.map(|f| Box::new(f) as _);
         let dataptr = Handle::get_data(handle);
@@ -131,7 +162,7 @@ pub trait HandleTrait: Into<*mut uv_handle_t> {
             unsafe { (*dataptr).close_cb = cb };
         }
 
-        unsafe { uv_close(handle, uv_cb) };
+        unsafe { uv_close(handle, Some(close_cb)) };
     }
 
     /// Reference the given handle. References are idempotent, that is, if a handle is already

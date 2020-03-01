@@ -24,7 +24,6 @@ extern "C" fn prepare_cb(handle: *mut uv_prepare_t) {
 /// i/o.
 pub struct PrepareHandle {
     handle: *mut uv_prepare_t,
-    should_drop: bool,
 }
 
 impl PrepareHandle {
@@ -44,10 +43,7 @@ impl PrepareHandle {
 
         crate::Handle::initialize_data(uv_handle!(handle), crate::PrepareData(Default::default()));
 
-        Ok(PrepareHandle {
-            handle,
-            should_drop: true,
-        })
+        Ok(PrepareHandle { handle })
     }
 
     /// Start the handle with the given callback.
@@ -75,10 +71,7 @@ impl PrepareHandle {
 
 impl From<*mut uv_prepare_t> for PrepareHandle {
     fn from(handle: *mut uv_prepare_t) -> PrepareHandle {
-        PrepareHandle {
-            handle,
-            should_drop: false,
-        }
+        PrepareHandle { handle }
     }
 }
 
@@ -95,20 +88,6 @@ impl Into<*mut uv::uv_handle_t> for PrepareHandle {
 }
 
 impl crate::HandleTrait for PrepareHandle {}
-
-impl Drop for PrepareHandle {
-    fn drop(&mut self) {
-        if self.should_drop {
-            if !self.handle.is_null() {
-                crate::Handle::free_data(uv_handle!(self.handle));
-
-                let layout = std::alloc::Layout::new::<uv_prepare_t>();
-                unsafe { std::alloc::dealloc(self.handle as _, layout) };
-            }
-            self.handle = std::ptr::null_mut();
-        }
-    }
-}
 
 impl crate::Loop {
     /// Create and initialize a new prepare handle

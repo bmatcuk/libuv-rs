@@ -23,7 +23,6 @@ extern "C" fn check_cb(handle: *mut uv_check_t) {
 /// Check handles will run the given callback once per loop iteration, right after polling for i/o.
 pub struct CheckHandle {
     handle: *mut uv_check_t,
-    should_drop: bool,
 }
 
 impl CheckHandle {
@@ -43,10 +42,7 @@ impl CheckHandle {
 
         crate::Handle::initialize_data(uv_handle!(handle), crate::CheckData(Default::default()));
 
-        Ok(CheckHandle {
-            handle,
-            should_drop: true,
-        })
+        Ok(CheckHandle { handle })
     }
 
     /// Start the handle with the given callback.
@@ -74,10 +70,7 @@ impl CheckHandle {
 
 impl From<*mut uv_check_t> for CheckHandle {
     fn from(handle: *mut uv_check_t) -> CheckHandle {
-        CheckHandle {
-            handle,
-            should_drop: false,
-        }
+        CheckHandle { handle }
     }
 }
 
@@ -94,20 +87,6 @@ impl Into<*mut uv::uv_handle_t> for CheckHandle {
 }
 
 impl crate::HandleTrait for CheckHandle {}
-
-impl Drop for CheckHandle {
-    fn drop(&mut self) {
-        if self.should_drop {
-            if !self.handle.is_null() {
-                crate::Handle::free_data(uv_handle!(self.handle));
-
-                let layout = std::alloc::Layout::new::<uv_check_t>();
-                unsafe { std::alloc::dealloc(self.handle as _, layout) };
-            }
-            self.handle = std::ptr::null_mut();
-        }
-    }
-}
 
 impl crate::Loop {
     /// Create and initialize a new check handle

@@ -30,7 +30,6 @@ extern "C" fn idle_cb(handle: *mut uv_idle_t) {
 /// iteration, not when the loop is actually “idle”.
 pub struct IdleHandle {
     handle: *mut uv_idle_t,
-    should_drop: bool,
 }
 
 impl IdleHandle {
@@ -50,10 +49,7 @@ impl IdleHandle {
 
         crate::Handle::initialize_data(uv_handle!(handle), crate::IdleData(Default::default()));
 
-        Ok(IdleHandle {
-            handle,
-            should_drop: true,
-        })
+        Ok(IdleHandle { handle })
     }
 
     /// Start the handle with the given callback.
@@ -81,10 +77,7 @@ impl IdleHandle {
 
 impl From<*mut uv_idle_t> for IdleHandle {
     fn from(handle: *mut uv_idle_t) -> IdleHandle {
-        IdleHandle {
-            handle,
-            should_drop: false,
-        }
+        IdleHandle { handle }
     }
 }
 
@@ -101,20 +94,6 @@ impl Into<*mut uv::uv_handle_t> for IdleHandle {
 }
 
 impl crate::HandleTrait for IdleHandle {}
-
-impl Drop for IdleHandle {
-    fn drop(&mut self) {
-        if self.should_drop {
-            if !self.handle.is_null() {
-                crate::Handle::free_data(uv_handle!(self.handle));
-
-                let layout = std::alloc::Layout::new::<uv_idle_t>();
-                unsafe { std::alloc::dealloc(self.handle as _, layout) };
-            }
-            self.handle = std::ptr::null_mut();
-        }
-    }
-}
 
 impl crate::Loop {
     /// Create and initialize a new idle handle
