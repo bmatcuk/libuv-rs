@@ -7,7 +7,7 @@ pub(crate) struct IdleDataFields {
 }
 
 /// Callback for uv_idle_start
-extern "C" fn idle_cb(handle: *mut uv_idle_t) {
+extern "C" fn uv_idle_cb(handle: *mut uv_idle_t) {
     let dataptr = crate::Handle::get_data(uv_handle!(handle));
     if !dataptr.is_null() {
         unsafe {
@@ -54,8 +54,8 @@ impl IdleHandle {
 
     /// Start the handle with the given callback.
     pub fn start(&mut self, cb: Option<impl FnMut(IdleHandle) + 'static>) -> crate::Result<()> {
-        // uv_cb is either Some(idle_cb) or None
-        let uv_cb = cb.as_ref().map(|_| idle_cb as _);
+        // uv_cb is either Some(uv_idle_cb) or None
+        let uv_cb = cb.as_ref().map(|_| uv_idle_cb as _);
 
         // cb is either Some(closure) or None - it is saved into data
         let cb = cb.map(|f| Box::new(f) as _);

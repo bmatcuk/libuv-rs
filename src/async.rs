@@ -7,7 +7,7 @@ pub(crate) struct AsyncDataFields {
 }
 
 /// Callback for uv_async_init
-extern "C" fn async_cb(handle: *mut uv_async_t) {
+extern "C" fn uv_async_cb(handle: *mut uv_async_t) {
     let dataptr = crate::Handle::get_data(uv_handle!(handle));
     if !dataptr.is_null() {
         unsafe {
@@ -38,8 +38,8 @@ impl AsyncHandle {
             return Err(crate::Error::ENOMEM);
         }
 
-        // uv_cb is either Some(async_cb) or None
-        let uv_cb = cb.as_ref().map(|_| async_cb as _);
+        // uv_cb is either Some(uv_async_cb) or None
+        let uv_cb = cb.as_ref().map(|_| uv_async_cb as _);
 
         // async_cb is either Some(closure) or None - it is saved into data
         let async_cb = cb.map(|f| Box::new(f) as _);

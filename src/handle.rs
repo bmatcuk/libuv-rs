@@ -56,7 +56,7 @@ pub(crate) struct HandleData {
 }
 
 /// Callback for uv_close
-extern "C" fn close_cb(handle: *mut uv_handle_t) {
+extern "C" fn uv_close_cb(handle: *mut uv_handle_t) {
     let handle_obj: Handle = handle.into();
     let dataptr = Handle::get_data(handle);
     if !dataptr.is_null() {
@@ -162,7 +162,7 @@ pub trait HandleTrait: Into<*mut uv_handle_t> {
             unsafe { (*dataptr).close_cb = cb };
         }
 
-        unsafe { uv_close(handle, Some(close_cb)) };
+        unsafe { uv_close(handle, Some(uv_close_cb)) };
     }
 
     /// Reference the given handle. References are idempotent, that is, if a handle is already

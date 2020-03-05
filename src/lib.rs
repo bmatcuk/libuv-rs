@@ -28,6 +28,9 @@ use req_data::ReqData::*;
 pub mod req;
 pub use req::*;
 
+pub mod buf;
+pub use buf::*;
+
 pub mod timer;
 pub use timer::*;
 

@@ -7,7 +7,7 @@ pub(crate) struct SignalDataFields {
 }
 
 /// Callback for uv_signal_start
-extern "C" fn signal_cb(handle: *mut uv_signal_t, signum: std::os::raw::c_int) {
+extern "C" fn uv_signal_cb(handle: *mut uv_signal_t, signum: std::os::raw::c_int) {
     let dataptr = crate::Handle::get_data(uv_handle!(handle));
     if !dataptr.is_null() {
         unsafe {
@@ -77,8 +77,8 @@ impl SignalHandle {
         cb: Option<impl FnMut(SignalHandle, i32) + 'static>,
         signum: i32,
     ) -> crate::Result<()> {
-        // uv_cb is either Some(signal_cb) or None
-        let uv_cb = cb.as_ref().map(|_| signal_cb as _);
+        // uv_cb is either Some(uv_signal_cb) or None
+        let uv_cb = cb.as_ref().map(|_| uv_signal_cb as _);
 
         // cb is either Some(closure) or None - it is saved into data
         let cb = cb.map(|f| Box::new(f) as _);
@@ -99,8 +99,8 @@ impl SignalHandle {
         cb: Option<impl FnMut(SignalHandle, i32) + 'static>,
         signum: i32,
     ) -> crate::Result<()> {
-        // uv_cb is either Some(signal_cb) or None
-        let uv_cb = cb.as_ref().map(|_| signal_cb as _);
+        // uv_cb is either Some(uv_signal_cb) or None
+        let uv_cb = cb.as_ref().map(|_| uv_signal_cb as _);
 
         // cb is either Some(closure) or None - it is saved into data
         let cb = cb.map(|f| Box::new(f) as _);

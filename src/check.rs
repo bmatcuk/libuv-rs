@@ -7,7 +7,7 @@ pub(crate) struct CheckDataFields {
 }
 
 /// Callback for uv_check_start
-extern "C" fn check_cb(handle: *mut uv_check_t) {
+extern "C" fn uv_check_cb(handle: *mut uv_check_t) {
     let dataptr = crate::Handle::get_data(uv_handle!(handle));
     if !dataptr.is_null() {
         unsafe {
@@ -47,8 +47,8 @@ impl CheckHandle {
 
     /// Start the handle with the given callback.
     pub fn start(&mut self, cb: Option<impl FnMut(CheckHandle) + 'static>) -> crate::Result<()> {
-        // uv_cb is either Some(check_cb) or None
-        let uv_cb = cb.as_ref().map(|_| check_cb as _);
+        // uv_cb is either Some(uv_check_cb) or None
+        let uv_cb = cb.as_ref().map(|_| uv_check_cb as _);
 
         // cb is either Some(closure) or None - it is saved into data
         let cb = cb.map(|f| Box::new(f) as _);

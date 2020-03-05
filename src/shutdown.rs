@@ -7,7 +7,7 @@ pub(crate) struct ShutdownDataFields {
 }
 
 /// Callback for uv_shutdown
-pub(crate) extern "C" fn shutdown_cb(req: *mut uv_shutdown_t, status: std::os::raw::c_int) {
+pub(crate) extern "C" fn uv_shutdown_cb(req: *mut uv_shutdown_t, status: std::os::raw::c_int) {
     let dataptr = crate::Req::get_data(uv_handle!(req));
     if !dataptr.is_null() {
         unsafe {

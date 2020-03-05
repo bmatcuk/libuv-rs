@@ -12,7 +12,7 @@ pub(crate) struct ProcessDataFields {
 }
 
 /// Callback for uv_process_options_t.exit_cb
-extern "C" fn exit_cb(
+extern "C" fn uv_exit_cb(
     handle: *mut uv_process_t,
     exit_status: i64,
     term_signal: std::os::raw::c_int,
@@ -239,7 +239,7 @@ impl ProcessHandle {
             .collect::<Vec<uv_stdio_container_t>>();
 
         let options = uv_process_options_t {
-            exit_cb: options.exit_cb.map(|_| exit_cb as _),
+            exit_cb: options.exit_cb.map(|_| uv_exit_cb as _),
             file: file.as_ptr(),
             args: args.as_mut_ptr(),
             env: env.map_or(std::ptr::null_mut(), |e| e.as_mut_ptr()),

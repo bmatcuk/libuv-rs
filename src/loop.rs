@@ -41,7 +41,7 @@ pub(crate) struct LoopData {
 }
 
 /// Callback for uv_walk
-extern "C" fn walk_cb(handle: *mut uv_handle_t, _: *mut ::std::os::raw::c_void) {
+extern "C" fn uv_walk_cb(handle: *mut uv_handle_t, _: *mut ::std::os::raw::c_void) {
     let handle: crate::Handle = handle.into();
     let r#loop = handle.get_loop();
     let dataptr = r#loop.get_data();
@@ -207,7 +207,7 @@ impl Loop {
             unsafe { (*dataptr).walk_cb = Some(cb) };
         }
 
-        unsafe { uv_walk(self.handle, Some(walk_cb), std::ptr::null_mut()) };
+        unsafe { uv_walk(self.handle, Some(uv_walk_cb), std::ptr::null_mut()) };
     }
 
     /// Reinitialize any kernel state necessary in the child process after a fork(2) system call.

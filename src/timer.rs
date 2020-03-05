@@ -10,7 +10,7 @@ pub(crate) struct TimerDataFields {
 }
 
 /// Callback for uv_timer_start
-extern "C" fn timer_cb(handle: *mut uv_timer_t) {
+extern "C" fn uv_timer_cb(handle: *mut uv_timer_t) {
     let dataptr = crate::Handle::get_data(uv_handle!(handle));
     if !dataptr.is_null() {
         unsafe {
@@ -64,8 +64,8 @@ impl TimerHandle {
         timeout: u64,
         repeat: u64,
     ) -> crate::Result<()> {
-        // uv_cb is either Some(timer_cb) or None
-        let uv_cb = cb.as_ref().map(|_| timer_cb as _);
+        // uv_cb is either Some(uv_timer_cb) or None
+        let uv_cb = cb.as_ref().map(|_| uv_timer_cb as _);
 
         // cb is either Some(closure) or None - it is saved into data
         let cb = cb.map(|f| Box::new(f) as _);
