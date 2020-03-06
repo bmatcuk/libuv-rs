@@ -19,6 +19,7 @@ impl std::error::Error for EmptyBufError {
 }
 
 /// Readonly buffer data type.
+#[derive(Clone)]
 pub struct ReadonlyBuf {
     buf: *const uv_buf_t
 }
@@ -36,6 +37,7 @@ impl Into<*const uv_buf_t> for ReadonlyBuf {
 }
 
 /// Buffer data type.
+#[derive(Clone)]
 pub struct Buf {
     buf: *mut uv_buf_t
 }

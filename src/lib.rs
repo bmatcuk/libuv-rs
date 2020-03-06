@@ -55,6 +55,9 @@ pub use process::*;
 pub mod shutdown;
 pub use shutdown::*;
 
+pub mod write;
+pub use write::*;
+
 pub mod addl_stream_data;
 use addl_stream_data::*;
 use addl_stream_data::AddlStreamData::*;

@@ -103,9 +103,9 @@ pub trait StreamTrait: Into<*mut uv_stream_t> {
     /// shutdown is complete at which point the returned ShutdownReq is automatically destroy()'d.
     fn shutdown(
         &mut self,
-        cb: Option<impl FnMut(crate::ShutdownReq, i32)>,
+        cb: Option<impl FnMut(crate::ShutdownReq, i32) + 'static>,
     ) -> crate::Result<crate::ShutdownReq> {
-        let req = crate::ShutdownReq::new()?;
+        let req = crate::ShutdownReq::new(cb)?;
         let result = crate::uvret(unsafe {
             uv_shutdown(req.into(), (*self).into(), Some(crate::uv_shutdown_cb))
         });
@@ -170,6 +170,121 @@ pub trait StreamTrait: Into<*mut uv_stream_t> {
 
         crate::uvret(unsafe { uv_read_start((*self).into(), uv_alloc_cb, uv_read_cb) })
     }
+
+    /// Stop reading data from the stream. The uv_read_cb callback will no longer be called.
+    ///
+    /// This function is idempotent and may be safely called on a stopped stream.
+    fn read_stop(&mut self) -> crate::Result<()> {
+        crate::uvret(unsafe { uv_read_stop((*self).into()) })
+    }
+
+    /// Write data to stream. Buffers are written in order.
+    ///
+    /// Note: The memory pointed to by the buffers must remain valid until the callback gets
+    /// called.
+    fn write(
+        &mut self,
+        bufs: &[impl crate::BufTrait],
+        cb: Option<impl FnMut(crate::WriteReq, i32) + 'static>,
+    ) -> crate::Result<crate::WriteReq> {
+        let req = crate::WriteReq::new(bufs, cb)?;
+        let result = crate::uvret(unsafe {
+            uv_write(
+                req.into(),
+                (*self).into(),
+                req.bufs_ptr,
+                bufs.len() as _,
+                Some(crate::uv_write_cb),
+            )
+        });
+        if result.is_err() {
+            req.destroy();
+        }
+        result.map(|_| req)
+    }
+
+    /// Extended write function for sending handles over a pipe. The pipe must be initialized with
+    /// ipc == 1.
+    ///
+    /// Note: send_handle must be a TCP socket or pipe, which is a server or a connection
+    /// (listening or connected state). Bound sockets or pipes will be assumed to be servers.
+    ///
+    /// Note: The memory pointed to by the buffers must remain valid until the callback gets
+    /// called.
+    fn write2(
+        &mut self,
+        send_handle: &StreamHandle,
+        bufs: &[impl crate::BufTrait],
+        cb: Option<impl FnMut(crate::WriteReq, i32) + 'static>,
+    ) -> crate::Result<crate::WriteReq> {
+        let req = crate::WriteReq::new(bufs, cb)?;
+        let result = crate::uvret(unsafe {
+            uv_write2(
+                req.into(),
+                (*self).into(),
+                req.bufs_ptr,
+                bufs.len() as _,
+                (*send_handle).into(),
+                Some(crate::uv_write_cb),
+            )
+        });
+        if result.is_err() {
+            req.destroy();
+        }
+        result.map(|_| req)
+    }
+
+    /// Same as write(), but won’t queue a write request if it can’t be completed immediately.
+    ///
+    /// Will return number of bytes written (can be less than the supplied buffer size).
+    fn try_write(&mut self, bufs: &[impl crate::BufTrait]) -> crate::Result<i32> {
+        let bufs: Vec<uv::uv_buf_t> = bufs.iter().map(|b| (*(*b).into()).clone()).collect();
+        let bufs_ptr = bufs.as_mut_ptr();
+        let bufs_len = bufs.len();
+        let bufs_capacity = bufs.capacity();
+        let result = unsafe { uv_try_write((*self).into(), bufs_ptr, bufs_len as _) };
+
+        std::mem::drop(Vec::from_raw_parts(bufs_ptr, bufs_len, bufs_capacity));
+
+        crate::uvret(result).map(|_| result as _)
+    }
+
+    /// Returns true if the stream is readable, false otherwise.
+    fn is_readable(&self) -> bool {
+        unsafe { uv_is_readable((*self).into()) != 0 }
+    }
+
+    /// Returns true if the stream is writable, false otherwise.
+    fn is_writable(&self) -> bool {
+        unsafe { uv_is_writable((*self).into()) != 0 }
+    }
+
+    /// Enable or disable blocking mode for a stream.
+    ///
+    /// When blocking mode is enabled all writes complete synchronously. The interface remains
+    /// unchanged otherwise, e.g. completion or failure of the operation will still be reported
+    /// through a callback which is made asynchronously.
+    ///
+    /// Warning: Relying too much on this API is not recommended. It is likely to change
+    /// significantly in the future.
+    ///
+    /// Currently only works on Windows for PipeHandles. On UNIX platforms, all Stream handles are
+    /// supported.
+    ///
+    /// Also libuv currently makes no ordering guarantee when the blocking mode is changed after
+    /// write requests have already been submitted. Therefore it is recommended to set the blocking
+    /// mode immediately after opening or creating the stream.
+    fn set_blocking(&mut self, blocking: bool) -> crate::Result<()> {
+        crate::uvret(unsafe {
+            uv_stream_set_blocking((*self).into(), if blocking { 1 } else { 0 })
+        })
+    }
+
+    /// Returns the size of the write queue.
+    fn get_write_queue_size(&self) -> usize {
+        unsafe { uv_stream_get_write_queue_size((*self).into()) }
+    }
 }
 
 impl StreamTrait for StreamHandle {}
+impl crate::HandleTrait for StreamHandle {}

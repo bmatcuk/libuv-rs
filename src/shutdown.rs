@@ -1,7 +1,6 @@
 use uv::uv_shutdown_t;
 
 /// Additional data stored on the request
-#[derive(Default)]
 pub(crate) struct ShutdownDataFields {
     shutdown_cb: Option<Box<dyn FnMut(ShutdownReq, i32)>>,
 }
@@ -31,14 +30,18 @@ pub struct ShutdownReq {
 
 impl ShutdownReq {
     /// Create a new shutdown request
-    pub fn new() -> crate::Result<ShutdownReq> {
+    pub fn new(cb: Option<impl FnMut(ShutdownReq, i32) + 'static>) -> crate::Result<ShutdownReq> {
         let layout = std::alloc::Layout::new::<uv_shutdown_t>();
         let req = unsafe { std::alloc::alloc(layout) as *mut uv_shutdown_t };
         if req.is_null() {
             return Err(crate::Error::ENOMEM);
         }
 
-        crate::Req::initialize_data(uv_handle!(req), crate::ShutdownData(Default::default()));
+        let shutdown_cb = cb.map(|f| Box::new(f) as _);
+        crate::Req::initialize_data(
+            uv_handle!(req),
+            crate::ShutdownData(ShutdownDataFields { shutdown_cb }),
+        );
 
         Ok(ShutdownReq { req })
     }
