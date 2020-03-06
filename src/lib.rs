@@ -65,6 +65,9 @@ use addl_stream_data::AddlStreamData::*;
 pub mod stream;
 pub use stream::*;
 
+pub mod tcp;
+pub use tcp::*;
+
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[inline]
