@@ -1,3 +1,4 @@
+use crate::{FromInner, IntoInner};
 use uv::uv_shutdown_t;
 
 /// Additional data stored on the request
@@ -12,14 +13,14 @@ pub(crate) extern "C" fn uv_shutdown_cb(req: *mut uv_shutdown_t, status: std::os
         unsafe {
             if let crate::ShutdownData(d) = *dataptr {
                 if let Some(f) = d.shutdown_cb.as_mut() {
-                    f(req.into(), status as _);
+                    f(req.into_inner(), status as _);
                 }
             }
         }
     }
 
     // free memory
-    let req = ShutdownReq::from(req);
+    let req = ShutdownReq::from_inner(req);
     req.destroy();
 }
 
@@ -55,20 +56,20 @@ impl ShutdownReq {
     }
 }
 
-impl From<*mut uv_shutdown_t> for ShutdownReq {
-    fn from(req: *mut uv_shutdown_t) -> ShutdownReq {
+impl FromInner<*mut uv_shutdown_t> for ShutdownReq {
+    fn from_inner(req: *mut uv_shutdown_t) -> ShutdownReq {
         ShutdownReq { req }
     }
 }
 
-impl Into<*mut uv_shutdown_t> for ShutdownReq {
-    fn into(self) -> *mut uv_shutdown_t {
+impl IntoInner<*mut uv_shutdown_t> for ShutdownReq {
+    fn into_inner(self) -> *mut uv_shutdown_t {
         self.req
     }
 }
 
-impl Into<*mut uv::uv_req_t> for ShutdownReq {
-    fn into(self) -> *mut uv::uv_req_t {
+impl IntoInner<*mut uv::uv_req_t> for ShutdownReq {
+    fn into_inner(self) -> *mut uv::uv_req_t {
         uv_handle!(self.req)
     }
 }

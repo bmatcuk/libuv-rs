@@ -1,3 +1,4 @@
+use crate::{FromInner, IntoInner};
 use uv::uv_write_t;
 
 // Additional data stored on the request
@@ -15,14 +16,14 @@ pub(crate) extern "C" fn uv_write_cb(req: *mut uv_write_t, status: std::os::raw:
         unsafe {
             if let crate::WriteData(d) = *dataptr {
                 if let Some(f) = d.write_cb.as_mut() {
-                    f(req.into(), status as _);
+                    f(req.into_inner(), status as _);
                 }
             }
         }
     }
 
     // free memory
-    let req = WriteReq::from(req);
+    let req = WriteReq::from_inner(req);
     req.destroy();
 }
 
@@ -40,7 +41,10 @@ pub struct WriteReq {
 
 impl WriteReq {
     /// Create a new write request
-    pub fn new(bufs: &[impl crate::BufTrait], cb: Option<impl FnMut(WriteReq, i32) + 'static>) -> crate::Result<WriteReq> {
+    pub fn new(
+        bufs: &[impl crate::BufTrait],
+        cb: Option<impl FnMut(WriteReq, i32) + 'static>,
+    ) -> crate::Result<WriteReq> {
         let layout = std::alloc::Layout::new::<uv_write_t>();
         let req = unsafe { std::alloc::alloc(layout) as *mut uv_write_t };
         if req.is_null() {
@@ -50,7 +54,7 @@ impl WriteReq {
         // Buf/ReadonlyBuf objects contain pointers to uv_buf_t objects on the heap.
         // uv_write/uv_write2 expect an array of uv_buf_t objects, *not* an array of pointers. So,
         // we need to create a Vec of copies of the data from the dereferenced pointers.
-        let bufs: Vec<uv::uv_buf_t> = bufs.iter().map(|b| (*(*b).into()).clone()).collect();
+        let bufs: Vec<uv::uv_buf_t> = bufs.iter().map(|b| (*(*b).into_inner()).clone()).collect();
         let bufs_ptr = bufs.as_mut_ptr();
         let bufs_len = bufs.len();
         let bufs_capacity = bufs.capacity();
@@ -61,7 +65,7 @@ impl WriteReq {
                 bufs_ptr,
                 bufs_len,
                 bufs_capacity,
-                write_cb
+                write_cb,
             }),
         );
 
@@ -88,20 +92,23 @@ impl WriteReq {
     }
 }
 
-impl From<*mut uv_write_t> for WriteReq {
-    fn from(req: *mut uv_write_t) -> WriteReq {
-        WriteReq { req, bufs_ptr: std::ptr::null() }
+impl FromInner<*mut uv_write_t> for WriteReq {
+    fn from_inner(req: *mut uv_write_t) -> WriteReq {
+        WriteReq {
+            req,
+            bufs_ptr: std::ptr::null(),
+        }
     }
 }
 
-impl Into<*mut uv_write_t> for WriteReq {
-    fn into(self) -> *mut uv_write_t {
+impl IntoInner<*mut uv_write_t> for WriteReq {
+    fn into_inner(self) -> *mut uv_write_t {
         self.req
     }
 }
 
-impl Into<*mut uv::uv_req_t> for WriteReq {
-    fn into(self) -> *mut uv::uv_req_t {
+impl IntoInner<*mut uv::uv_req_t> for WriteReq {
+    fn into_inner(self) -> *mut uv::uv_req_t {
         uv_handle!(self.req)
     }
 }

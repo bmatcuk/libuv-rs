@@ -1,3 +1,4 @@
+use crate::{FromInner, IntoInner};
 use std::ffi::CString;
 use uv::uv_stdio_container_s__bindgen_ty_1 as uv_stdio_container_data;
 use uv::{
@@ -22,7 +23,7 @@ extern "C" fn uv_exit_cb(
         unsafe {
             if let crate::ProcessData(d) = &mut (*dataptr).addl {
                 if let Some(f) = d.exit_cb.as_mut() {
-                    f(handle.into(), exit_status, term_signal as _);
+                    f(handle.into_inner(), exit_status, term_signal as _);
                 }
             }
         }
@@ -88,8 +89,8 @@ pub enum StdioType {
     Fd(i32),
 }
 
-impl Into<uv_stdio_container_data> for StdioType {
-    fn into(self) -> uv_stdio_container_data {
+impl IntoInner<uv_stdio_container_data> for StdioType {
+    fn into_inner(self) -> uv_stdio_container_data {
         match self {
             StdioType::Stream(s) => uv_stdio_container_data { stream: s.into() },
             StdioType::Fd(fd) => uv_stdio_container_data { fd },
@@ -234,7 +235,7 @@ impl ProcessHandle {
             .iter()
             .map(|stdio| uv_stdio_container_t {
                 flags: stdio.flags.bits(),
-                data: stdio.data.into(),
+                data: stdio.data.into_inner(),
             })
             .collect::<Vec<uv_stdio_container_t>>();
 
@@ -251,9 +252,10 @@ impl ProcessHandle {
             gid: options.gid,
         };
 
-        let result =
-            crate::uvret(unsafe { uv_spawn(r#loop.into(), self.handle, &options as *const _) })
-                .map_err(|e| Box::new(e) as _);
+        let result = crate::uvret(unsafe {
+            uv_spawn(r#loop.into_inner(), self.handle, &options as *const _)
+        })
+        .map_err(|e| Box::new(e) as _);
 
         // reclaim data so it'll be freed - I'm pretty sure it's safe to free options here. Under
         // the hood, libuv is calling fork and execvp. The fork should copy the address space into
@@ -296,20 +298,20 @@ impl ProcessHandle {
     }
 }
 
-impl From<*mut uv_process_t> for ProcessHandle {
-    fn from(handle: *mut uv_process_t) -> ProcessHandle {
+impl FromInner<*mut uv_process_t> for ProcessHandle {
+    fn from_inner(handle: *mut uv_process_t) -> ProcessHandle {
         ProcessHandle { handle }
     }
 }
 
 impl From<ProcessHandle> for crate::Handle {
     fn from(process: ProcessHandle) -> crate::Handle {
-        (process.handle as *mut uv::uv_handle_t).into()
+        (process.handle as *mut uv::uv_handle_t).into_inner()
     }
 }
 
-impl Into<*mut uv::uv_handle_t> for ProcessHandle {
-    fn into(self) -> *mut uv::uv_handle_t {
+impl IntoInner<*mut uv::uv_handle_t> for ProcessHandle {
+    fn into_inner(self) -> *mut uv::uv_handle_t {
         uv_handle!(self.handle)
     }
 }

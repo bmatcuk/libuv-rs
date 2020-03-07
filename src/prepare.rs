@@ -1,3 +1,4 @@
+use crate::{FromInner, IntoInner};
 use uv::{uv_prepare_init, uv_prepare_start, uv_prepare_stop, uv_prepare_t};
 
 /// Additional data stored on the handle
@@ -13,7 +14,7 @@ extern "C" fn uv_prepare_cb(handle: *mut uv_prepare_t) {
         unsafe {
             if let crate::PrepareData(d) = &mut (*dataptr).addl {
                 if let Some(f) = d.prepare_cb.as_mut() {
-                    f(handle.into());
+                    f(handle.into_inner());
                 }
             }
         }
@@ -35,7 +36,7 @@ impl PrepareHandle {
             return Err(crate::Error::ENOMEM);
         }
 
-        let ret = unsafe { uv_prepare_init(r#loop.into(), handle) };
+        let ret = unsafe { uv_prepare_init(r#loop.into_inner(), handle) };
         if ret < 0 {
             unsafe { std::alloc::dealloc(handle as _, layout) };
             return Err(crate::Error::from(ret as uv::uv_errno_t));
@@ -69,20 +70,20 @@ impl PrepareHandle {
     }
 }
 
-impl From<*mut uv_prepare_t> for PrepareHandle {
-    fn from(handle: *mut uv_prepare_t) -> PrepareHandle {
+impl FromInner<*mut uv_prepare_t> for PrepareHandle {
+    fn from_inner(handle: *mut uv_prepare_t) -> PrepareHandle {
         PrepareHandle { handle }
     }
 }
 
 impl From<PrepareHandle> for crate::Handle {
     fn from(prepare: PrepareHandle) -> crate::Handle {
-        (prepare.handle as *mut uv::uv_handle_t).into()
+        (prepare.handle as *mut uv::uv_handle_t).into_inner()
     }
 }
 
-impl Into<*mut uv::uv_handle_t> for PrepareHandle {
-    fn into(self) -> *mut uv::uv_handle_t {
+impl IntoInner<*mut uv::uv_handle_t> for PrepareHandle {
+    fn into_inner(self) -> *mut uv::uv_handle_t {
         uv_handle!(self.handle)
     }
 }

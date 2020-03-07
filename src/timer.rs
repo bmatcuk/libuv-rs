@@ -1,3 +1,4 @@
+use crate::{FromInner, IntoInner};
 use uv::{
     uv_timer_again, uv_timer_get_repeat, uv_timer_init, uv_timer_set_repeat, uv_timer_start,
     uv_timer_stop, uv_timer_t,
@@ -16,7 +17,7 @@ extern "C" fn uv_timer_cb(handle: *mut uv_timer_t) {
         unsafe {
             if let crate::TimerData(d) = &mut (*dataptr).addl {
                 if let Some(f) = d.timer_cb.as_mut() {
-                    f(handle.into());
+                    f(handle.into_inner());
                 }
             }
         }
@@ -37,7 +38,7 @@ impl TimerHandle {
             return Err(crate::Error::ENOMEM);
         }
 
-        let ret = unsafe { uv_timer_init(r#loop.into(), handle) };
+        let ret = unsafe { uv_timer_init(r#loop.into_inner(), handle) };
         if ret < 0 {
             unsafe { std::alloc::dealloc(handle as _, layout) };
             return Err(crate::Error::from(ret as uv::uv_errno_t));
@@ -111,20 +112,20 @@ impl TimerHandle {
     }
 }
 
-impl From<*mut uv_timer_t> for TimerHandle {
-    fn from(handle: *mut uv_timer_t) -> TimerHandle {
+impl FromInner<*mut uv_timer_t> for TimerHandle {
+    fn from_inner(handle: *mut uv_timer_t) -> TimerHandle {
         TimerHandle { handle }
     }
 }
 
 impl From<TimerHandle> for crate::Handle {
     fn from(timer: TimerHandle) -> crate::Handle {
-        (timer.handle as *mut uv::uv_handle_t).into()
+        (timer.handle as *mut uv::uv_handle_t).into_inner()
     }
 }
 
-impl Into<*mut uv::uv_handle_t> for TimerHandle {
-    fn into(self) -> *mut uv::uv_handle_t {
+impl IntoInner<*mut uv::uv_handle_t> for TimerHandle {
+    fn into_inner(self) -> *mut uv::uv_handle_t {
         uv_handle!(self.handle)
     }
 }

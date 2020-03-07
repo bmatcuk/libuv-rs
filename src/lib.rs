@@ -4,6 +4,9 @@ extern crate bitflags;
 #[macro_use]
 extern crate libuv_sys2 as uv;
 
+mod inner;
+use inner::*;
+
 pub mod error;
 pub use error::*;
 pub use error::Error::*;

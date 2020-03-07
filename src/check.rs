@@ -1,3 +1,4 @@
+use crate::{FromInner, IntoInner};
 use uv::{uv_check_init, uv_check_start, uv_check_stop, uv_check_t};
 
 /// Additional data stored on the handle
@@ -13,7 +14,7 @@ extern "C" fn uv_check_cb(handle: *mut uv_check_t) {
         unsafe {
             if let crate::CheckData(d) = &mut (*dataptr).addl {
                 if let Some(f) = d.check_cb.as_mut() {
-                    f(handle.into());
+                    f(handle.into_inner());
                 }
             }
         }
@@ -68,8 +69,8 @@ impl CheckHandle {
     }
 }
 
-impl From<*mut uv_check_t> for CheckHandle {
-    fn from(handle: *mut uv_check_t) -> CheckHandle {
+impl FromInner<*mut uv_check_t> for CheckHandle {
+    fn from_inner(handle: *mut uv_check_t) -> CheckHandle {
         CheckHandle { handle }
     }
 }
@@ -80,8 +81,8 @@ impl From<CheckHandle> for crate::Handle {
     }
 }
 
-impl Into<*mut uv::uv_handle_t> for CheckHandle {
-    fn into(self) -> *mut uv::uv_handle_t {
+impl IntoInner<*mut uv::uv_handle_t> for CheckHandle {
+    fn into_inner(self) -> *mut uv::uv_handle_t {
         uv_handle!(self.handle)
     }
 }

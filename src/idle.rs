@@ -1,3 +1,4 @@
+use crate::{FromInner, IntoInner};
 use uv::{uv_idle_init, uv_idle_start, uv_idle_stop, uv_idle_t};
 
 /// Additional data stored on the handle
@@ -13,7 +14,7 @@ extern "C" fn uv_idle_cb(handle: *mut uv_idle_t) {
         unsafe {
             if let crate::IdleData(d) = &mut (*dataptr).addl {
                 if let Some(f) = d.idle_cb.as_mut() {
-                    f(handle.into())
+                    f(handle.into_inner())
                 }
             }
         }
@@ -75,20 +76,20 @@ impl IdleHandle {
     }
 }
 
-impl From<*mut uv_idle_t> for IdleHandle {
-    fn from(handle: *mut uv_idle_t) -> IdleHandle {
+impl FromInner<*mut uv_idle_t> for IdleHandle {
+    fn from_inner(handle: *mut uv_idle_t) -> IdleHandle {
         IdleHandle { handle }
     }
 }
 
 impl From<IdleHandle> for crate::Handle {
     fn from(idle: IdleHandle) -> crate::Handle {
-        (idle.handle as *mut uv::uv_handle_t).into()
+        (idle.handle as *mut uv::uv_handle_t).into_inner()
     }
 }
 
-impl Into<*mut uv::uv_handle_t> for IdleHandle {
-    fn into(self) -> *mut uv::uv_handle_t {
+impl IntoInner<*mut uv::uv_handle_t> for IdleHandle {
+    fn into_inner(self) -> *mut uv::uv_handle_t {
         uv_handle!(self.handle)
     }
 }

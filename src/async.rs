@@ -1,3 +1,4 @@
+use crate::{FromInner, IntoInner};
 use uv::{uv_async_init, uv_async_send, uv_async_t};
 
 /// Additional data stored on the handle
@@ -13,7 +14,7 @@ extern "C" fn uv_async_cb(handle: *mut uv_async_t) {
         unsafe {
             if let crate::AsyncData(d) = &mut (*dataptr).addl {
                 if let Some(f) = d.async_cb.as_mut() {
-                    f(handle.into());
+                    f(handle.into_inner());
                 }
             }
         }
@@ -73,8 +74,8 @@ impl AsyncHandle {
     }
 }
 
-impl From<*mut uv_async_t> for AsyncHandle {
-    fn from(handle: *mut uv_async_t) -> AsyncHandle {
+impl FromInner<*mut uv_async_t> for AsyncHandle {
+    fn from_inner(handle: *mut uv_async_t) -> AsyncHandle {
         AsyncHandle { handle }
     }
 }
@@ -85,8 +86,8 @@ impl From<AsyncHandle> for crate::Handle {
     }
 }
 
-impl Into<*mut uv::uv_handle_t> for AsyncHandle {
-    fn into(self) -> *mut uv::uv_handle_t {
+impl IntoInner<*mut uv::uv_handle_t> for AsyncHandle {
+    fn into_inner(self) -> *mut uv::uv_handle_t {
         uv_handle!(self.handle)
     }
 }

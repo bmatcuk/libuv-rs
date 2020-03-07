@@ -1,9 +1,10 @@
+use crate::{FromInner, HandleTrait, IntoInner};
 use uv::{
-    uv_backend_timeout, uv_default_loop, uv_handle_t, uv_loop_alive, uv_loop_close, uv_loop_delete,
-    uv_loop_fork, uv_loop_get_data, uv_loop_init, uv_loop_new, uv_loop_set_data, uv_loop_t, uv_now,
-    uv_run, uv_run_mode, uv_run_mode_UV_RUN_DEFAULT, uv_run_mode_UV_RUN_NOWAIT,
-    uv_run_mode_UV_RUN_ONCE, uv_stop, uv_update_time, uv_walk, uv_loop_configure,
-    uv_loop_option_UV_LOOP_BLOCK_SIGNAL, uv_backend_fd,
+    uv_backend_fd, uv_backend_timeout, uv_default_loop, uv_handle_t, uv_loop_alive, uv_loop_close,
+    uv_loop_configure, uv_loop_delete, uv_loop_fork, uv_loop_get_data, uv_loop_init, uv_loop_new,
+    uv_loop_option_UV_LOOP_BLOCK_SIGNAL, uv_loop_set_data, uv_loop_t, uv_now, uv_run, uv_run_mode,
+    uv_run_mode_UV_RUN_DEFAULT, uv_run_mode_UV_RUN_NOWAIT, uv_run_mode_UV_RUN_ONCE, uv_stop,
+    uv_update_time, uv_walk,
 };
 
 /// Mode used to run the loop.
@@ -24,8 +25,8 @@ pub enum RunMode {
     NoWait,
 }
 
-impl Into<uv_run_mode> for RunMode {
-    fn into(self) -> uv_run_mode {
+impl IntoInner<uv_run_mode> for RunMode {
+    fn into_inner(self) -> uv_run_mode {
         match self {
             RunMode::Default => uv_run_mode_UV_RUN_DEFAULT,
             RunMode::Once => uv_run_mode_UV_RUN_ONCE,
@@ -42,7 +43,7 @@ pub(crate) struct LoopData {
 
 /// Callback for uv_walk
 extern "C" fn uv_walk_cb(handle: *mut uv_handle_t, _: *mut ::std::os::raw::c_void) {
-    let handle: crate::Handle = handle.into();
+    let handle: crate::Handle = handle.into_inner();
     let r#loop = handle.get_loop();
     let dataptr = r#loop.get_data();
     if !dataptr.is_null() {
@@ -134,7 +135,9 @@ impl Loop {
     /// This operation is currently only implemented for SIGPROF signals, to suppress unnecessary
     /// wakeups when using a sampling profiler. Requesting other signals will fail with UV_EINVAL.
     pub fn block_signal(&mut self, signum: i32) -> crate::Result<()> {
-        crate::uvret(unsafe { uv_loop_configure(self.handle, uv_loop_option_UV_LOOP_BLOCK_SIGNAL, signum) })
+        crate::uvret(unsafe {
+            uv_loop_configure(self.handle, uv_loop_option_UV_LOOP_BLOCK_SIGNAL, signum)
+        })
     }
 
     /// Releases all internal loop resources. Call this function only when the loop has finished
@@ -148,7 +151,7 @@ impl Loop {
     /// This function runs the event loop. It will act differently depending on the specified mode.
     /// run() is not reentrant. It must not be called from a callback.
     pub fn run(&mut self, mode: RunMode) -> crate::Result<()> {
-        crate::uvret(unsafe { uv_run(self.handle, mode.into()) })
+        crate::uvret(unsafe { uv_run(self.handle, mode.into_inner()) })
     }
 
     /// Returns true if there are referenced active handles, active requests or closing handles in
@@ -244,14 +247,17 @@ impl Loop {
     }
 }
 
-impl From<*mut uv_loop_t> for Loop {
-    fn from(handle: *mut uv_loop_t) -> Loop {
-        Loop { handle, should_drop: false }
+impl FromInner<*mut uv_loop_t> for Loop {
+    fn from_inner(handle: *mut uv_loop_t) -> Loop {
+        Loop {
+            handle,
+            should_drop: false,
+        }
     }
 }
 
-impl Into<*mut uv_loop_t> for &Loop {
-    fn into(self) -> *mut uv_loop_t {
+impl IntoInner<*mut uv_loop_t> for &Loop {
+    fn into_inner(self) -> *mut uv_loop_t {
         self.handle
     }
 }

@@ -1,8 +1,9 @@
+use crate::{FromInner, IntoInner};
 use std::net::SocketAddr;
 use uv::{
-    uv_tcp_bind, uv_tcp_close_reset, uv_tcp_connect, uv_tcp_getpeername, uv_tcp_getsockname,
-    uv_tcp_init, uv_tcp_keepalive, uv_tcp_nodelay, uv_tcp_simultaneous_accepts, uv_tcp_t,
-    uv_ip4_addr, uv_ip6_addr,
+    uv_ip4_addr, uv_ip6_addr, uv_tcp_bind, uv_tcp_close_reset, uv_tcp_connect, uv_tcp_getpeername,
+    uv_tcp_getsockname, uv_tcp_init, uv_tcp_keepalive, uv_tcp_nodelay, uv_tcp_simultaneous_accepts,
+    uv_tcp_t,
 };
 
 /// Additional data to store on the stream
@@ -30,7 +31,7 @@ impl TcpHandle {
             return Err(crate::Error::ENOMEM);
         }
 
-        let ret = unsafe { uv_tcp_init(r#loop.into(), handle) };
+        let ret = unsafe { uv_tcp_init(r#loop.into_inner(), handle) };
         if ret < 0 {
             unsafe { std::alloc::dealloc(handle as _, layout) };
             return Err(crate::Error::from(ret as _));
@@ -79,7 +80,12 @@ impl TcpHandle {
     ///
     /// flags can contain IPV6ONLY, in which case dual-stack support is disabled and only IPv6 is
     /// used.
-    pub fn bind4(&mut self, addr: &str, port: i32, flags: TcpBindFlags) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn bind4(
+        &mut self,
+        addr: &str,
+        port: i32,
+        flags: TcpBindFlags,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         // convert addr to a CString for null-termination
         let addr = std::ffi::CString::new(addr)?;
 
@@ -88,7 +94,8 @@ impl TcpHandle {
         crate::uvret(unsafe { uv_ip4_addr(addr.as_ptr(), port, &mut sockaddr as _) })?;
 
         // call bind
-        self.bind(&sockaddr as *const uv::sockaddr_in as _, flags).map_err(|e| Box::new(e) as _)
+        self.bind(uv_handle!(&sockaddr), flags)
+            .map_err(|e| Box::new(e) as _)
     }
 
     /// Bind the handle to an address and port. addr should be an IPv6 address. See bind4().
@@ -99,7 +106,12 @@ impl TcpHandle {
     ///
     /// flags can contain IPV6ONLY, in which case dual-stack support is disabled and only IPv6 is
     /// used.
-    pub fn bind6(&mut self, addr: &str, port: i32, flags: TcpBindFlags) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn bind6(
+        &mut self,
+        addr: &str,
+        port: i32,
+        flags: TcpBindFlags,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         // convert addr to a CString for null-termination
         let addr = std::ffi::CString::new(addr)?;
 
@@ -108,35 +120,49 @@ impl TcpHandle {
         crate::uvret(unsafe { uv_ip6_addr(addr.as_ptr(), port, &mut sockaddr as _) })?;
 
         // call bind
-        self.bind(&sockaddr as *const uv::sockaddr_in6 as _, flags).map_err(|e| Box::new(e) as _)
+        self.bind(uv_handle!(&sockaddr), flags)
+            .map_err(|e| Box::new(e) as _)
     }
 
     /// Private function to actually call uv_tcp_bind
     fn bind(&mut self, addr: *const uv::sockaddr, flags: TcpBindFlags) -> crate::Result<()> {
         crate::uvret(unsafe { uv_tcp_bind(self.handle, addr, flags.bits()) })
     }
+
+    fn getsockname(&self) -> crate::Result<SocketAddr> {
+        let mut sockaddr: uv::sockaddr_storage = std::mem::zeroed();
+        let mut sockaddr_len: std::os::raw::c_int =
+            std::mem::size_of::<uv::sockaddr_storage>() as _;
+        crate::uvret(unsafe {
+            uv_tcp_getsockname(
+                self.handle,
+                uv_handle!(&mut sockaddr),
+                &mut sockaddr_len as _,
+            )
+        })?;
+    }
 }
 
-impl From<*mut uv_tcp_t> for TcpHandle {
-    fn from(handle: *mut uv_tcp_t) -> TcpHandle {
+impl FromInner<*mut uv_tcp_t> for TcpHandle {
+    fn from_inner(handle: *mut uv_tcp_t) -> TcpHandle {
         TcpHandle { handle }
     }
 }
 
-impl Into<*mut uv_tcp_t> for TcpHandle {
-    fn into(self) -> *mut uv_tcp_t {
+impl IntoInner<*mut uv_tcp_t> for TcpHandle {
+    fn into_inner(self) -> *mut uv_tcp_t {
         return self.handle;
     }
 }
 
-impl Into<*mut uv::uv_stream_t> for TcpHandle {
-    fn into(self) -> *mut uv::uv_stream_t {
+impl IntoInner<*mut uv::uv_stream_t> for TcpHandle {
+    fn into_inner(self) -> *mut uv::uv_stream_t {
         uv_handle!(self.handle)
     }
 }
 
-impl Into<*mut uv::uv_handle_t> for TcpHandle {
-    fn into(self) -> *mut uv::uv_handle_t {
+impl IntoInner<*mut uv::uv_handle_t> for TcpHandle {
+    fn into_inner(self) -> *mut uv::uv_handle_t {
         uv_handle!(self.handle)
     }
 }

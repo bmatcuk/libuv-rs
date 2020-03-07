@@ -1,3 +1,4 @@
+use crate::{FromInner, IntoInner};
 use uv::{uv_signal_init, uv_signal_start, uv_signal_start_oneshot, uv_signal_stop, uv_signal_t};
 
 /// Additional data stored on the handle
@@ -13,7 +14,7 @@ extern "C" fn uv_signal_cb(handle: *mut uv_signal_t, signum: std::os::raw::c_int
         unsafe {
             if let crate::SignalData(d) = &mut (*dataptr).addl {
                 if let Some(f) = d.signal_cb.as_mut() {
-                    f(handle.into(), signum as _);
+                    f(handle.into_inner(), signum as _);
                 }
             }
         }
@@ -60,7 +61,7 @@ impl SignalHandle {
             return Err(crate::Error::ENOMEM);
         }
 
-        let ret = unsafe { uv_signal_init(r#loop.into(), handle) };
+        let ret = unsafe { uv_signal_init(r#loop.into_inner(), handle) };
         if ret < 0 {
             unsafe { std::alloc::dealloc(handle as _, layout) };
             return Err(crate::Error::from(ret as uv::uv_errno_t));
@@ -120,20 +121,20 @@ impl SignalHandle {
     }
 }
 
-impl From<*mut uv_signal_t> for SignalHandle {
-    fn from(handle: *mut uv_signal_t) -> SignalHandle {
+impl FromInner<*mut uv_signal_t> for SignalHandle {
+    fn from_inner(handle: *mut uv_signal_t) -> SignalHandle {
         SignalHandle { handle }
     }
 }
 
 impl From<SignalHandle> for crate::Handle {
     fn from(signal: SignalHandle) -> crate::Handle {
-        (signal.handle as *mut uv::uv_handle_t).into()
+        (signal.handle as *mut uv::uv_handle_t).into_inner()
     }
 }
 
-impl Into<*mut uv::uv_handle_t> for SignalHandle {
-    fn into(self) -> *mut uv::uv_handle_t {
+impl IntoInner<*mut uv::uv_handle_t> for SignalHandle {
+    fn into_inner(self) -> *mut uv::uv_handle_t {
         uv_handle!(self.handle)
     }
 }

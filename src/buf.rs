@@ -1,6 +1,7 @@
+use crate::{FromInner, IntoInner};
 use std::borrow::Cow;
 use std::ffi::{CStr, CString, NulError};
-use uv::{uv_buf_t, uv_buf_init};
+use uv::{uv_buf_init, uv_buf_t};
 
 /// When trying to convert an empty Buf to a string.
 #[derive(Debug)]
@@ -21,17 +22,17 @@ impl std::error::Error for EmptyBufError {
 /// Readonly buffer data type.
 #[derive(Clone)]
 pub struct ReadonlyBuf {
-    buf: *const uv_buf_t
+    buf: *const uv_buf_t,
 }
 
-impl From<*const uv_buf_t> for ReadonlyBuf {
-    fn from(buf: *const uv_buf_t) -> ReadonlyBuf {
+impl FromInner<*const uv_buf_t> for ReadonlyBuf {
+    fn from_inner(buf: *const uv_buf_t) -> ReadonlyBuf {
         ReadonlyBuf { buf }
     }
 }
 
-impl Into<*const uv_buf_t> for ReadonlyBuf {
-    fn into(self) -> *const uv_buf_t {
+impl IntoInner<*const uv_buf_t> for ReadonlyBuf {
+    fn into_inner(self) -> *const uv_buf_t {
         self.buf
     }
 }
@@ -39,7 +40,7 @@ impl Into<*const uv_buf_t> for ReadonlyBuf {
 /// Buffer data type.
 #[derive(Clone)]
 pub struct Buf {
-    buf: *mut uv_buf_t
+    buf: *mut uv_buf_t,
 }
 
 impl Buf {
@@ -47,7 +48,7 @@ impl Buf {
     pub fn new(s: &str) -> Result<Buf, NulError> {
         let s = CString::new(s)?;
         let buf = Box::new(unsafe { uv_buf_init(s.into_raw(), s.as_bytes().len() as _) });
-        Ok(Box::into_raw(buf).into())
+        Ok(Box::into_raw(buf).into_inner())
     }
 
     /// Deallocate the string inside the Buf, but leave the Buf intact.
@@ -66,20 +67,20 @@ impl Buf {
     }
 }
 
-impl From<*mut uv_buf_t> for Buf {
-    fn from(buf: *mut uv_buf_t) -> Buf {
+impl FromInner<*mut uv_buf_t> for Buf {
+    fn from_inner(buf: *mut uv_buf_t) -> Buf {
         Buf { buf }
     }
 }
 
-impl Into<*mut uv_buf_t> for Buf {
-    fn into(self) -> *mut uv_buf_t {
+impl IntoInner<*mut uv_buf_t> for Buf {
+    fn into_inner(self) -> *mut uv_buf_t {
         self.buf
     }
 }
 
-impl Into<*const uv_buf_t> for Buf {
-    fn into(self) -> *const uv_buf_t {
+impl IntoInner<*const uv_buf_t> for Buf {
+    fn into_inner(self) -> *const uv_buf_t {
         self.buf
     }
 }
@@ -98,10 +99,10 @@ impl std::convert::TryFrom<&str> for Buf {
     }
 }
 
-pub trait BufTrait: Into<*const uv_buf_t> {
+pub trait BufTrait: IntoInner<*const uv_buf_t> {
     /// Convert the Buf to a CStr. Returns an error if the Buf is empty.
     fn as_c_str(&self) -> Result<&'_ CStr, EmptyBufError> {
-        let ptr: *const uv_buf_t = (*self).into();
+        let ptr: *const uv_buf_t = (*self).into_inner();
         if (*ptr).base.is_null() {
             Err(EmptyBufError)
         } else {
