@@ -52,12 +52,12 @@ impl IntoInner<Option<Layout>> for HandleType {
 
 /// Data that we need to track with the handle.
 pub(crate) struct HandleData {
-    close_cb: Option<Box<dyn FnMut(crate::Handle)>>,
+    pub(crate) close_cb: Option<Box<dyn FnMut(crate::Handle)>>,
     pub(crate) addl: crate::AddlHandleData,
 }
 
 /// Callback for uv_close
-extern "C" fn uv_close_cb(handle: *mut uv_handle_t) {
+pub(crate) extern "C" fn uv_close_cb(handle: *mut uv_handle_t) {
     let handle_obj: Handle = handle.into_inner();
     let dataptr = Handle::get_data(handle);
     if !dataptr.is_null() {

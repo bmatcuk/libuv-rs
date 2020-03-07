@@ -16,4 +16,5 @@ maintenance = { status = "actively-developed" }
 
 [dependencies]
 bitflags = "~1.2.1"
+libc = "~0"
 libuv-sys2 = "~1.34.0"

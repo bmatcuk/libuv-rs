@@ -55,6 +55,9 @@ pub use signal::*;
 pub mod process;
 pub use process::*;
 
+pub mod connect;
+pub use connect::*;
+
 pub mod shutdown;
 pub use shutdown::*;
 
