@@ -35,10 +35,10 @@ impl CheckHandle {
             return Err(crate::Error::ENOMEM);
         }
 
-        let ret = unsafe { uv_check_init(r#loop.into(), handle) };
+        let ret = unsafe { uv_check_init(r#loop.into_inner(), handle) };
         if ret < 0 {
             unsafe { std::alloc::dealloc(handle as _, layout) };
-            return Err(crate::Error::from(ret as uv::uv_errno_t));
+            return Err(crate::Error::from_inner(ret as uv::uv_errno_t));
         }
 
         crate::Handle::initialize_data(uv_handle!(handle), crate::CheckData(Default::default()));
@@ -77,7 +77,7 @@ impl FromInner<*mut uv_check_t> for CheckHandle {
 
 impl From<CheckHandle> for crate::Handle {
     fn from(check: CheckHandle) -> crate::Handle {
-        (check.handle as *mut uv::uv_handle_t).into()
+        (check.handle as *mut uv::uv_handle_t).into_inner()
     }
 }
 

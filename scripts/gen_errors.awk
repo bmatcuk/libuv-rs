@@ -16,8 +16,8 @@ END {
     print indent errors[i] ",";
   print "}\n";
 
-  print "impl From<uv::uv_errno_t> for Error {";
-  print indent "fn from(code: uv::uv_errno_t) -> Error {";
+  print "impl crate::FromInner<uv::uv_errno_t> for Error {";
+  print indent "fn from_inner(code: uv::uv_errno_t) -> Error {";
   print indent indent "match code {";
   for (i = 1; i <= nerrors; i++)
     print indent indent indent "uv::uv_errno_t_UV_" errors[i] " => Error::" errors[i] ",";

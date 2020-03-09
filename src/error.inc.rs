@@ -84,8 +84,8 @@ pub enum Error {
     UNKNOWN,
 }
 
-impl From<uv::uv_errno_t> for Error {
-    fn from(code: uv::uv_errno_t) -> Error {
+impl crate::FromInner<uv::uv_errno_t> for Error {
+    fn from_inner(code: uv::uv_errno_t) -> Error {
         match code {
             uv::uv_errno_t_UV_E2BIG => Error::E2BIG,
             uv::uv_errno_t_UV_EACCES => Error::EACCES,

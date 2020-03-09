@@ -39,7 +39,7 @@ impl PrepareHandle {
         let ret = unsafe { uv_prepare_init(r#loop.into_inner(), handle) };
         if ret < 0 {
             unsafe { std::alloc::dealloc(handle as _, layout) };
-            return Err(crate::Error::from(ret as uv::uv_errno_t));
+            return Err(crate::Error::from_inner(ret as uv::uv_errno_t));
         }
 
         crate::Handle::initialize_data(uv_handle!(handle), crate::PrepareData(Default::default()));

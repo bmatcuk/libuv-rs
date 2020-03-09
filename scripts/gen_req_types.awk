@@ -17,8 +17,8 @@ END {
   print indent "UNKNOWN,";
   print "}\n";
 
-  print "impl From<uv::uv_req_type> for ReqType {";
-  print indent "fn from(t: uv::uv_req_type) -> ReqType {";
+  print "impl crate::FromInner<uv::uv_req_type> for ReqType {";
+  print indent "fn from_inner(t: uv::uv_req_type) -> ReqType {";
   print indent indent "match t {";
   for (i = 1; i <= ntypes; i++)
     print indent indent indent "uv::uv_req_type_UV_" types[i] " => ReqType::" types[i] ",";
@@ -27,8 +27,8 @@ END {
   print indent "}";
   print "}\n";
 
-  print "impl Into<uv::uv_req_type> for &ReqType {";
-  print indent "fn into(self) -> uv::uv_req_type {";
+  print "impl crate::IntoInner<uv::uv_req_type> for &ReqType {";
+  print indent "fn into_inner(self) -> uv::uv_req_type {";
   print indent indent "match self {";
   for (i = 1; i <= ntypes; i++)
     print indent indent indent "ReqType::" types[i] " => uv::uv_req_type_UV_" types[i] ",";

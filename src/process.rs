@@ -92,7 +92,7 @@ pub enum StdioType {
 impl IntoInner<uv_stdio_container_data> for StdioType {
     fn into_inner(self) -> uv_stdio_container_data {
         match self {
-            StdioType::Stream(s) => uv_stdio_container_data { stream: s.into() },
+            StdioType::Stream(s) => uv_stdio_container_data { stream: s.into_inner() },
             StdioType::Fd(fd) => uv_stdio_container_data { fd },
         }
     }

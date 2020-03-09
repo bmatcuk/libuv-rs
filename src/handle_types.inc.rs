@@ -21,8 +21,8 @@ pub enum HandleType {
     UNKNOWN,
 }
 
-impl From<uv::uv_handle_type> for HandleType {
-    fn from(t: uv::uv_handle_type) -> HandleType {
+impl crate::FromInner<uv::uv_handle_type> for HandleType {
+    fn from_inner(t: uv::uv_handle_type) -> HandleType {
         match t {
             uv::uv_handle_type_UV_ASYNC => HandleType::ASYNC,
             uv::uv_handle_type_UV_CHECK => HandleType::CHECK,
@@ -46,8 +46,8 @@ impl From<uv::uv_handle_type> for HandleType {
     }
 }
 
-impl Into<uv::uv_handle_type> for &HandleType {
-    fn into(self) -> uv::uv_handle_type {
+impl crate::IntoInner<uv::uv_handle_type> for &HandleType {
+    fn into_inner(self) -> uv::uv_handle_type {
         match self {
             HandleType::ASYNC => uv::uv_handle_type_UV_ASYNC,
             HandleType::CHECK => uv::uv_handle_type_UV_CHECK,

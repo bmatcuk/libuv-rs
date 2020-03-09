@@ -13,7 +13,7 @@ impl HandleType {
     /// Returns the name of the handle type.
     pub fn name(&self) -> String {
         unsafe {
-            CStr::from_ptr(uv_handle_type_name(self.into()))
+            CStr::from_ptr(uv_handle_type_name(self.into_inner()))
                 .to_string_lossy()
                 .into_owned()
         }
@@ -220,7 +220,7 @@ pub trait HandleTrait: IntoInner<*mut uv_handle_t> {
 
     /// Returns the type of the handle.
     fn get_type(&self) -> HandleType {
-        unsafe { uv_handle_get_type((*self).into_inner()).into() }
+        unsafe { uv_handle_get_type((*self).into_inner()).into_inner() }
     }
 }
 

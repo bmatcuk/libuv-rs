@@ -2,14 +2,19 @@ use crate::{FromInner, IntoInner};
 use libc::{AF_INET, AF_INET6};
 use std::net::SocketAddr;
 use uv::{
-    uv_ip4_addr, uv_ip6_addr, uv_tcp_bind, uv_tcp_close_reset, uv_tcp_connect, uv_tcp_getpeername,
-    uv_tcp_getsockname, uv_tcp_init, uv_tcp_keepalive, uv_tcp_nodelay, uv_tcp_simultaneous_accepts,
+    uv_tcp_bind, uv_tcp_close_reset, uv_tcp_connect, uv_tcp_getpeername, uv_tcp_getsockname,
+    uv_tcp_init, uv_tcp_init_ex, uv_tcp_keepalive, uv_tcp_nodelay, uv_tcp_simultaneous_accepts,
     uv_tcp_t,
 };
 
-/// Additional data to store on the stream
-#[derive(Default)]
-pub(crate) struct TcpDataFields {}
+bitflags! {
+    /// Flags to TcpHandle::new_ex()
+    pub struct TcpFlags: u32 {
+        const AF_INET = AF_INET as _;
+        const AF_INET6 = AF_INET6 as _;
+        const AF_UNSPEC = libc::AF_UNSPEC as _;
+    }
+}
 
 bitflags! {
     /// Flags to TcpHandle::bind()
@@ -19,24 +24,7 @@ bitflags! {
     }
 }
 
-/// Fill a uv::sockaddr from a SocketAddr
-fn fill_sockaddr(sockaddr: *mut uv::sockaddr, addr: &SocketAddr) {
-    match addr {
-        SocketAddr::V4(addr) => {
-            let sockaddr_in: *mut uv::sockaddr_in = sockaddr as _;
-            (*sockaddr_in).sin_family = AF_INET;
-            (*sockaddr_in).sin_port = addr.port();
-            (*sockaddr_in).sin_addr.s_addr = u32::from_ne_bytes(addr.ip().octets());
-        }
-        SocketAddr::V6(addr) => {
-            let sockaddr_in6: *mut uv::sockaddr_in6 = sockaddr as _;
-            (*sockaddr_in6).sin6_family = AF_INET6;
-            (*sockaddr_in6).sin6_port = addr.port();
-            (*sockaddr_in6).sin6_addr.__u6_addr.__u6_addr8 = addr.ip().octets();
-        }
-    }
-}
-
+/// TCP handles are used to represent both TCP streams and servers.
 pub struct TcpHandle {
     handle: *mut uv_tcp_t,
 }
@@ -53,13 +41,30 @@ impl TcpHandle {
         let ret = unsafe { uv_tcp_init(r#loop.into_inner(), handle) };
         if ret < 0 {
             unsafe { std::alloc::dealloc(handle as _, layout) };
-            return Err(crate::Error::from(ret as _));
+            return Err(crate::Error::from_inner(ret as uv::uv_errno_t));
         }
 
-        crate::StreamHandle::initialize_data(
-            uv_handle!(handle),
-            crate::TcpData(Default::default()),
-        );
+        crate::StreamHandle::initialize_data(uv_handle!(handle), crate::NoAddlStreamData);
+
+        Ok(TcpHandle { handle })
+    }
+
+    /// Initialize the handle with the specified flags. A socket will be created for the given
+    /// domain. If the specified domain is AF_UNSPEC no socket is created, just like new().
+    pub fn new_ex(r#loop: &crate::Loop, flags: TcpFlags) -> crate::Result<TcpHandle> {
+        let layout = std::alloc::Layout::new::<uv_tcp_t>();
+        let handle = unsafe { std::alloc::alloc(layout) as *mut uv_tcp_t };
+        if handle.is_null() {
+            return Err(crate::Error::ENOMEM);
+        }
+
+        let ret = unsafe { uv_tcp_init_ex(r#loop.into_inner(), handle, flags.bits()) };
+        if ret < 0 {
+            unsafe { std::alloc::dealloc(handle as _, layout) };
+            return Err(crate::Error::from_inner(ret as uv::uv_errno_t));
+        }
+
+        crate::StreamHandle::initialize_data(uv_handle!(handle), crate::NoAddlStreamData);
 
         Ok(TcpHandle { handle })
     }
@@ -101,7 +106,7 @@ impl TcpHandle {
     /// used.
     pub fn bind(&mut self, addr: &SocketAddr, flags: TcpBindFlags) -> crate::Result<()> {
         let mut sockaddr: uv::sockaddr = std::mem::zeroed();
-        fill_sockaddr(&mut sockaddr, addr);
+        crate::fill_sockaddr(&mut sockaddr, addr);
         crate::uvret(unsafe { uv_tcp_bind(self.handle, &sockaddr as _, flags.bits()) })
     }
 
@@ -118,25 +123,7 @@ impl TcpHandle {
             )
         })?;
 
-        match sockaddr.ss_family {
-            AF_INET => {
-                let sockaddr_in: *const uv::sockaddr_in = uv_handle!(&sockaddr);
-                Ok((
-                    (*sockaddr_in).sin_addr.s_addr.to_ne_bytes(),
-                    (*sockaddr_in).sin_port,
-                )
-                    .into())
-            }
-            AF_INET6 => {
-                let sockaddr_in6: *const uv::sockaddr_in6 = uv_handle!(&sockaddr);
-                Ok((
-                    (*sockaddr_in6).sin6_addr.__u6_addr.__u6_addr8,
-                    (*sockaddr_in6).sin6_port,
-                )
-                    .into())
-            }
-            _ => Err(crate::Error::ENOTSUP),
-        }
+        crate::build_socketaddr(uv_handle!(&sockaddr))
     }
 
     /// Get the address of the peer connected to the handle.
@@ -152,25 +139,7 @@ impl TcpHandle {
             )
         })?;
 
-        match sockaddr.ss_family {
-            AF_INET => {
-                let sockaddr_in: *const uv::sockaddr_in = uv_handle!(&sockaddr);
-                Ok((
-                    (*sockaddr_in).sin_addr.s_addr.to_ne_bytes(),
-                    (*sockaddr_in).sin_port,
-                )
-                    .into())
-            }
-            AF_INET6 => {
-                let sockaddr_in6: *const uv::sockaddr_in6 = uv_handle!(&sockaddr);
-                Ok((
-                    (*sockaddr_in6).sin6_addr.__u6_addr.__u6_addr8,
-                    (*sockaddr_in6).sin6_port,
-                )
-                    .into())
-            }
-            _ => Err(crate::Error::ENOTSUP),
-        }
+        crate::build_socketaddr(uv_handle!(&sockaddr))
     }
 
     /// Establish an IPv4 or IPv6 TCP connection.
@@ -187,7 +156,7 @@ impl TcpHandle {
     ) -> crate::Result<crate::ConnectReq> {
         let req = crate::ConnectReq::new(cb)?;
         let sockaddr: uv::sockaddr = std::mem::zeroed();
-        fill_sockaddr(&mut sockaddr, addr);
+        crate::fill_sockaddr(&mut sockaddr, addr);
 
         let result = crate::uvret(unsafe {
             uv_tcp_connect(

@@ -61,6 +61,9 @@ pub use connect::*;
 pub mod shutdown;
 pub use shutdown::*;
 
+pub mod udp_send;
+pub use udp_send::*;
+
 pub mod write;
 pub use write::*;
 
@@ -73,6 +76,9 @@ pub use stream::*;
 
 pub mod tcp;
 pub use tcp::*;
+
+pub mod udp;
+pub use udp::*;
 
 pub type Result<T> = std::result::Result<T, Error>;
 

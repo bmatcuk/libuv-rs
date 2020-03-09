@@ -47,11 +47,11 @@ impl AsyncHandle {
         let data = AsyncDataFields { async_cb };
         crate::Handle::initialize_data(uv_handle!(handle), crate::AsyncData(data));
 
-        let ret = unsafe { uv_async_init(r#loop.into(), handle, uv_cb) };
+        let ret = unsafe { uv_async_init(r#loop.into_inner(), handle, uv_cb) };
         if ret < 0 {
             crate::Handle::free_data(uv_handle!(handle));
             unsafe { std::alloc::dealloc(handle as _, layout) };
-            return Err(crate::Error::from(ret as uv::uv_errno_t));
+            return Err(crate::Error::from_inner(ret as uv::uv_errno_t));
         }
 
         Ok(AsyncHandle { handle })
@@ -82,7 +82,7 @@ impl FromInner<*mut uv_async_t> for AsyncHandle {
 
 impl From<AsyncHandle> for crate::Handle {
     fn from(r#async: AsyncHandle) -> crate::Handle {
-        (r#async.handle as *mut uv::uv_handle_t).into()
+        (r#async.handle as *mut uv::uv_handle_t).into_inner()
     }
 }
 

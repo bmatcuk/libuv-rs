@@ -10,7 +10,7 @@ impl ReqType {
     /// Returns the name of the request type.
     pub fn name(&self) -> String {
         unsafe {
-            CStr::from_ptr(uv_req_type_name(self.into()))
+            CStr::from_ptr(uv_req_type_name(self.into_inner()))
                 .to_string_lossy()
                 .into_owned()
         }
@@ -80,7 +80,7 @@ pub trait ReqTrait: IntoInner<*mut uv_req_t> {
 
     /// Returns the type of the request.
     fn get_type(&self) -> ReqType {
-        unsafe { uv_req_get_type((*self).into_inner()).into() }
+        unsafe { uv_req_get_type((*self).into_inner()).into_inner() }
     }
 }
 

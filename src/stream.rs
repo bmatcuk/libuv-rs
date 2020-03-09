@@ -7,13 +7,14 @@ use uv::{
 
 /// Additional data to store on the handle
 pub(crate) struct StreamDataFields {
-    alloc_cb: Option<Box<dyn FnMut(crate::Handle, usize, crate::Buf)>>,
+    pub(crate) alloc_cb: Option<Box<dyn FnMut(crate::Handle, usize, crate::Buf)>>,
     connection_cb: Option<Box<dyn FnMut(StreamHandle, i32)>>,
     read_cb: Option<Box<dyn FnMut(StreamHandle, isize, crate::ReadonlyBuf)>>,
     pub(crate) addl: crate::AddlStreamData,
 }
 
-extern "C" fn uv_alloc_cb(
+/// Callback for uv_recv_start, uv_udp_recv_start
+pub(crate) extern "C" fn uv_alloc_cb(
     handle: *mut uv::uv_handle_t,
     suggested_size: usize,
     buf: *mut uv::uv_buf_t,
@@ -28,6 +29,7 @@ extern "C" fn uv_alloc_cb(
     }
 }
 
+/// Callback for uv_listen
 extern "C" fn uv_connection_cb(stream: *mut uv_stream_t, status: std::os::raw::c_int) {
     let dataptr = StreamHandle::get_data(stream);
     if !dataptr.is_null() {
@@ -39,6 +41,7 @@ extern "C" fn uv_connection_cb(stream: *mut uv_stream_t, status: std::os::raw::c
     }
 }
 
+/// Callback for uv_read_start
 extern "C" fn uv_read_cb(stream: *mut uv_stream_t, nread: isize, buf: *const uv::uv_buf_t) {
     let dataptr = StreamHandle::get_data(stream);
     if !dataptr.is_null() {
@@ -195,7 +198,7 @@ pub trait StreamTrait: IntoInner<*mut uv_stream_t> {
         let req = crate::WriteReq::new(bufs, cb)?;
         let result = crate::uvret(unsafe {
             uv_write(
-                req.into(),
+                req.into_inner(),
                 (*self).into_inner(),
                 req.bufs_ptr,
                 bufs.len() as _,
@@ -225,7 +228,7 @@ pub trait StreamTrait: IntoInner<*mut uv_stream_t> {
         let req = crate::WriteReq::new(bufs, cb)?;
         let result = crate::uvret(unsafe {
             uv_write2(
-                req.into(),
+                req.into_inner(),
                 (*self).into_inner(),
                 req.bufs_ptr,
                 bufs.len() as _,
@@ -243,10 +246,7 @@ pub trait StreamTrait: IntoInner<*mut uv_stream_t> {
     ///
     /// Will return number of bytes written (can be less than the supplied buffer size).
     fn try_write(&mut self, bufs: &[impl crate::BufTrait]) -> crate::Result<i32> {
-        let bufs: Vec<uv::uv_buf_t> = bufs.iter().map(|b| (*(*b).into_inner()).clone()).collect();
-        let bufs_ptr = bufs.as_mut_ptr();
-        let bufs_len = bufs.len();
-        let bufs_capacity = bufs.capacity();
+        let (bufs_ptr, bufs_len, bufs_capacity) = bufs.into_inner();
         let result = unsafe { uv_try_write((*self).into_inner(), bufs_ptr, bufs_len as _) };
 
         std::mem::drop(Vec::from_raw_parts(bufs_ptr, bufs_len, bufs_capacity));

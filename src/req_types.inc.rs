@@ -14,8 +14,8 @@ pub enum ReqType {
     UNKNOWN,
 }
 
-impl From<uv::uv_req_type> for ReqType {
-    fn from(t: uv::uv_req_type) -> ReqType {
+impl crate::FromInner<uv::uv_req_type> for ReqType {
+    fn from_inner(t: uv::uv_req_type) -> ReqType {
         match t {
             uv::uv_req_type_UV_CONNECT => ReqType::CONNECT,
             uv::uv_req_type_UV_FS => ReqType::FS,
@@ -32,8 +32,8 @@ impl From<uv::uv_req_type> for ReqType {
     }
 }
 
-impl Into<uv::uv_req_type> for &ReqType {
-    fn into(self) -> uv::uv_req_type {
+impl crate::IntoInner<uv::uv_req_type> for &ReqType {
+    fn into_inner(self) -> uv::uv_req_type {
         match self {
             ReqType::CONNECT => uv::uv_req_type_UV_CONNECT,
             ReqType::FS => uv::uv_req_type_UV_FS,

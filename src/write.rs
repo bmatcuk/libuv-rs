@@ -51,13 +51,7 @@ impl WriteReq {
             return Err(crate::Error::ENOMEM);
         }
 
-        // Buf/ReadonlyBuf objects contain pointers to uv_buf_t objects on the heap.
-        // uv_write/uv_write2 expect an array of uv_buf_t objects, *not* an array of pointers. So,
-        // we need to create a Vec of copies of the data from the dereferenced pointers.
-        let bufs: Vec<uv::uv_buf_t> = bufs.iter().map(|b| (*(*b).into_inner()).clone()).collect();
-        let bufs_ptr = bufs.as_mut_ptr();
-        let bufs_len = bufs.len();
-        let bufs_capacity = bufs.capacity();
+        let (bufs_ptr, bufs_len, bufs_capacity) = bufs.into_inner();
         let write_cb = cb.map(|f| Box::new(f) as _);
         crate::Req::initialize_data(
             uv_handle!(req),
