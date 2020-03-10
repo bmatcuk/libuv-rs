@@ -131,6 +131,18 @@ impl IntoInner<*mut uv::uv_handle_t> for TtyHandle {
     }
 }
 
+impl From<TtyHandle> for crate::StreamHandle {
+    fn from(tty: TtyHandle) -> crate::StreamHandle {
+        tty.into_inner().into_inner()
+    }
+}
+
+impl From<TtyHandle> for crate::Handle {
+    fn from(tty: TtyHandle) -> crate::Handle {
+        tty.into_inner().into_inner()
+    }
+}
+
 impl crate::StreamTrait for TtyHandle {}
 impl crate::HandleTrait for TtyHandle {}
 

@@ -382,6 +382,18 @@ impl IntoInner<*mut uv::uv_handle_t> for UdpHandle {
     }
 }
 
+impl From<UdpHandle> for crate::StreamHandle {
+    fn from(udp: UdpHandle) -> crate::StreamHandle { 
+        udp.into_inner().into_inner()
+    }
+}
+
+impl From<UdpHandle> for crate::Handle {
+    fn from(udp: UdpHandle) -> crate::Handle {
+        udp.into_inner().into_inner()
+    }
+}
+
 impl crate::StreamTrait for UdpHandle {}
 impl crate::HandleTrait for UdpHandle {}
 

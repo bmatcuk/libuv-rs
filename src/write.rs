@@ -107,4 +107,10 @@ impl IntoInner<*mut uv::uv_req_t> for WriteReq {
     }
 }
 
+impl From<WriteReq> for crate::Req {
+    fn from(write: WriteReq) -> crate::Req {
+        write.into_inner().into_inner()
+    }
+}
+
 impl crate::ReqTrait for WriteReq {}

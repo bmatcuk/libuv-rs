@@ -101,6 +101,12 @@ impl IntoInner<*mut uv::uv_handle_t> for StreamHandle {
     }
 }
 
+impl From<StreamHandle> for crate::Handle {
+    fn from(stream: StreamHandle) -> crate::Handle {
+        stream.into_inner().into_inner()
+    }
+}
+
 pub trait StreamTrait: IntoInner<*mut uv_stream_t> {
     /// Shutdown the outgoing (write) side of a duplex stream. It waits for pending write requests
     /// to complete. The handle should refer to a initialized stream. The cb is called after

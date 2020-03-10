@@ -17,6 +17,9 @@ pub use version::*;
 pub mod r#loop;
 pub use r#loop::*;
 
+pub mod buf;
+pub use buf::*;
+
 mod addl_handle_data;
 use addl_handle_data::*;
 use addl_handle_data::AddlHandleData::*;
@@ -27,14 +30,14 @@ pub use handle::*;
 pub mod r#async;
 pub use r#async::*;
 
-pub mod buf;
-pub use buf::*;
-
 pub mod check;
 pub use check::*;
 
 pub mod fs_event;
 pub use fs_event::*;
+
+pub mod fs_poll;
+pub use fs_poll::*;
 
 pub mod idle;
 pub use idle::*;

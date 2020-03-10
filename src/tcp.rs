@@ -213,6 +213,18 @@ impl IntoInner<*mut uv::uv_handle_t> for TcpHandle {
     }
 }
 
+impl From<TcpHandle> for crate::StreamHandle {
+    fn from(tcp: TcpHandle) -> crate::StreamHandle {
+        tcp.into_inner().into_inner()
+    }
+}
+
+impl From<TcpHandle> for crate::Handle {
+    fn from(tcp: TcpHandle) -> crate::Handle {
+        tcp.into_inner().into_inner()
+    }
+}
+
 impl crate::StreamTrait for TcpHandle {}
 impl crate::HandleTrait for TcpHandle {}
 

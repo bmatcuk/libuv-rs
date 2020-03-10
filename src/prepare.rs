@@ -76,15 +76,15 @@ impl FromInner<*mut uv_prepare_t> for PrepareHandle {
     }
 }
 
-impl From<PrepareHandle> for crate::Handle {
-    fn from(prepare: PrepareHandle) -> crate::Handle {
-        (prepare.handle as *mut uv::uv_handle_t).into_inner()
-    }
-}
-
 impl IntoInner<*mut uv::uv_handle_t> for PrepareHandle {
     fn into_inner(self) -> *mut uv::uv_handle_t {
         uv_handle!(self.handle)
+    }
+}
+
+impl From<PrepareHandle> for crate::Handle {
+    fn from(prepare: PrepareHandle) -> crate::Handle {
+        prepare.into_inner().into_inner()
     }
 }
 

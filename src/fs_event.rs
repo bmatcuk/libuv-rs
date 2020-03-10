@@ -6,7 +6,7 @@ use uv::{
 };
 
 bitflags! {
-    /// Flags for FsEvent::start()
+    /// Flags for FsEventHandle::start()
     pub struct FsEventFlags: u32 {
         /// By default, if the fs event watcher is given a directory name, we will watch for all
         /// events in that directory. This flags overrides this behavior and makes fs_event report
@@ -34,7 +34,7 @@ bitflags! {
 /// Additional data stored on the handle
 #[derive(Default)]
 pub(crate) struct FsEventDataFields {
-    fs_event_cb: Option<Box<dyn FnMut(FsEvent, Cow<str>, i32, i32)>>,
+    fs_event_cb: Option<Box<dyn FnMut(FsEventHandle, Cow<str>, i32, i32)>>,
 }
 
 /// Callback for uv_fs_event_start
@@ -73,13 +73,13 @@ extern "C" fn uv_fs_event_cb(
 ///
 /// The z/OS file system events monitoring infrastructure does not notify of file creation/deletion
 /// within a directory that is being monitored. See the IBM Knowledge centre for more details.
-pub struct FsEvent {
+pub struct FsEventHandle {
     handle: *mut uv_fs_event_t,
 }
 
-impl FsEvent {
+impl FsEventHandle {
     /// Create and initialize a fs event handle
-    pub fn new(r#loop: &crate::Loop) -> crate::Result<FsEvent> {
+    pub fn new(r#loop: &crate::Loop) -> crate::Result<FsEventHandle> {
         let layout = std::alloc::Layout::new::<uv_fs_event_t>();
         let handle = unsafe { std::alloc::alloc(layout) as *mut uv_fs_event_t };
         if handle.is_null() {
@@ -92,9 +92,9 @@ impl FsEvent {
             return Err(crate::Error::from_inner(ret as uv::uv_errno_t));
         }
 
-        crate::Handle::initialize_data(uv_handle!(handle), crate::NoAddlData);
+        crate::Handle::initialize_data(uv_handle!(handle), crate::FsEventData(Default::default()));
 
-        Ok(FsEvent { handle })
+        Ok(FsEventHandle { handle })
     }
 
     /// Start the handle with the given callback, which will watch the specified path for changes.
@@ -104,7 +104,7 @@ impl FsEvent {
         &mut self,
         path: &str,
         flags: FsEventFlags,
-        cb: Option<impl FnMut(FsEvent, Cow<str>, i32, i32) + 'static>,
+        cb: Option<impl FnMut(FsEventHandle, Cow<str>, i32, i32) + 'static>,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let path = CString::new(path)?;
 
@@ -147,29 +147,29 @@ impl FsEvent {
     }
 }
 
-impl FromInner<*mut uv_fs_event_t> for FsEvent {
-    fn from_inner(handle: *mut uv_fs_event_t) -> FsEvent {
-        FsEvent { handle }
+impl FromInner<*mut uv_fs_event_t> for FsEventHandle {
+    fn from_inner(handle: *mut uv_fs_event_t) -> FsEventHandle {
+        FsEventHandle { handle }
     }
 }
 
-impl From<FsEvent> for crate::Handle {
-    fn from(fs_event: FsEvent) -> crate::Handle {
+impl From<FsEventHandle> for crate::Handle {
+    fn from(fs_event: FsEventHandle) -> crate::Handle {
         (fs_event.handle as *mut uv::uv_handle_t).into_inner()
     }
 }
 
-impl IntoInner<*mut uv::uv_handle_t> for FsEvent {
+impl IntoInner<*mut uv::uv_handle_t> for FsEventHandle {
     fn into_inner(self) -> *mut uv::uv_handle_t {
         uv_handle!(self.handle)
     }
 }
 
-impl crate::HandleTrait for FsEvent {}
+impl crate::HandleTrait for FsEventHandle {}
 
 impl crate::Loop {
     /// Create and initialize a fs event handle
-    pub fn fs_event(&self) -> crate::Result<FsEvent> {
-        FsEvent::new(self)
+    pub fn fs_event(&self) -> crate::Result<FsEventHandle> {
+        FsEventHandle::new(self)
     }
 }

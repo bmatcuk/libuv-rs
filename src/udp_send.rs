@@ -99,4 +99,10 @@ impl IntoInner<*mut uv::uv_req_t> for UdpSendReq {
     }
 }
 
+impl From<UdpSendReq> for crate::Req {
+    fn from(udp_send: UdpSendReq) -> crate::Req {
+        udp_send.into_inner().into_inner()
+    }
+}
+
 impl crate::ReqTrait for UdpSendReq {}

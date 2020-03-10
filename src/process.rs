@@ -304,15 +304,15 @@ impl FromInner<*mut uv_process_t> for ProcessHandle {
     }
 }
 
-impl From<ProcessHandle> for crate::Handle {
-    fn from(process: ProcessHandle) -> crate::Handle {
-        (process.handle as *mut uv::uv_handle_t).into_inner()
-    }
-}
-
 impl IntoInner<*mut uv::uv_handle_t> for ProcessHandle {
     fn into_inner(self) -> *mut uv::uv_handle_t {
         uv_handle!(self.handle)
+    }
+}
+
+impl From<ProcessHandle> for crate::Handle {
+    fn from(process: ProcessHandle) -> crate::Handle {
+        process.into_inner().into_inner()
     }
 }
 
