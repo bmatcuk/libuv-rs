@@ -4,8 +4,8 @@ use std::ffi::CString;
 use std::net::SocketAddr;
 use uv::{
     uv_udp_bind, uv_udp_connect, uv_udp_get_send_queue_count, uv_udp_get_send_queue_size,
-    uv_udp_getpeername, uv_udp_getsockname, uv_udp_init, uv_udp_init_ex, uv_udp_open,
-    uv_udp_recv_start, uv_udp_recv_stop, uv_udp_send, uv_udp_set_broadcast, uv_udp_set_membership,
+    uv_udp_getpeername, uv_udp_getsockname, uv_udp_init, uv_udp_init_ex, uv_udp_recv_start,
+    uv_udp_recv_stop, uv_udp_send, uv_udp_set_broadcast, uv_udp_set_membership,
     uv_udp_set_multicast_interface, uv_udp_set_multicast_loop, uv_udp_set_multicast_ttl,
     uv_udp_set_source_membership, uv_udp_set_ttl, uv_udp_t, uv_udp_try_send,
 };
