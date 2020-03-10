@@ -20,74 +20,11 @@ pub use r#loop::*;
 pub mod buf;
 pub use buf::*;
 
-mod addl_handle_data;
-use addl_handle_data::*;
-use addl_handle_data::AddlHandleData::*;
+pub mod handles;
+pub use handles::*;
 
-pub mod handle;
-pub use handle::*;
-
-pub mod r#async;
-pub use r#async::*;
-
-pub mod check;
-pub use check::*;
-
-pub mod fs_event;
-pub use fs_event::*;
-
-pub mod fs_poll;
-pub use fs_poll::*;
-
-pub mod idle;
-pub use idle::*;
-
-pub mod prepare;
-pub use prepare::*;
-
-pub mod process;
-pub use process::*;
-
-pub mod signal;
-pub use signal::*;
-
-pub mod timer;
-pub use timer::*;
-
-mod req_data;
-use req_data::*;
-use req_data::ReqData::*;
-
-pub mod req;
-pub use req::*;
-
-pub mod connect;
-pub use connect::*;
-
-pub mod shutdown;
-pub use shutdown::*;
-
-pub mod udp_send;
-pub use udp_send::*;
-
-pub mod write;
-pub use write::*;
-
-pub mod addl_stream_data;
-use addl_stream_data::*;
-use addl_stream_data::AddlStreamData::*;
-
-pub mod stream;
-pub use stream::*;
-
-pub mod tcp;
-pub use tcp::*;
-
-pub mod tty;
-pub use tty::*;
-
-pub mod udp;
-pub use udp::*;
+pub mod requests;
+pub use requests::*;
 
 pub type Result<T> = std::result::Result<T, Error>;
 

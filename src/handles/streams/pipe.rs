@@ -164,6 +164,18 @@ impl IntoInner<*mut uv::uv_handle_t> for PipeHandle {
     }
 }
 
+impl From<PipeHandle> for crate::StreamHandle {
+    fn from(pipe: PipeHandle) -> crate::StreamHandle {
+        pipe.into_inner().into_inner()
+    }
+}
+
+impl From<PipeHandle> for crate::Handle {
+    fn from(pipe: PipeHandle) -> crate::Handle {
+        pipe.into_inner().into_inner()
+    }
+}
+
 impl crate::StreamTrait for PipeHandle {}
 impl crate::HandleTrait for PipeHandle {}
 
