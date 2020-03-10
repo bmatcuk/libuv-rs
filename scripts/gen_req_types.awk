@@ -1,4 +1,4 @@
-# run like awk -f scripts/gen_req_types.awk target/rls/debug/build/libuv-sys2-02275bbf285602f5/out/bindings.rs > src/req_types.inc.rs
+# run like awk -f scripts/gen_req_types.awk target/rls/debug/build/libuv-sys2-02275bbf285602f5/out/bindings.rs > src/requests/req_types.inc.rs
 
 /^pub const uv_req_type_UV_/ && !/UNKNOWN_REQ|REQ_TYPE_MAX/ {
   name = substr($3, 16, length($3) - 16);

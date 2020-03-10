@@ -1,4 +1,4 @@
-# run like awk -f scripts/gen_handle_types.awk target/rls/debug/build/libuv-sys2-02275bbf285602f5/out/bindings.rs > src/handle_types.inc.rs
+# run like awk -f scripts/gen_handle_types.awk target/rls/debug/build/libuv-sys2-02275bbf285602f5/out/bindings.rs > src/handles/handle_types.inc.rs
 
 /^pub const uv_handle_type_UV_/ && !/UNKNOWN_HANDLE|HANDLE_TYPE_MAX/ {
   name = substr($3, 19, length($3) - 19);
