@@ -1,11 +1,12 @@
 pub(crate) enum AddlHandleData {
     NoAddlData,
-    TimerData(crate::TimerDataFields),
-    PrepareData(crate::PrepareDataFields),
-    CheckData(crate::CheckDataFields),
-    IdleData(crate::IdleDataFields),
     AsyncData(crate::AsyncDataFields),
-    SignalData(crate::SignalDataFields),
+    CheckData(crate::CheckDataFields),
+    FsEventData(crate::FsEventDataFields),
+    IdleData(crate::IdleDataFields),
+    PrepareData(crate::PrepareDataFields),
     ProcessData(crate::ProcessDataFields),
+    SignalData(crate::SignalDataFields),
     StreamData(crate::StreamDataFields),
+    TimerData(crate::TimerDataFields),
 }

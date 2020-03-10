@@ -24,36 +24,39 @@ use addl_handle_data::AddlHandleData::*;
 pub mod handle;
 pub use handle::*;
 
+pub mod r#async;
+pub use r#async::*;
+
+pub mod buf;
+pub use buf::*;
+
+pub mod check;
+pub use check::*;
+
+pub mod fs_event;
+pub use fs_event::*;
+
+pub mod idle;
+pub use idle::*;
+
+pub mod prepare;
+pub use prepare::*;
+
+pub mod process;
+pub use process::*;
+
+pub mod signal;
+pub use signal::*;
+
+pub mod timer;
+pub use timer::*;
+
 mod req_data;
 use req_data::*;
 use req_data::ReqData::*;
 
 pub mod req;
 pub use req::*;
-
-pub mod buf;
-pub use buf::*;
-
-pub mod timer;
-pub use timer::*;
-
-pub mod prepare;
-pub use prepare::*;
-
-pub mod check;
-pub use check::*;
-
-pub mod idle;
-pub use idle::*;
-
-pub mod r#async;
-pub use r#async::*;
-
-pub mod signal;
-pub use signal::*;
-
-pub mod process;
-pub use process::*;
 
 pub mod connect;
 pub use connect::*;
@@ -77,6 +80,9 @@ pub use stream::*;
 pub mod tcp;
 pub use tcp::*;
 
+pub mod tty;
+pub use tty::*;
+
 pub mod udp;
 pub use udp::*;
 
@@ -85,7 +91,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[inline]
 fn uvret(code: ::std::os::raw::c_int) -> Result<()> {
     if code < 0 {
-        Err(Error::from(code as uv::uv_errno_t))
+        Err(Error::from_inner(code as uv::uv_errno_t))
     } else {
         Ok(())
     }
