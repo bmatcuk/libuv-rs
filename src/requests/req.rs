@@ -30,14 +30,14 @@ pub struct Req {
 
 impl Req {
     /// Initialize the request's data.
-    pub(crate) fn initialize_data(req: *mut uv_req_t, data: crate::ReqData) {
+    pub(crate) fn initialize_data(req: *mut uv_req_t, data: super::ReqData) {
         let data = Box::new(data);
         let ptr = Box::into_raw(data);
         unsafe { uv_req_set_data(req, ptr as _) }
     }
 
     /// Retrieve the request's data.
-    pub(crate) fn get_data(req: *mut uv_req_t) -> *mut crate::ReqData {
+    pub(crate) fn get_data(req: *mut uv_req_t) -> *mut super::ReqData {
         unsafe { uv_req_get_data(req) as _ }
     }
 

@@ -44,7 +44,7 @@ impl TcpHandle {
             return Err(crate::Error::from_inner(ret as uv::uv_errno_t));
         }
 
-        crate::StreamHandle::initialize_data(uv_handle!(handle), crate::NoAddlStreamData);
+        crate::StreamHandle::initialize_data(uv_handle!(handle), super::NoAddlStreamData);
 
         Ok(TcpHandle { handle })
     }
@@ -64,7 +64,7 @@ impl TcpHandle {
             return Err(crate::Error::from_inner(ret as uv::uv_errno_t));
         }
 
-        crate::StreamHandle::initialize_data(uv_handle!(handle), crate::NoAddlStreamData);
+        crate::StreamHandle::initialize_data(uv_handle!(handle), super::NoAddlStreamData);
 
         Ok(TcpHandle { handle })
     }
@@ -215,13 +215,13 @@ impl IntoInner<*mut uv::uv_handle_t> for TcpHandle {
 
 impl From<TcpHandle> for crate::StreamHandle {
     fn from(tcp: TcpHandle) -> crate::StreamHandle {
-        tcp.into_inner().into_inner()
+        crate::StreamHandle::from_inner(tcp.into_inner())
     }
 }
 
 impl From<TcpHandle> for crate::Handle {
     fn from(tcp: TcpHandle) -> crate::Handle {
-        tcp.into_inner().into_inner()
+        crate::Handle::from_inner(tcp.into_inner())
     }
 }
 

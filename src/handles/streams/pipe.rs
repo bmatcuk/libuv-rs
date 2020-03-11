@@ -39,7 +39,7 @@ impl PipeHandle {
             return Err(crate::Error::from_inner(ret as uv::uv_errno_t));
         }
 
-        crate::StreamHandle::initialize_data(uv_handle!(handle), crate::NoAddlStreamData);
+        crate::StreamHandle::initialize_data(uv_handle!(handle), super::NoAddlStreamData);
 
         Ok(PipeHandle { handle })
     }
@@ -166,13 +166,13 @@ impl IntoInner<*mut uv::uv_handle_t> for PipeHandle {
 
 impl From<PipeHandle> for crate::StreamHandle {
     fn from(pipe: PipeHandle) -> crate::StreamHandle {
-        pipe.into_inner().into_inner()
+        crate::StreamHandle::from_inner(pipe.into_inner())
     }
 }
 
 impl From<PipeHandle> for crate::Handle {
     fn from(pipe: PipeHandle) -> crate::Handle {
-        pipe.into_inner().into_inner()
+        crate::Handle::from_inner(pipe.into_inner())
     }
 }
 

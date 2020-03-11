@@ -47,7 +47,7 @@ extern "C" fn uv_fs_event_cb(
     let dataptr = crate::Handle::get_data(uv_handle!(handle));
     if !dataptr.is_null() {
         unsafe {
-            if let crate::FsEventData(d) = &mut (*dataptr).addl {
+            if let super::FsEventData(d) = &mut (*dataptr).addl {
                 if let Some(f) = d.fs_event_cb.as_mut() {
                     let filename = CStr::from_ptr(filename).to_string_lossy();
                     f(handle.into_inner(), filename, events as _, status as _);
@@ -92,7 +92,7 @@ impl FsEventHandle {
             return Err(crate::Error::from_inner(ret as uv::uv_errno_t));
         }
 
-        crate::Handle::initialize_data(uv_handle!(handle), crate::FsEventData(Default::default()));
+        crate::Handle::initialize_data(uv_handle!(handle), super::FsEventData(Default::default()));
 
         Ok(FsEventHandle { handle })
     }
@@ -115,7 +115,7 @@ impl FsEventHandle {
         let cb = cb.map(|f| Box::new(f) as _);
         let dataptr = crate::Handle::get_data(uv_handle!(self.handle));
         if !dataptr.is_null() {
-            if let crate::FsEventData(d) = unsafe { &mut (*dataptr).addl } {
+            if let super::FsEventData(d) = unsafe { &mut (*dataptr).addl } {
                 d.fs_event_cb = cb;
             }
         }
@@ -153,15 +153,15 @@ impl FromInner<*mut uv_fs_event_t> for FsEventHandle {
     }
 }
 
-impl From<FsEventHandle> for crate::Handle {
-    fn from(fs_event: FsEventHandle) -> crate::Handle {
-        (fs_event.handle as *mut uv::uv_handle_t).into_inner()
-    }
-}
-
 impl IntoInner<*mut uv::uv_handle_t> for FsEventHandle {
     fn into_inner(self) -> *mut uv::uv_handle_t {
         uv_handle!(self.handle)
+    }
+}
+
+impl From<FsEventHandle> for crate::Handle {
+    fn from(fs_event: FsEventHandle) -> crate::Handle {
+        crate::Handle::from_inner(fs_event.into_inner())
     }
 }
 

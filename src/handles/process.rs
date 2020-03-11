@@ -21,7 +21,7 @@ extern "C" fn uv_exit_cb(
     let dataptr = crate::Handle::get_data(uv_handle!(handle));
     if !dataptr.is_null() {
         unsafe {
-            if let crate::ProcessData(d) = &mut (*dataptr).addl {
+            if let super::ProcessData(d) = &mut (*dataptr).addl {
                 if let Some(f) = d.exit_cb.as_mut() {
                     f(handle.into_inner(), exit_status, term_signal as _);
                 }
@@ -162,7 +162,7 @@ impl ProcessHandle {
             return Err(crate::Error::ENOMEM);
         }
 
-        crate::Handle::initialize_data(uv_handle!(handle), crate::ProcessData(Default::default()));
+        crate::Handle::initialize_data(uv_handle!(handle), super::ProcessData(Default::default()));
 
         Ok(ProcessHandle { handle })
     }
@@ -193,7 +193,7 @@ impl ProcessHandle {
     ) -> Result<(), Box<dyn std::error::Error>> {
         let dataptr = crate::Handle::get_data(uv_handle!(self.handle));
         if !dataptr.is_null() {
-            if let crate::ProcessData(d) = unsafe { &mut (*dataptr).addl } {
+            if let super::ProcessData(d) = unsafe { &mut (*dataptr).addl } {
                 d.exit_cb = options.exit_cb;
             }
         }
@@ -312,7 +312,7 @@ impl IntoInner<*mut uv::uv_handle_t> for ProcessHandle {
 
 impl From<ProcessHandle> for crate::Handle {
     fn from(process: ProcessHandle) -> crate::Handle {
-        process.into_inner().into_inner()
+        crate::Handle::from_inner(process.into_inner())
     }
 }
 

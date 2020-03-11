@@ -14,7 +14,7 @@ pub(crate) extern "C" fn uv_write_cb(req: *mut uv_write_t, status: std::os::raw:
     let dataptr = crate::Req::get_data(uv_handle!(req));
     if !dataptr.is_null() {
         unsafe {
-            if let crate::WriteData(d) = *dataptr {
+            if let super::WriteData(d) = *dataptr {
                 if let Some(f) = d.write_cb.as_mut() {
                     f(req.into_inner(), status as _);
                 }
@@ -55,7 +55,7 @@ impl WriteReq {
         let write_cb = cb.map(|f| Box::new(f) as _);
         crate::Req::initialize_data(
             uv_handle!(req),
-            crate::WriteData(WriteDataFields {
+            super::WriteData(WriteDataFields {
                 bufs_ptr,
                 bufs_len,
                 bufs_capacity,
@@ -70,7 +70,7 @@ impl WriteReq {
     pub fn destroy(&mut self) {
         let dataptr = crate::Req::get_data(uv_handle!(self.req));
         if !dataptr.is_null() {
-            if let crate::WriteData(d) = unsafe { *dataptr } {
+            if let super::WriteData(d) = unsafe { *dataptr } {
                 if !d.bufs_ptr.is_null() {
                     // This will destroy the Vec<uv_buf_t>, but will not actually deallocate the
                     // uv_buf_t's themselves. That's up to the user to do.
@@ -109,7 +109,7 @@ impl IntoInner<*mut uv::uv_req_t> for WriteReq {
 
 impl From<WriteReq> for crate::Req {
     fn from(write: WriteReq) -> crate::Req {
-        write.into_inner().into_inner()
+        crate::Req::from_inner(write.into_inner())
     }
 }
 

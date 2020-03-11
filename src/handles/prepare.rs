@@ -12,7 +12,7 @@ extern "C" fn uv_prepare_cb(handle: *mut uv_prepare_t) {
     let dataptr = crate::Handle::get_data(uv_handle!(handle));
     if !dataptr.is_null() {
         unsafe {
-            if let crate::PrepareData(d) = &mut (*dataptr).addl {
+            if let super::PrepareData(d) = &mut (*dataptr).addl {
                 if let Some(f) = d.prepare_cb.as_mut() {
                     f(handle.into_inner());
                 }
@@ -42,7 +42,7 @@ impl PrepareHandle {
             return Err(crate::Error::from_inner(ret as uv::uv_errno_t));
         }
 
-        crate::Handle::initialize_data(uv_handle!(handle), crate::PrepareData(Default::default()));
+        crate::Handle::initialize_data(uv_handle!(handle), super::PrepareData(Default::default()));
 
         Ok(PrepareHandle { handle })
     }
@@ -56,7 +56,7 @@ impl PrepareHandle {
         let cb = cb.map(|f| Box::new(f) as _);
         let dataptr = crate::Handle::get_data(uv_handle!(self.handle));
         if !dataptr.is_null() {
-            if let crate::PrepareData(d) = unsafe { &mut (*dataptr).addl } {
+            if let super::PrepareData(d) = unsafe { &mut (*dataptr).addl } {
                 d.prepare_cb = cb;
             }
         }
@@ -84,7 +84,7 @@ impl IntoInner<*mut uv::uv_handle_t> for PrepareHandle {
 
 impl From<PrepareHandle> for crate::Handle {
     fn from(prepare: PrepareHandle) -> crate::Handle {
-        prepare.into_inner().into_inner()
+        crate::Handle::from_inner(prepare.into_inner())
     }
 }
 

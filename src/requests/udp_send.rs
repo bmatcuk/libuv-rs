@@ -14,7 +14,7 @@ pub(crate) extern "C" fn uv_udp_send_cb(req: *mut uv_udp_send_t, status: std::os
     let dataptr = crate::Req::get_data(uv_handle!(req));
     if !dataptr.is_null() {
         unsafe {
-            if let crate::UdpSendData(d) = *dataptr {
+            if let super::UdpSendData(d) = *dataptr {
                 if let Some(f) = d.udp_send_cb.as_mut() {
                     f(req.into_inner(), status as _);
                 }
@@ -51,7 +51,7 @@ impl UdpSendReq {
         let udp_send_cb = cb.map(|f| Box::new(f) as _);
         crate::Req::initialize_data(
             uv_handle!(req),
-            crate::UdpSendData(UdpSendDataFields {
+            super::UdpSendData(UdpSendDataFields {
                 bufs_ptr,
                 bufs_len,
                 bufs_capacity,
@@ -65,7 +65,7 @@ impl UdpSendReq {
     pub fn destroy(&mut self) {
         let dataptr = crate::Req::get_data(uv_handle!(self.req));
         if !dataptr.is_null() {
-            if let crate::UdpSendData(d) = unsafe { *dataptr } {
+            if let super::UdpSendData(d) = unsafe { *dataptr } {
                 if !d.bufs_ptr.is_null() {
                     // This will destroy the Vec<uv_buf_t>, but will not actually deallocate the
                     // uv_buf_t's themselves. That's up to the user to do.
@@ -101,7 +101,7 @@ impl IntoInner<*mut uv::uv_req_t> for UdpSendReq {
 
 impl From<UdpSendReq> for crate::Req {
     fn from(udp_send: UdpSendReq) -> crate::Req {
-        udp_send.into_inner().into_inner()
+        crate::Req(udp_send.into_inner())
     }
 }
 

@@ -12,7 +12,7 @@ extern "C" fn uv_check_cb(handle: *mut uv_check_t) {
     let dataptr = crate::Handle::get_data(uv_handle!(handle));
     if !dataptr.is_null() {
         unsafe {
-            if let crate::CheckData(d) = &mut (*dataptr).addl {
+            if let super::CheckData(d) = &mut (*dataptr).addl {
                 if let Some(f) = d.check_cb.as_mut() {
                     f(handle.into_inner());
                 }
@@ -41,7 +41,7 @@ impl CheckHandle {
             return Err(crate::Error::from_inner(ret as uv::uv_errno_t));
         }
 
-        crate::Handle::initialize_data(uv_handle!(handle), crate::CheckData(Default::default()));
+        crate::Handle::initialize_data(uv_handle!(handle), super::CheckData(Default::default()));
 
         Ok(CheckHandle { handle })
     }
@@ -55,7 +55,7 @@ impl CheckHandle {
         let cb = cb.map(|f| Box::new(f) as _);
         let dataptr = crate::Handle::get_data(uv_handle!(self.handle));
         if !dataptr.is_null() {
-            if let crate::CheckData(d) = unsafe { &mut (*dataptr).addl } {
+            if let super::CheckData(d) = unsafe { &mut (*dataptr).addl } {
                 d.check_cb = cb;
             }
         }
@@ -83,7 +83,7 @@ impl IntoInner<*mut uv::uv_handle_t> for CheckHandle {
 
 impl From<CheckHandle> for crate::Handle {
     fn from(check: CheckHandle) -> crate::Handle {
-        check.into_inner().into_inner()
+        crate::Handle::from_inner(check.into_inner())
     }
 }
 

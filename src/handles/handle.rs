@@ -53,7 +53,7 @@ impl IntoInner<Option<Layout>> for HandleType {
 /// Data that we need to track with the handle.
 pub(crate) struct HandleData {
     pub(crate) close_cb: Option<Box<dyn FnMut(crate::Handle)>>,
-    pub(crate) addl: crate::AddlHandleData,
+    pub(crate) addl: super::AddlHandleData,
 }
 
 /// Callback for uv_close
@@ -84,7 +84,7 @@ pub struct Handle {
 
 impl Handle {
     /// Initialize the handle's data.
-    pub(crate) fn initialize_data(handle: *mut uv_handle_t, addl: crate::AddlHandleData) {
+    pub(crate) fn initialize_data(handle: *mut uv_handle_t, addl: super::AddlHandleData) {
         let data: Box<HandleData> = Box::new(HandleData {
             close_cb: None,
             addl,

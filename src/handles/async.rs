@@ -12,7 +12,7 @@ extern "C" fn uv_async_cb(handle: *mut uv_async_t) {
     let dataptr = crate::Handle::get_data(uv_handle!(handle));
     if !dataptr.is_null() {
         unsafe {
-            if let crate::AsyncData(d) = &mut (*dataptr).addl {
+            if let super::AsyncData(d) = &mut (*dataptr).addl {
                 if let Some(f) = d.async_cb.as_mut() {
                     f(handle.into_inner());
                 }
@@ -45,7 +45,7 @@ impl AsyncHandle {
         // async_cb is either Some(closure) or None - it is saved into data
         let async_cb = cb.map(|f| Box::new(f) as _);
         let data = AsyncDataFields { async_cb };
-        crate::Handle::initialize_data(uv_handle!(handle), crate::AsyncData(data));
+        crate::Handle::initialize_data(uv_handle!(handle), super::AsyncData(data));
 
         let ret = unsafe { uv_async_init(r#loop.into_inner(), handle, uv_cb) };
         if ret < 0 {
@@ -88,7 +88,7 @@ impl IntoInner<*mut uv::uv_handle_t> for AsyncHandle {
 
 impl From<AsyncHandle> for crate::Handle {
     fn from(r#async: AsyncHandle) -> crate::Handle {
-        r#async.into_inner().into_inner()
+        crate::Handle::from_inner(r#async.into_inner())
     }
 }
 

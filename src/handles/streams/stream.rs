@@ -10,7 +10,7 @@ pub(crate) struct StreamDataFields {
     pub(crate) alloc_cb: Option<Box<dyn FnMut(crate::Handle, usize, crate::Buf)>>,
     connection_cb: Option<Box<dyn FnMut(StreamHandle, i32)>>,
     read_cb: Option<Box<dyn FnMut(StreamHandle, isize, crate::ReadonlyBuf)>>,
-    pub(crate) addl: crate::AddlStreamData,
+    pub(crate) addl: super::AddlStreamData,
 }
 
 /// Callback for uv_recv_start, uv_udp_recv_start
@@ -61,8 +61,8 @@ pub struct StreamHandle {
 }
 
 impl StreamHandle {
-    pub(crate) fn initialize_data(stream: *mut uv_stream_t, addl: crate::AddlStreamData) {
-        let data = crate::StreamData(StreamDataFields {
+    pub(crate) fn initialize_data(stream: *mut uv_stream_t, addl: super::AddlStreamData) {
+        let data = super::super::StreamData(StreamDataFields {
             alloc_cb: None,
             connection_cb: None,
             read_cb: None,
@@ -72,7 +72,7 @@ impl StreamHandle {
     }
 
     pub(crate) fn get_data(stream: *mut uv_stream_t) -> *mut StreamDataFields {
-        if let crate::StreamData(d) = &mut (*crate::Handle::get_data(uv_handle!(stream))).addl {
+        if let super::super::StreamData(ref mut d) = &mut (*crate::Handle::get_data(uv_handle!(stream))).addl {
             return d;
         }
         std::ptr::null_mut()
@@ -103,7 +103,7 @@ impl IntoInner<*mut uv::uv_handle_t> for StreamHandle {
 
 impl From<StreamHandle> for crate::Handle {
     fn from(stream: StreamHandle) -> crate::Handle {
-        stream.into_inner().into_inner()
+        crate::Handle::from_inner(stream.into_inner())
     }
 }
 

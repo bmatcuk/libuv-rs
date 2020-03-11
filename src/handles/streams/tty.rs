@@ -58,7 +58,7 @@ impl TtyHandle {
             return Err(crate::Error::from_inner(ret as uv::uv_errno_t));
         }
 
-        crate::StreamHandle::initialize_data(uv_handle!(handle), crate::NoAddlStreamData);
+        crate::StreamHandle::initialize_data(uv_handle!(handle), super::NoAddlStreamData);
 
         Ok(TtyHandle { handle })
     }
@@ -133,13 +133,13 @@ impl IntoInner<*mut uv::uv_handle_t> for TtyHandle {
 
 impl From<TtyHandle> for crate::StreamHandle {
     fn from(tty: TtyHandle) -> crate::StreamHandle {
-        tty.into_inner().into_inner()
+        crate::StreamHandle::from_inner(tty.into_inner())
     }
 }
 
 impl From<TtyHandle> for crate::Handle {
     fn from(tty: TtyHandle) -> crate::Handle {
-        tty.into_inner().into_inner()
+        crate::Handle::from_inner(tty.into_inner())
     }
 }
 

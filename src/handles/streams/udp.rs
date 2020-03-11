@@ -50,7 +50,7 @@ extern "C" fn uv_udp_recv_cb(
 ) {
     let dataptr = crate::StreamHandle::get_data(uv_handle!(handle));
     if !dataptr.is_null() {
-        if let crate::UdpData(d) = unsafe { (*dataptr).addl } {
+        if let super::UdpData(d) = unsafe { (*dataptr).addl } {
             if let Some(f) = d.recv_cb.as_mut() {
                 let sockaddr = crate::build_socketaddr(addr);
                 if let Ok(sockaddr) = sockaddr {
@@ -89,7 +89,7 @@ impl UdpHandle {
 
         crate::StreamHandle::initialize_data(
             uv_handle!(handle),
-            crate::UdpData(Default::default()),
+            super::UdpData(Default::default()),
         );
 
         Ok(UdpHandle { handle })
@@ -110,7 +110,10 @@ impl UdpHandle {
             return Err(crate::Error::from_inner(ret as uv::uv_errno_t));
         }
 
-        crate::StreamHandle::initialize_data(uv_handle!(handle), crate::NoAddlStreamData);
+        crate::StreamHandle::initialize_data(
+            uv_handle!(handle),
+            super::UdpData(Default::default()),
+        );
 
         Ok(UdpHandle { handle })
     }
@@ -334,7 +337,7 @@ impl UdpHandle {
         let dataptr = crate::StreamHandle::get_data(uv_handle!(self.handle));
         if !dataptr.is_null() {
             (*dataptr).alloc_cb = alloc_cb;
-            if let crate::UdpData(d) = (*dataptr).addl {
+            if let super::UdpData(d) = (*dataptr).addl {
                 d.recv_cb = recv_cb;
             }
         }
@@ -383,14 +386,14 @@ impl IntoInner<*mut uv::uv_handle_t> for UdpHandle {
 }
 
 impl From<UdpHandle> for crate::StreamHandle {
-    fn from(udp: UdpHandle) -> crate::StreamHandle { 
-        udp.into_inner().into_inner()
+    fn from(udp: UdpHandle) -> crate::StreamHandle {
+        crate::StreamHandle::from_inner(udp.into_inner())
     }
 }
 
 impl From<UdpHandle> for crate::Handle {
     fn from(udp: UdpHandle) -> crate::Handle {
-        udp.into_inner().into_inner()
+        crate::Handle::from_inner(udp.into_inner())
     }
 }
 

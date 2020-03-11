@@ -12,7 +12,7 @@ extern "C" fn uv_signal_cb(handle: *mut uv_signal_t, signum: std::os::raw::c_int
     let dataptr = crate::Handle::get_data(uv_handle!(handle));
     if !dataptr.is_null() {
         unsafe {
-            if let crate::SignalData(d) = &mut (*dataptr).addl {
+            if let super::SignalData(d) = &mut (*dataptr).addl {
                 if let Some(f) = d.signal_cb.as_mut() {
                     f(handle.into_inner(), signum as _);
                 }
@@ -67,7 +67,7 @@ impl SignalHandle {
             return Err(crate::Error::from_inner(ret as uv::uv_errno_t));
         }
 
-        crate::Handle::initialize_data(uv_handle!(handle), crate::SignalData(Default::default()));
+        crate::Handle::initialize_data(uv_handle!(handle), super::SignalData(Default::default()));
 
         Ok(SignalHandle { handle })
     }
@@ -85,7 +85,7 @@ impl SignalHandle {
         let cb = cb.map(|f| Box::new(f) as _);
         let dataptr = crate::Handle::get_data(uv_handle!(self.handle));
         if !dataptr.is_null() {
-            if let crate::SignalData(d) = unsafe { &mut (*dataptr).addl } {
+            if let super::SignalData(d) = unsafe { &mut (*dataptr).addl } {
                 d.signal_cb = cb;
             }
         }
@@ -107,7 +107,7 @@ impl SignalHandle {
         let cb = cb.map(|f| Box::new(f) as _);
         let dataptr = crate::Handle::get_data(uv_handle!(self.handle));
         if !dataptr.is_null() {
-            if let crate::SignalData(d) = unsafe { &mut (*dataptr).addl } {
+            if let super::SignalData(d) = unsafe { &mut (*dataptr).addl } {
                 d.signal_cb = cb;
             }
         }
@@ -135,7 +135,7 @@ impl IntoInner<*mut uv::uv_handle_t> for SignalHandle {
 
 impl From<SignalHandle> for crate::Handle {
     fn from(signal: SignalHandle) -> crate::Handle {
-        signal.into_inner().into_inner()
+        crate::Handle::from_inner(signal.into_inner())
     }
 }
 

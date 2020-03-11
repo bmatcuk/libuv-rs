@@ -11,7 +11,7 @@ pub(crate) extern "C" fn uv_shutdown_cb(req: *mut uv_shutdown_t, status: std::os
     let dataptr = crate::Req::get_data(uv_handle!(req));
     if !dataptr.is_null() {
         unsafe {
-            if let crate::ShutdownData(d) = *dataptr {
+            if let super::ShutdownData(d) = *dataptr {
                 if let Some(f) = d.shutdown_cb.as_mut() {
                     f(req.into_inner(), status as _);
                 }
@@ -41,7 +41,7 @@ impl ShutdownReq {
         let shutdown_cb = cb.map(|f| Box::new(f) as _);
         crate::Req::initialize_data(
             uv_handle!(req),
-            crate::ShutdownData(ShutdownDataFields { shutdown_cb }),
+            super::ShutdownData(ShutdownDataFields { shutdown_cb }),
         );
 
         Ok(ShutdownReq { req })
@@ -76,7 +76,7 @@ impl IntoInner<*mut uv::uv_req_t> for ShutdownReq {
 
 impl From<ShutdownReq> for crate::Req {
     fn from(shutdown: ShutdownReq) -> crate::Req {
-        shutdown.into_inner().into_inner()
+        crate::Req::from_inner(shutdown.into_inner())
     }
 }
 

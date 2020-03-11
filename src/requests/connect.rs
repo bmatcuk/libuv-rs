@@ -11,7 +11,7 @@ pub(crate) extern "C" fn uv_connect_cb(req: *mut uv_connect_t, status: std::os::
     let dataptr = crate::Req::get_data(uv_handle!(req));
     if !dataptr.is_null() {
         unsafe {
-            if let crate::ConnectData(d) = *dataptr {
+            if let super::ConnectData(d) = *dataptr {
                 if let Some(f) = d.connect_cb.as_mut() {
                     f(req.into_inner(), status as _);
                 }
@@ -41,7 +41,7 @@ impl ConnectReq {
         let connect_cb = cb.map(|f| Box::new(f) as _);
         crate::Req::initialize_data(
             uv_handle!(req),
-            crate::ConnectData(ConnectDataFields { connect_cb }),
+            super::ConnectData(ConnectDataFields { connect_cb }),
         );
 
         Ok(ConnectReq { req })
@@ -75,7 +75,7 @@ impl IntoInner<*mut uv::uv_req_t> for ConnectReq {
 
 impl From<ConnectReq> for crate::Req {
     fn from(connect: ConnectReq) -> crate::Req {
-        connect.into_inner().into_inner()
+        crate::Req::from_inner(connect.into_inner())
     }
 }
 

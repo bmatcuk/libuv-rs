@@ -12,7 +12,7 @@ extern "C" fn uv_idle_cb(handle: *mut uv_idle_t) {
     let dataptr = crate::Handle::get_data(uv_handle!(handle));
     if !dataptr.is_null() {
         unsafe {
-            if let crate::IdleData(d) = &mut (*dataptr).addl {
+            if let super::IdleData(d) = &mut (*dataptr).addl {
                 if let Some(f) = d.idle_cb.as_mut() {
                     f(handle.into_inner())
                 }
@@ -48,7 +48,7 @@ impl IdleHandle {
             return Err(crate::Error::from_inner(ret as uv::uv_errno_t));
         }
 
-        crate::Handle::initialize_data(uv_handle!(handle), crate::IdleData(Default::default()));
+        crate::Handle::initialize_data(uv_handle!(handle), super::IdleData(Default::default()));
 
         Ok(IdleHandle { handle })
     }
@@ -62,7 +62,7 @@ impl IdleHandle {
         let cb = cb.map(|f| Box::new(f) as _);
         let dataptr = crate::Handle::get_data(uv_handle!(self.handle));
         if !dataptr.is_null() {
-            if let crate::IdleData(d) = unsafe { &mut (*dataptr).addl } {
+            if let super::IdleData(d) = unsafe { &mut (*dataptr).addl } {
                 d.idle_cb = cb;
             }
         }
@@ -90,7 +90,7 @@ impl IntoInner<*mut uv::uv_handle_t> for IdleHandle {
 
 impl From<IdleHandle> for crate::Handle {
     fn from(idle: IdleHandle) -> crate::Handle {
-        idle.into_inner().into_inner()
+        crate::Handle::from_inner(idle.into_inner())
     }
 }
 
