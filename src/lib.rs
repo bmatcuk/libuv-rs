@@ -20,6 +20,9 @@ pub use r#loop::*;
 pub mod buf;
 pub use buf::*;
 
+pub mod fs;
+pub use fs::*;
+
 pub mod handles;
 pub use handles::*;
 
