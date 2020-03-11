@@ -1,6 +1,7 @@
 use crate::{FromInner, IntoInner};
 use uv::uv_timespec_t;
 
+/// Portable equivalent of struct timespec
 pub struct TimeSpec {
     sec: i64,
     nsec: i64,

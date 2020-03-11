@@ -8,6 +8,9 @@ pub use req::*;
 pub mod connect;
 pub use connect::*;
 
+pub mod fs;
+pub use fs::*;
+
 pub mod shutdown;
 pub use shutdown::*;
 

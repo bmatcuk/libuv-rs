@@ -1,6 +1,7 @@
 use crate::{FromInner, IntoInner};
 use uv::uv_stat_t;
 
+/// Portable equivalent of struct stat.
 pub struct Stat {
     pub dev: u64,
     pub mode: u64,

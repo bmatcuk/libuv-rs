@@ -1,6 +1,7 @@
 use crate::{FromInner, IntoInner};
 use uv::uv_statfs_t;
 
+/// Reduced cross platform equivalent of struct statfs. Used in statfs()
 pub struct StatFs {
     pub r#type: u64,
     pub bsize: u64,
