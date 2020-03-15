@@ -1,4 +1,5 @@
 use crate::{FromInner, IntoInner};
+use std::ffi::CStr;
 use uv::{uv_fs_req_cleanup, uv_fs_t};
 
 /// Additional data stored on the request
@@ -44,12 +45,64 @@ impl FsReq {
         Ok(FsReq { req })
     }
 
-    pub fn destroy(&mut self) {
-        crate::Req::free_data(uv_handle!(self.req));
-        unsafe { uv_fs_req_cleanup(self.req) };
+    /// Type of request that was made
+    pub fn request_type(&self) -> crate::FsType {
+        (*self.req).fs_type.into_inner()
+    }
 
-        let layout = std::alloc::Layout::new::<uv_fs_t>();
-        unsafe { std::alloc::dealloc(self.req as _, layout) };
+    /// Returns the result from the request
+    pub fn result(&self) -> isize {
+        (*self.req).result
+    }
+
+    /// Returns the file handle from the request
+    pub fn file(&self) -> crate::File {
+        (*self.req).file
+    }
+
+    /// Returns the file stats
+    pub fn stat(&self) -> crate::Stat {
+        (*self.req).statbuf.into_inner()
+    }
+
+    /// If this request is from opendir() or readdir(), return the Dir struct
+    pub fn dir(&self) -> Option<crate::Dir> {
+        match self.request_type() {
+            crate::FsType::OPENDIR | crate::FsType::READDIR => {
+                Some(crate::Dir::from_inner((*self.req).ptr as *mut uv::uv_dir_t))
+            }
+            _ => None,
+        }
+    }
+
+    /// If this request is from fs_statfs(), return the StatFs struct
+    pub fn statfs(&self) -> Option<crate::StatFs> {
+        match self.request_type() {
+            crate::FsType::STATFS => Some(crate::StatFs::from_inner(
+                (*self.req).ptr as *mut uv::uv_statfs_t,
+            )),
+            _ => None,
+        }
+    }
+
+    /// Returns the path of this file
+    pub fn path(&self) -> String {
+        CStr::from_ptr((*self.req).path)
+            .to_string_lossy()
+            .into_owned()
+    }
+
+    /// Free up memory associated with this request. If you are using one of the async fs_*
+    /// functions, this will be called automatically after the callback runs.
+    pub fn destroy(&mut self) {
+        if !self.req.is_null() {
+            crate::Req::free_data(uv_handle!(self.req));
+            unsafe { uv_fs_req_cleanup(self.req) };
+
+            let layout = std::alloc::Layout::new::<uv_fs_t>();
+            unsafe { std::alloc::dealloc(self.req as _, layout) };
+            self.req = std::ptr::null_mut();
+        }
     }
 }
 

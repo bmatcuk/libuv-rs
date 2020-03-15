@@ -13,8 +13,8 @@ pub struct StatFs {
     pub spare: [u64; 4usize],
 }
 
-impl FromInner<*const uv_statfs_t> for StatFs {
-    fn from_inner(statfs: *const uv_statfs_t) -> StatFs {
+impl FromInner<*mut uv_statfs_t> for StatFs {
+    fn from_inner(statfs: *mut uv_statfs_t) -> StatFs {
         StatFs {
             r#type: (*statfs).f_type,
             bsize: (*statfs).f_bsize,
