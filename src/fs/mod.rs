@@ -6,6 +6,7 @@
 include!("./fs_copy_flags.inc.rs");
 include!("./fs_open_flags.inc.rs");
 include!("./fs_mode_flags.rs");
+include!("./fs_symlink_flags.inc.rs");
 include!("./fs_types.inc.rs");
 
 use crate::{FromInner, FsReq, IntoInner};
@@ -42,6 +43,12 @@ type SyncErrResult = Result<isize, Box<dyn std::error::Error>>;
 
 /// Cross platform representation of a file handle.
 pub type File = i32;
+
+/// Cross platform representation of a user id
+pub type Uid = u32;
+
+/// Cross platform representation of a group id
+pub type Gid = u32;
 
 /// Destroys the given FsReq and returns the result
 fn destroy_req_return_result(req: FsReq) -> isize {
@@ -926,6 +933,571 @@ impl crate::Loop {
     ) -> SyncResult {
         self._fs_sendfile(out_file, in_file, offset, len, None::<fn(FsReq)>)
             .map(destroy_req_return_result)
+    }
+
+    /// Private implementation for fs_access()
+    fn _fs_access(
+        &self,
+        path: &str,
+        mode: FsAccessFlags,
+        cb: Option<impl FnMut(FsReq) + 'static>,
+    ) -> FsReqErrResult {
+        let path = CString::new(path)?;
+        let req = FsReq::new(cb)?;
+        let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let result = crate::uvret(unsafe {
+            uv_fs_access(
+                self.into_inner(),
+                req.into_inner(),
+                path.as_ptr(),
+                mode.bits(),
+                uv_cb,
+            )
+        })
+        .map_err(|e| Box::new(e) as _);
+        if result.is_err() {
+            req.destroy();
+        }
+        result.map(|_| req)
+    }
+
+    /// Equivalent to access(2) on Unix. Windows uses GetFileAttributesW().
+    pub fn fs_access(
+        &self,
+        path: &str,
+        mode: FsAccessFlags,
+        cb: impl FnMut(FsReq) + 'static,
+    ) -> FsReqErrResult {
+        self._fs_access(path, mode, Some(cb))
+    }
+
+    /// Equivalent to access(2) on Unix. Windows uses GetFileAttributesW().
+    pub fn fs_access_sync(&self, path: &str, mode: FsAccessFlags) -> SyncErrResult {
+        self._fs_access(path, mode, None::<fn(FsReq)>)
+            .map(destroy_req_return_result)
+    }
+
+    /// Private implementation for fs_chmod()
+    fn _fs_chmod(
+        &self,
+        path: &str,
+        mode: FsModeFlags,
+        cb: Option<impl FnMut(FsReq) + 'static>,
+    ) -> FsReqErrResult {
+        let path = CString::new(path)?;
+        let req = FsReq::new(cb)?;
+        let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let result = crate::uvret(unsafe {
+            uv_fs_chmod(
+                self.into_inner(),
+                req.into_inner(),
+                path.as_ptr(),
+                mode.bits(),
+                uv_cb,
+            )
+        })
+        .map_err(|e| Box::new(e) as _);
+        if result.is_err() {
+            req.destroy();
+        }
+        result.map(|_| req)
+    }
+
+    /// Equivalent to chmod(2).
+    pub fn fs_chmod(
+        &self,
+        path: &str,
+        mode: FsModeFlags,
+        cb: impl FnMut(FsReq) + 'static,
+    ) -> FsReqErrResult {
+        self._fs_chmod(path, mode, Some(cb))
+    }
+
+    /// Equivalent to chmod(2).
+    pub fn fs_chmod_sync(&self, path: &str, mode: FsModeFlags) -> SyncErrResult {
+        self._fs_chmod(path, mode, None::<fn(FsReq)>)
+            .map(destroy_req_return_result)
+    }
+
+    /// Private implementation for fs_fchomd()
+    fn _fs_fchmod(
+        &self,
+        file: File,
+        mode: FsModeFlags,
+        cb: Option<impl FnMut(FsReq) + 'static>,
+    ) -> FsReqResult {
+        let req = FsReq::new(cb)?;
+        let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let result = crate::uvret(unsafe {
+            uv_fs_fchmod(
+                self.into_inner(),
+                req.into_inner(),
+                file as _,
+                mode.bits(),
+                uv_cb,
+            )
+        });
+        if result.is_err() {
+            req.destroy();
+        }
+        result.map(|_| req)
+    }
+
+    /// Equivalent to fchmod(2).
+    pub fn fs_fchmod(
+        &self,
+        file: File,
+        mode: FsModeFlags,
+        cb: impl FnMut(FsReq) + 'static,
+    ) -> FsReqResult {
+        self._fs_fchmod(file, mode, Some(cb))
+    }
+
+    /// Equivalent to fchmod(2).
+    pub fn fs_fchmod_sync(&self, file: File, mode: FsModeFlags) -> SyncResult {
+        self._fs_fchmod(file, mode, None::<fn(FsReq)>)
+            .map(destroy_req_return_result)
+    }
+
+    fn _fs_utime(
+        &self,
+        path: &str,
+        atime: f64,
+        mtime: f64,
+        cb: Option<impl FnMut(FsReq) + 'static>,
+    ) -> FsReqErrResult {
+        let path = CString::new(path)?;
+        let req = FsReq::new(cb)?;
+        let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let result = crate::uvret(unsafe {
+            uv_fs_utime(
+                self.into_inner(),
+                req.into_inner(),
+                path.as_ptr(),
+                atime,
+                mtime,
+                uv_cb,
+            )
+        })
+        .map_err(|e| Box::new(e) as _);
+        if result.is_err() {
+            req.destroy();
+        }
+        result.map(|_| req)
+    }
+
+    /// Equivalent to utime(2).
+    ///
+    /// Note: AIX: This function only works for AIX 7.1 and newer. It can still be called on older
+    /// versions but will return ENOSYS.
+    pub fn fs_utime(
+        &self,
+        path: &str,
+        atime: f64,
+        mtime: f64,
+        cb: impl FnMut(FsReq) + 'static,
+    ) -> FsReqErrResult {
+        self._fs_utime(path, atime, mtime, Some(cb))
+    }
+
+    /// Equivalent to utime(2).
+    ///
+    /// Note: AIX: This function only works for AIX 7.1 and newer. It can still be called on older
+    /// versions but will return ENOSYS.
+    pub fn fs_utime_sync(&self, path: &str, atime: f64, mtime: f64) -> SyncErrResult {
+        self._fs_utime(path, atime, mtime, None::<fn(FsReq)>)
+            .map(destroy_req_return_result)
+    }
+
+    /// Private implementation for fs_futime()
+    fn _fs_futime(
+        &self,
+        file: File,
+        atime: f64,
+        mtime: f64,
+        cb: Option<impl FnMut(FsReq) + 'static>,
+    ) -> FsReqResult {
+        let req = FsReq::new(cb)?;
+        let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let result = crate::uvret(unsafe {
+            uv_fs_futime(
+                self.into_inner(),
+                req.into_inner(),
+                file as _,
+                atime,
+                mtime,
+                uv_cb,
+            )
+        });
+        if result.is_err() {
+            req.destroy();
+        }
+        result.map(|_| req)
+    }
+
+    /// Equivalent to futimes(3) respectively.
+    ///
+    /// Note: AIX: This function only works for AIX 7.1 and newer. It can still be called on older
+    /// versions but will return ENOSYS.
+    pub fn fs_futime(
+        &self,
+        file: File,
+        atime: f64,
+        mtime: f64,
+        cb: impl FnMut(FsReq) + 'static,
+    ) -> FsReqResult {
+        self._fs_futime(file, atime, mtime, Some(cb))
+    }
+
+    /// Equivalent to futimes(3) respectively.
+    ///
+    /// Note: AIX: This function only works for AIX 7.1 and newer. It can still be called on older
+    /// versions but will return ENOSYS.
+    pub fn fs_futime_sync(&self, file: File, atime: f64, mtime: f64) -> SyncResult {
+        self._fs_futime(file, atime, mtime, None::<fn(FsReq)>)
+            .map(destroy_req_return_result)
+    }
+
+    /// Private implementation for fs_link()
+    fn _fs_link(
+        &self,
+        path: &str,
+        new_path: &str,
+        cb: Option<impl FnMut(FsReq) + 'static>,
+    ) -> FsReqErrResult {
+        let path = CString::new(path)?;
+        let new_path = CString::new(new_path)?;
+        let req = FsReq::new(cb)?;
+        let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let result = crate::uvret(unsafe {
+            uv_fs_link(
+                self.into_inner(),
+                req.into_inner(),
+                path.as_ptr(),
+                new_path.as_ptr(),
+                uv_cb,
+            )
+        })
+        .map_err(|e| Box::new(e) as _);
+        if result.is_err() {
+            req.destroy();
+        }
+        result.map(|_| req)
+    }
+
+    /// Equivalent to link(2).
+    pub fn fs_link(
+        &self,
+        path: &str,
+        new_path: &str,
+        cb: impl FnMut(FsReq) + 'static,
+    ) -> FsReqErrResult {
+        self._fs_link(path, new_path, Some(cb))
+    }
+
+    /// Equivalent to link(2).
+    pub fn fs_link_sync(&self, path: &str, new_path: &str) -> SyncErrResult {
+        self._fs_link(path, new_path, None::<fn(FsReq)>)
+            .map(destroy_req_return_result)
+    }
+
+    /// Private implementation for fs_symlink()
+    fn _fs_symlink(
+        &self,
+        path: &str,
+        new_path: &str,
+        flags: FsSymlinkFlags,
+        cb: Option<impl FnMut(FsReq) + 'static>,
+    ) -> FsReqErrResult {
+        let path = CString::new(path)?;
+        let new_path = CString::new(new_path)?;
+        let req = FsReq::new(cb)?;
+        let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let result = crate::uvret(unsafe {
+            uv_fs_symlink(
+                self.into_inner(),
+                req.into_inner(),
+                path.as_ptr(),
+                new_path.as_ptr(),
+                flags.bits(),
+                uv_cb,
+            )
+        })
+        .map_err(|e| Box::new(e) as _);
+        if result.is_err() {
+            req.destroy();
+        }
+        result.map(|_| req)
+    }
+
+    /// Equivalent to symlink(2).
+    ///
+    /// Note: On Windows the flags parameter can be specified to control how the symlink will be
+    /// created:
+    ///
+    ///   * UV_FS_SYMLINK_DIR: indicates that path points to a directory.
+    ///   * UV_FS_SYMLINK_JUNCTION: request that the symlink is created using junction points.
+    pub fn fs_symlink(
+        &self,
+        path: &str,
+        new_path: &str,
+        flags: FsSymlinkFlags,
+        cb: impl FnMut(FsReq) + 'static,
+    ) -> FsReqErrResult {
+        self._fs_symlink(path, new_path, flags, Some(cb))
+    }
+
+    /// Equivalent to symlink(2).
+    ///
+    /// Note: On Windows the flags parameter can be specified to control how the symlink will be
+    /// created:
+    ///
+    ///   * UV_FS_SYMLINK_DIR: indicates that path points to a directory.
+    ///   * UV_FS_SYMLINK_JUNCTION: request that the symlink is created using junction points.
+    pub fn fs_symlink_sync(
+        &self,
+        path: &str,
+        new_path: &str,
+        flags: FsSymlinkFlags,
+    ) -> SyncErrResult {
+        self._fs_symlink(path, new_path, flags, None::<fn(FsReq)>)
+            .map(destroy_req_return_result)
+    }
+
+    fn _fs_readlink(&self, path: &str, cb: Option<impl FnMut(FsReq) + 'static>) -> FsReqErrResult {
+        let path = CString::new(path)?;
+        let req = FsReq::new(cb)?;
+        let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let result = crate::uvret(unsafe {
+            uv_fs_readline(self.into_inner(), req.into_inner(), path.as_ptr(), uv_cb)
+        })
+        .map_err(|e| Box::new(e) as _);
+        if result.is_err() {
+            req.destroy();
+        }
+        result.map(|_| req)
+    }
+
+    /// Equivalent to readlink(2). The path can be read from FsReq::real_path()
+    pub fn fs_readlink(&self, path: &str, cb: impl FnMut(FsReq) + 'static) -> FsReqErrResult {
+        self._fs_readlink(path, Some(cb))
+    }
+
+    /// Equivalent to readlink(2).
+    pub fn fs_readlink_sync(&self, path: &str) -> Result<String, Box<dyn std::error::Error>> {
+        self._fs_readlink(path, None::<fn(FsReq)>).and_then(|req| {
+            let path = req.real_path();
+            req.destroy();
+            path.ok_or_else(|| Box::new(crate::Error::EINVAL) as _)
+        })
+    }
+
+    /// Private implementation for fs_realpath()
+    fn _fs_realpath(&self, path: &str, cb: Option<impl FnMut(FsReq) + 'static>) -> FsReqErrResult {
+        let path = CString::new(path)?;
+        let req = FsReq::new(cb)?;
+        let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let result = crate::uvret(unsafe {
+            uv_fs_realpath(self.into_inner(), req.into_inner(), path.as_ptr(), uv_cb)
+        })
+        .map_err(|e| Box::new(e) as _);
+        if result.is_err() {
+            req.destroy();
+        }
+        result.map(|_| req)
+    }
+
+    /// Equivalent to realpath(3) on Unix. Windows uses GetFinalPathNameByHandle. The path can be
+    /// read from FsReq::real_path()
+    ///
+    /// Warning: This function has certain platform-specific caveats that were discovered when used
+    /// in Node.
+    ///
+    ///   * macOS and other BSDs: this function will fail with ELOOP if more than 32 symlinks are
+    ///     found while resolving the given path. This limit is hardcoded and cannot be
+    ///     sidestepped.
+    ///   * Windows: while this function works in the common case, there are a number of corner
+    ///     cases where it doesn’t:
+    ///       * Paths in ramdisk volumes created by tools which sidestep the Volume Manager (such
+    ///         as ImDisk) cannot be resolved.
+    ///       * Inconsistent casing when using drive letters.
+    ///       * Resolved path bypasses subst’d drives.
+    ///
+    /// While this function can still be used, it’s not recommended if scenarios such as the above
+    /// need to be supported.
+    ///
+    /// Note: This function is not implemented on Windows XP and Windows Server 2003. On these
+    /// systems, ENOSYS is returned.
+    pub fn fs_realpath(&self, path: &str, cb: impl FnMut(FsReq) + 'static) -> FsReqErrResult {
+        self._fs_realpath(path, Some(cb))
+    }
+
+    /// Equivalent to realpath(3) on Unix. Windows uses GetFinalPathNameByHandle.
+    ///
+    /// Warning: This function has certain platform-specific caveats that were discovered when used
+    /// in Node.
+    ///
+    ///   * macOS and other BSDs: this function will fail with ELOOP if more than 32 symlinks are
+    ///     found while resolving the given path. This limit is hardcoded and cannot be
+    ///     sidestepped.
+    ///   * Windows: while this function works in the common case, there are a number of corner
+    ///     cases where it doesn’t:
+    ///       * Paths in ramdisk volumes created by tools which sidestep the Volume Manager (such
+    ///         as ImDisk) cannot be resolved.
+    ///       * Inconsistent casing when using drive letters.
+    ///       * Resolved path bypasses subst’d drives.
+    ///
+    /// While this function can still be used, it’s not recommended if scenarios such as the above
+    /// need to be supported.
+    ///
+    /// Note: This function is not implemented on Windows XP and Windows Server 2003. On these
+    /// systems, ENOSYS is returned.
+    pub fn fs_realpath_sync(&self, path: &str) -> Result<String, Box<dyn std::error::Error>> {
+        self._fs_realpath(path, None::<fn(FsReq)>).and_then(|req| {
+            let path = req.real_path();
+            req.destroy();
+            path.ok_or_else(|| Box::new(crate::Error::EINVAL) as _)
+        })
+    }
+
+    /// Private implementation for fs_chown()
+    fn _fs_chown(
+        &self,
+        path: &str,
+        uid: Uid,
+        gid: Gid,
+        cb: Option<impl FnMut(FsReq) + 'static>,
+    ) -> FsReqErrResult {
+        let path = CString::new(path)?;
+        let req = FsReq::new(cb)?;
+        let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let result = crate::uvret(unsafe {
+            uv_fs_chown(
+                self.into_inner(),
+                req.into_inner(),
+                path.as_ptr(),
+                uid as _,
+                gid as _,
+                uv_cb,
+            )
+        }).map_err(|e| Box::new(e) as _);
+        if result.is_err() {
+            req.destroy();
+        }
+        result.map(|_| req)
+    }
+
+    /// Equivalent to chown(2)
+    ///
+    /// Note: This functions are not implemented on Windows.
+    pub fn fs_chown(
+        &self,
+        path: &str,
+        uid: Uid,
+        gid: Gid,
+        cb: impl FnMut(FsReq) + 'static,
+    ) -> FsReqErrResult {
+        self._fs_chown(path, uid, gid, Some(cb))
+    }
+
+    /// Equivalent to chown(2)
+    ///
+    /// Note: This functions are not implemented on Windows.
+    pub fn fs_chown_sync(&self, path: &str, uid: Uid, gid: Gid) -> SyncErrResult {
+        self._fs_chown(path, uid, gid, None::<fn(FsReq)>).map(destroy_req_return_result)
+    }
+
+    /// Private implementation for fs_fchown()
+    fn _fs_fchown(
+        &self,
+        file: File,
+        uid: Uid,
+        gid: Gid,
+        cb: Option<impl FnMut(FsReq) + 'static>,
+    ) -> FsReqResult {
+        let req = FsReq::new(cb)?;
+        let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let result = crate::uvret(unsafe {
+            uv_fs_fchown(
+                self.into_inner(),
+                req.into_inner(),
+                file as _,
+                uid as _,
+                gid as _,
+                uv_cb,
+            )
+        });
+        if result.is_err() {
+            req.destroy();
+        }
+        result.map(|_| req)
+    }
+
+    /// Equivalent to fchown(2)
+    ///
+    /// Note: This functions are not implemented on Windows.
+    pub fn fs_fchown(
+        &self,
+        file: File,
+        uid: Uid,
+        gid: Gid,
+        cb: impl FnMut(FsReq) + 'static,
+    ) -> FsReqResult {
+        self._fs_fchown(file, uid, gid, Some(cb))
+    }
+
+    /// Equivalent to fchown(2)
+    ///
+    /// Note: This functions are not implemented on Windows.
+    pub fn fs_fchown_sync(&self, file: File, uid: Uid, gid: Gid) -> SyncResult {
+        self._fs_fchown(file, uid, gid, None::<fn(FsReq)>).map(destroy_req_return_result)
+    }
+
+    /// Private implementation for fs_lchown()
+    fn _fs_lchown(
+        &self,
+        path: &str,
+        uid: Uid,
+        gid: Gid,
+        cb: Option<impl FnMut(FsReq) + 'static>,
+    ) -> FsReqErrResult {
+        let path = CString::new(path)?;
+        let req = FsReq::new(cb)?;
+        let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let result = crate::uvret(unsafe {
+            uv_fs_lchown(
+                self.into_inner(),
+                req.into_inner(),
+                path.as_ptr(),
+                uid as _,
+                gid as _,
+                uv_cb,
+            )
+        }).map_err(|e| Box::new(e) as _);
+        if result.is_err() {
+            req.destroy();
+        }
+        result.map(|_| req)
+    }
+
+    /// Equivalent to lchown(2)
+    ///
+    /// Note: This functions are not implemented on Windows.
+    pub fn fs_lchown(
+        &self,
+        path: &str,
+        uid: Uid,
+        gid: Gid,
+        cb: impl FnMut(FsReq) + 'static,
+    ) -> FsReqErrResult {
+        self._fs_lchown(path, uid, gid, Some(cb))
+    }
+
+    /// Equivalent to lchown(2)
+    ///
+    /// Note: This functions are not implemented on Windows.
+    pub fn fs_lchown_sync(&self, path: &str, uid: Uid, gid: Gid) -> SyncErrResult {
+        self._fs_lchown(path, uid, gid, None::<fn(FsReq)>).map(destroy_req_return_result)
     }
 }
 

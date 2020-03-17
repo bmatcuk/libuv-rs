@@ -14,3 +14,12 @@ bitflags! {
         const OthersExecute = 0x1;
     }
 }
+
+bitflags! {
+    pub struct FsAccessFlags: i32 {
+        const Ok = 0;
+        const Read = 4;
+        const Write = 2;
+        const Execute = 1;
+    }
+}

@@ -1,6 +1,9 @@
 use crate::{FromInner, IntoInner};
 use std::ffi::CStr;
-use uv::{uv_fs_req_cleanup, uv_fs_t};
+use uv::{
+    uv_fs_get_path, uv_fs_get_ptr, uv_fs_get_result, uv_fs_get_statbuf, uv_fs_get_type,
+    uv_fs_req_cleanup, uv_fs_t,
+};
 
 /// Additional data stored on the request
 pub(crate) struct FsDataFields {
@@ -47,12 +50,12 @@ impl FsReq {
 
     /// Type of request that was made
     pub fn request_type(&self) -> crate::FsType {
-        (*self.req).fs_type.into_inner()
+        unsafe { uv_fs_get_type(self.req).into_inner() }
     }
 
     /// Returns the result from the request
     pub fn result(&self) -> isize {
-        (*self.req).result
+        unsafe { uv_fs_get_result(self.req) }
     }
 
     /// Returns the file handle from the request
@@ -62,14 +65,15 @@ impl FsReq {
 
     /// Returns the file stats
     pub fn stat(&self) -> crate::Stat {
-        (*self.req).statbuf.into_inner()
+        unsafe { uv_fs_get_statbuf(self.req).into_inner() }
     }
 
     /// If this request is from opendir() or readdir(), return the Dir struct
     pub fn dir(&self) -> Option<crate::Dir> {
         match self.request_type() {
             crate::FsType::OPENDIR | crate::FsType::READDIR => {
-                Some(crate::Dir::from_inner((*self.req).ptr as *mut uv::uv_dir_t))
+                let ptr: *mut uv::uv_dir_t = unsafe { uv_fs_get_ptr(self.req) } as _;
+                Some(ptr.into_inner())
             }
             _ => None,
         }
@@ -78,18 +82,29 @@ impl FsReq {
     /// If this request is from fs_statfs(), return the StatFs struct
     pub fn statfs(&self) -> Option<crate::StatFs> {
         match self.request_type() {
-            crate::FsType::STATFS => Some(crate::StatFs::from_inner(
-                (*self.req).ptr as *mut uv::uv_statfs_t,
-            )),
+            crate::FsType::STATFS => {
+                let ptr: *mut uv::uv_statfs_t = unsafe { uv_fs_get_ptr(self.req) } as _;
+                Some(ptr.into_inner())
+            }
+            _ => None,
+        }
+    }
+
+    /// If this request is from fs_readlink() or fs_realpath(), return the path
+    pub fn real_path(&self) -> Option<String> {
+        match self.request_type() {
+            crate::FsType::READLINK | crate::FsType::REALPATH => {
+                let ptr: *const i8 = unsafe { uv_fs_get_ptr(self.req) } as _;
+                Some(CStr::from_ptr(ptr).to_string_lossy().into_owned())
+            }
             _ => None,
         }
     }
 
     /// Returns the path of this file
     pub fn path(&self) -> String {
-        CStr::from_ptr((*self.req).path)
-            .to_string_lossy()
-            .into_owned()
+        let path = unsafe { uv_fs_get_path(self.req) };
+        CStr::from_ptr(path).to_string_lossy().into_owned()
     }
 
     /// Free up memory associated with this request. If you are using one of the async fs_*
