@@ -23,6 +23,9 @@ pub use buf::*;
 pub mod fs;
 pub use fs::*;
 
+pub mod net;
+pub use net::*;
+
 pub mod handles;
 pub use handles::*;
 

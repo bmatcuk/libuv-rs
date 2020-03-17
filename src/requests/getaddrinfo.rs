@@ -1,9 +1,9 @@
 use crate::{FromInner, IntoInner};
-use uv::{addrinfo, uv_getaddrinfo_t, uv_getaddrinfo, uv_freeaddrinfo};
+use uv::{addrinfo, uv_freeaddrinfo, uv_getaddrinfo, uv_getaddrinfo_t};
 
 /// Additional data stored on the request
 pub(crate) struct GetAddrInfoDataFields {
-    cb: Option<Box<dyn FnMut(GetAddrInfoReq)>>,
+    cb: Option<Box<dyn FnMut(GetAddrInfoReq, i32, crate::AddrInfo)>>,
 }
 
 /// Callback for uv_getaddrinfo
@@ -31,7 +31,9 @@ pub struct GetAddrInfoReq {
 
 impl GetAddrInfoReq {
     /// Create a new GetAddrInfo request
-    pub fn new(cb: Option<impl FnMut(GetAddrInfoReq) + 'static>) -> crate::Result<GetAddrInfoReq> {
+    pub fn new(
+        cb: Option<impl FnMut(GetAddrInfoReq, i32, crate::AddrInfo) + 'static>,
+    ) -> crate::Result<GetAddrInfoReq> {
         let layout = std::alloc::Layout::new::<uv_getaddrinfo_t>();
         let req = unsafe { std::alloc::alloc(layout) as *mut uv_getaddrinfo_t };
         if req.is_null() {
@@ -39,7 +41,10 @@ impl GetAddrInfoReq {
         }
 
         let cb = cb.map(|f| Box::new(f) as _);
-        crate::Req::initialize_data(uv_handle!(req), super::GetAddrInfoData(GetAddrInfoDataFields { cb }));
+        crate::Req::initialize_data(
+            uv_handle!(req),
+            super::GetAddrInfoData(GetAddrInfoDataFields { cb }),
+        );
 
         Ok(GetAddrInfoReq { req })
     }
@@ -79,5 +84,4 @@ impl From<GetAddrInfoReq> for crate::Req {
 
 impl crate::ReqTrait for GetAddrInfoReq {}
 
-impl crate::Loop {
-}
+impl crate::Loop {}
