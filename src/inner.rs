@@ -1,6 +1,6 @@
 //! Internal utilities
-use libc::{AF_INET, AF_INET6};
 use std::net::SocketAddr;
+use uv::{AF_INET, AF_INET6};
 
 /// An internal version of From<T>
 #[doc(hidden)]

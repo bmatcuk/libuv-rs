@@ -1,10 +1,9 @@
 use crate::{FromInner, IntoInner};
-use libc::{AF_INET, AF_INET6};
 use std::net::SocketAddr;
 use uv::{
     uv_tcp_bind, uv_tcp_close_reset, uv_tcp_connect, uv_tcp_getpeername, uv_tcp_getsockname,
     uv_tcp_init, uv_tcp_init_ex, uv_tcp_keepalive, uv_tcp_nodelay, uv_tcp_simultaneous_accepts,
-    uv_tcp_t,
+    uv_tcp_t, AF_INET, AF_INET6, AF_UNSPEC,
 };
 
 bitflags! {
@@ -12,7 +11,7 @@ bitflags! {
     pub struct TcpFlags: u32 {
         const AF_INET = AF_INET as _;
         const AF_INET6 = AF_INET6 as _;
-        const AF_UNSPEC = libc::AF_UNSPEC as _;
+        const AF_UNSPEC = AF_UNSPEC as _;
     }
 }
 

@@ -1,5 +1,4 @@
 use crate::{FromInner, IntoInner};
-use libc::{AF_INET, AF_INET6};
 use std::ffi::CString;
 use std::net::SocketAddr;
 use uv::{
@@ -7,7 +6,8 @@ use uv::{
     uv_udp_getpeername, uv_udp_getsockname, uv_udp_init, uv_udp_init_ex, uv_udp_recv_start,
     uv_udp_recv_stop, uv_udp_send, uv_udp_set_broadcast, uv_udp_set_membership,
     uv_udp_set_multicast_interface, uv_udp_set_multicast_loop, uv_udp_set_multicast_ttl,
-    uv_udp_set_source_membership, uv_udp_set_ttl, uv_udp_t, uv_udp_try_send,
+    uv_udp_set_source_membership, uv_udp_set_ttl, uv_udp_t, uv_udp_try_send, AF_INET, AF_INET6,
+    AF_UNSPEC,
 };
 
 bitflags! {
@@ -15,7 +15,7 @@ bitflags! {
     pub struct UdpFlags: u32 {
         const AF_INET = AF_INET as _;
         const AF_INET6 = AF_INET6 as _;
-        const AF_UNSPEC = libc::AF_UNSPEC as _;
+        const AF_UNSPEC = AF_UNSPEC as _;
     }
 }
 
