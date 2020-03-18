@@ -88,7 +88,7 @@ impl IntoInner<*mut uv::uv_handle_t> for AsyncHandle {
 
 impl From<AsyncHandle> for crate::Handle {
     fn from(r#async: AsyncHandle) -> crate::Handle {
-        crate::Handle::from_inner(r#async.into_inner())
+        crate::Handle::from_inner(IntoInner::<*mut uv::uv_handle_t>::into_inner(r#async))
     }
 }
 

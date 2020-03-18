@@ -141,7 +141,7 @@ impl IntoInner<*mut uv::uv_req_t> for FsReq {
 
 impl From<FsReq> for crate::Req {
     fn from(fs: FsReq) -> crate::Req {
-        crate::Req::from_inner(fs.into_inner())
+        crate::Req::from_inner(IntoInner::<*mut uv::uv_req_t>::into_inner(fs))
     }
 }
 

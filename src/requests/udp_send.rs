@@ -83,7 +83,10 @@ impl UdpSendReq {
 
 impl FromInner<*mut uv_udp_send_t> for UdpSendReq {
     fn from_inner(req: *mut uv_udp_send_t) -> UdpSendReq {
-        UdpSendReq { req, bufs_ptr: std::ptr::null() }
+        UdpSendReq {
+            req,
+            bufs_ptr: std::ptr::null(),
+        }
     }
 }
 
@@ -101,7 +104,7 @@ impl IntoInner<*mut uv::uv_req_t> for UdpSendReq {
 
 impl From<UdpSendReq> for crate::Req {
     fn from(udp_send: UdpSendReq) -> crate::Req {
-        crate::Req(udp_send.into_inner())
+        crate::Req::from_inner(IntoInner::<*mut uv::uv_req_t>::into_inner(udp_send))
     }
 }
 

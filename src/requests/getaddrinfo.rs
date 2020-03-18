@@ -1,4 +1,5 @@
 use crate::{FromInner, IntoInner};
+use std::ffi::CString;
 use uv::{addrinfo, uv_freeaddrinfo, uv_getaddrinfo, uv_getaddrinfo_t};
 
 /// Additional data stored on the request
@@ -56,6 +57,12 @@ impl GetAddrInfoReq {
         let layout = std::alloc::Layout::new::<uv_getaddrinfo_t>();
         unsafe { std::alloc::dealloc(self.req as _, layout) };
     }
+
+    /// Retrieve the AddrInfo from the request
+    /// TODO: addrinfo is a linked list - need to iterate
+    pub fn addrinfo(&self) -> crate::AddrInfo {
+        (*self.req).addrinfo.into_inner()
+    }
 }
 
 impl FromInner<*mut uv_getaddrinfo_t> for GetAddrInfoReq {
@@ -78,10 +85,50 @@ impl IntoInner<*mut uv::uv_req_t> for GetAddrInfoReq {
 
 impl From<GetAddrInfoReq> for crate::Req {
     fn from(req: GetAddrInfoReq) -> crate::Req {
-        crate::Req::from_inner(req.into_inner())
+        crate::Req::from_inner(IntoInner::<*mut uv::uv_req_t>::into_inner(req))
     }
 }
 
 impl crate::ReqTrait for GetAddrInfoReq {}
 
-impl crate::Loop {}
+impl crate::Loop {
+    pub fn getaddrinfo(
+        &self,
+        node: Option<&str>,
+        service: Option<&str>,
+        hints: Option<crate::AddrInfo>,
+        cb: Option<impl FnMut(GetAddrInfoReq, i32, crate::AddrInfo)>,
+    ) -> Result<GetAddrInfoReq, Box<dyn std::error::Error>> {
+        let node = node.map(CString::new).transpose()?;
+        let service = service.map(CString::new).transpose()?;
+        let req = GetAddrInfoReq::new(cb)?;
+        let uv_cb = cb.as_ref().map(|_| uv_getaddrinfo_cb as _);
+        let result = crate::uvret(unsafe {
+            uv_getaddrinfo(
+                self.into_inner(),
+                req.into_inner(),
+                uv_cb,
+                if let Some(node) = node { node.as_ptr() } else { std::ptr::null() },
+                if let Some(service) = service { service.as_ptr() } else {std::ptr::null() },
+                if let Some(hints) = hints { hints.into_inner() } else { std::ptr::null() },
+            )
+        }).map_err(|e| Box::new(e) as _);
+        if result.is_err() {
+            req.destroy();
+        }
+        result.map(|_| req)
+    }
+
+    pub fn getaddrinfo_sync(
+        &self,
+        node: Option<&str>,
+        service: Option<&str>,
+        hints: Option<crate::AddrInfo>,
+    ) -> Result<crate::AddrInfo, Box<dyn std::error::Error>> {
+        self.getaddrinfo(node, service, hints, None::<fn(GetAddrInfoReq, i32, crate::AddrInfo)>).map(|req| {
+            let info = req.addrinfo();
+            req.destroy();
+            return info
+        })
+    }
+}

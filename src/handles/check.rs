@@ -83,7 +83,7 @@ impl IntoInner<*mut uv::uv_handle_t> for CheckHandle {
 
 impl From<CheckHandle> for crate::Handle {
     fn from(check: CheckHandle) -> crate::Handle {
-        crate::Handle::from_inner(check.into_inner())
+        crate::Handle::from_inner(IntoInner::<*mut uv::uv_handle_t>::into_inner(check))
     }
 }
 

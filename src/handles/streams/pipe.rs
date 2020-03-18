@@ -9,9 +9,9 @@ use uv::{
 
 bitflags! {
     /// Flags to PipeHandle::chmod()
-    pub struct ChmodFlags: u32 {
-        const READABLE = uv::uv_poll_event_UV_READABLE;
-        const WRITABLE = uv::uv_poll_event_UV_WRITABLE;
+    pub struct ChmodFlags: i32 {
+        const READABLE = uv::uv_poll_event_UV_READABLE as _;
+        const WRITABLE = uv::uv_poll_event_UV_WRITABLE as _;
     }
 }
 
@@ -65,19 +65,15 @@ impl PipeHandle {
     ) -> Result<crate::ConnectReq, Box<dyn std::error::Error>> {
         let req = crate::ConnectReq::new(cb)?;
         let name = CString::new(name)?;
-        let result = crate::uvret(unsafe {
+        unsafe {
             uv_pipe_connect(
                 req.into_inner(),
                 self.handle,
                 name.as_ptr(),
-                Some(crate::uv_connect_cb),
+                Some(crate::uv_connect_cb as _),
             )
-        })
-        .map_err(|e| Box::new(e) as _);
-        if result.is_err() {
-            req.destroy();
-        }
-        result.map(|_| req)
+        };
+        Ok(req)
     }
 
     /// Get the name of the Unix domain socket or the named pipe.
@@ -89,7 +85,7 @@ impl PipeHandle {
             uv_pipe_getsockname(
                 self.handle,
                 uv_handle!(&mut sockaddr),
-                &mut sockaddr_len as _,
+                uv_handle!(&mut sockaddr_len),
             )
         })?;
 
@@ -105,7 +101,7 @@ impl PipeHandle {
             uv_pipe_getpeername(
                 self.handle,
                 uv_handle!(&mut sockaddr),
-                &mut sockaddr_len as _,
+                uv_handle!(&mut sockaddr_len),
             )
         })?;
 
@@ -166,13 +162,13 @@ impl IntoInner<*mut uv::uv_handle_t> for PipeHandle {
 
 impl From<PipeHandle> for crate::StreamHandle {
     fn from(pipe: PipeHandle) -> crate::StreamHandle {
-        crate::StreamHandle::from_inner(pipe.into_inner())
+        crate::StreamHandle::from_inner(IntoInner::<*mut uv::uv_stream_t>::into_inner(pipe))
     }
 }
 
 impl From<PipeHandle> for crate::Handle {
     fn from(pipe: PipeHandle) -> crate::Handle {
-        crate::Handle::from_inner(pipe.into_inner())
+        crate::Handle::from_inner(IntoInner::<*mut uv::uv_handle_t>::into_inner(pipe))
     }
 }
 

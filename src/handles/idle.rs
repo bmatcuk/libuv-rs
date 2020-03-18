@@ -90,7 +90,7 @@ impl IntoInner<*mut uv::uv_handle_t> for IdleHandle {
 
 impl From<IdleHandle> for crate::Handle {
     fn from(idle: IdleHandle) -> crate::Handle {
-        crate::Handle::from_inner(idle.into_inner())
+        crate::Handle::from_inner(IntoInner::<*mut uv::uv_handle_t>::into_inner(idle))
     }
 }
 

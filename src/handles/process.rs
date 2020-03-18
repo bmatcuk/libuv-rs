@@ -92,7 +92,9 @@ pub enum StdioType {
 impl IntoInner<uv_stdio_container_data> for StdioType {
     fn into_inner(self) -> uv_stdio_container_data {
         match self {
-            StdioType::Stream(s) => uv_stdio_container_data { stream: s.into_inner() },
+            StdioType::Stream(s) => uv_stdio_container_data {
+                stream: s.into_inner(),
+            },
             StdioType::Fd(fd) => uv_stdio_container_data { fd },
         }
     }
@@ -312,7 +314,7 @@ impl IntoInner<*mut uv::uv_handle_t> for ProcessHandle {
 
 impl From<ProcessHandle> for crate::Handle {
     fn from(process: ProcessHandle) -> crate::Handle {
-        crate::Handle::from_inner(process.into_inner())
+        crate::Handle::from_inner(IntoInner::<*mut uv::uv_handle_t>::into_inner(process))
     }
 }
 

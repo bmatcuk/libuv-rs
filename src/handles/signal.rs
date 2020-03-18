@@ -135,7 +135,7 @@ impl IntoInner<*mut uv::uv_handle_t> for SignalHandle {
 
 impl From<SignalHandle> for crate::Handle {
     fn from(signal: SignalHandle) -> crate::Handle {
-        crate::Handle::from_inner(signal.into_inner())
+        crate::Handle::from_inner(IntoInner::<*mut uv::uv_handle_t>::into_inner(signal))
     }
 }
 

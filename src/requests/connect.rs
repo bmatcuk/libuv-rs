@@ -75,7 +75,7 @@ impl IntoInner<*mut uv::uv_req_t> for ConnectReq {
 
 impl From<ConnectReq> for crate::Req {
     fn from(connect: ConnectReq) -> crate::Req {
-        crate::Req::from_inner(connect.into_inner())
+        crate::Req::from_inner(IntoInner::<*mut uv::uv_req_t>::into_inner(connect))
     }
 }
 

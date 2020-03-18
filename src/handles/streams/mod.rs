@@ -2,6 +2,9 @@ mod addl_stream_data;
 use addl_stream_data::*;
 use addl_stream_data::AddlStreamData::*;
 
+pub mod pipe;
+pub use pipe::*;
+
 pub mod stream;
 pub use stream::*;
 

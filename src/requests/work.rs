@@ -96,7 +96,7 @@ impl IntoInner<*mut uv::uv_req_t> for WorkReq {
 
 impl From<WorkReq> for crate::Req {
     fn from(work: WorkReq) -> crate::Req {
-        crate::Req::from_inner(work.into_inner())
+        crate::Req::from_inner(IntoInner::<*mut uv::uv_req_t>::into_inner(work))
     }
 }
 

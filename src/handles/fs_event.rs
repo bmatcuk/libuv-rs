@@ -161,7 +161,7 @@ impl IntoInner<*mut uv::uv_handle_t> for FsEventHandle {
 
 impl From<FsEventHandle> for crate::Handle {
     fn from(fs_event: FsEventHandle) -> crate::Handle {
-        crate::Handle::from_inner(fs_event.into_inner())
+        crate::Handle::from_inner(IntoInner::<*mut uv::uv_handle_t>::into_inner(fs_event))
     }
 }
 

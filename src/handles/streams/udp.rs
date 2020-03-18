@@ -387,13 +387,13 @@ impl IntoInner<*mut uv::uv_handle_t> for UdpHandle {
 
 impl From<UdpHandle> for crate::StreamHandle {
     fn from(udp: UdpHandle) -> crate::StreamHandle {
-        crate::StreamHandle::from_inner(udp.into_inner())
+        crate::StreamHandle::from_inner(IntoInner::<*mut uv::uv_stream_t>::into_inner(udp))
     }
 }
 
 impl From<UdpHandle> for crate::Handle {
     fn from(udp: UdpHandle) -> crate::Handle {
-        crate::Handle::from_inner(udp.into_inner())
+        crate::Handle::from_inner(IntoInner::<*mut uv::uv_handle_t>::into_inner(udp))
     }
 }
 

@@ -72,7 +72,9 @@ impl StreamHandle {
     }
 
     pub(crate) fn get_data(stream: *mut uv_stream_t) -> *mut StreamDataFields {
-        if let super::super::StreamData(ref mut d) = &mut (*crate::Handle::get_data(uv_handle!(stream))).addl {
+        if let super::super::StreamData(ref mut d) =
+            &mut (*crate::Handle::get_data(uv_handle!(stream))).addl
+        {
             return d;
         }
         std::ptr::null_mut()
@@ -103,7 +105,7 @@ impl IntoInner<*mut uv::uv_handle_t> for StreamHandle {
 
 impl From<StreamHandle> for crate::Handle {
     fn from(stream: StreamHandle) -> crate::Handle {
-        crate::Handle::from_inner(stream.into_inner())
+        crate::Handle::from_inner(IntoInner::<*mut uv::uv_handle_t>::into_inner(stream))
     }
 }
 

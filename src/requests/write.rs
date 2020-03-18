@@ -109,7 +109,7 @@ impl IntoInner<*mut uv::uv_req_t> for WriteReq {
 
 impl From<WriteReq> for crate::Req {
     fn from(write: WriteReq) -> crate::Req {
-        crate::Req::from_inner(write.into_inner())
+        crate::Req::from_inner(IntoInner::<*mut uv::uv_req_t>::into_inner(write))
     }
 }
 

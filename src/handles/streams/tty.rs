@@ -133,13 +133,13 @@ impl IntoInner<*mut uv::uv_handle_t> for TtyHandle {
 
 impl From<TtyHandle> for crate::StreamHandle {
     fn from(tty: TtyHandle) -> crate::StreamHandle {
-        crate::StreamHandle::from_inner(tty.into_inner())
+        crate::StreamHandle::from_inner(IntoInner::<*mut uv::uv_stream_t>::into_inner(tty))
     }
 }
 
 impl From<TtyHandle> for crate::Handle {
     fn from(tty: TtyHandle) -> crate::Handle {
-        crate::Handle::from_inner(tty.into_inner())
+        crate::Handle::from_inner(IntoInner::<*mut uv::uv_handle_t>::into_inner(tty))
     }
 }
 

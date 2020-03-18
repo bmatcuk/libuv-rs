@@ -126,7 +126,7 @@ impl IntoInner<*mut uv::uv_handle_t> for TimerHandle {
 
 impl From<TimerHandle> for crate::Handle {
     fn from(timer: TimerHandle) -> crate::Handle {
-        crate::Handle::from_inner(timer.into_inner())
+        crate::Handle::from_inner(IntoInner::<*mut uv::uv_handle_t>::into_inner(timer))
     }
 }
 

@@ -124,7 +124,7 @@ impl IntoInner<*mut uv::uv_handle_t> for FsPollHandle {
 
 impl From<FsPollHandle> for crate::Handle {
     fn from(fs_poll: FsPollHandle) -> crate::Handle {
-        crate::Handle::from_inner(fs_poll.into_inner())
+        crate::Handle::from_inner(IntoInner::<*mut uv::uv_handle_t>::into_inner(fs_poll))
     }
 }
 

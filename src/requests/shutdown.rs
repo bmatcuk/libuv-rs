@@ -76,7 +76,7 @@ impl IntoInner<*mut uv::uv_req_t> for ShutdownReq {
 
 impl From<ShutdownReq> for crate::Req {
     fn from(shutdown: ShutdownReq) -> crate::Req {
-        crate::Req::from_inner(shutdown.into_inner())
+        crate::Req::from_inner(IntoInner::<*mut uv::uv_req_t>::into_inner(shutdown))
     }
 }
 

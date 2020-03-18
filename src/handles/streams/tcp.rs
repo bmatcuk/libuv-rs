@@ -214,13 +214,13 @@ impl IntoInner<*mut uv::uv_handle_t> for TcpHandle {
 
 impl From<TcpHandle> for crate::StreamHandle {
     fn from(tcp: TcpHandle) -> crate::StreamHandle {
-        crate::StreamHandle::from_inner(tcp.into_inner())
+        crate::StreamHandle::from_inner(IntoInner::<*mut uv::uv_stream_t>::into_inner(tcp))
     }
 }
 
 impl From<TcpHandle> for crate::Handle {
     fn from(tcp: TcpHandle) -> crate::Handle {
-        crate::Handle::from_inner(tcp.into_inner())
+        crate::Handle::from_inner(IntoInner::<*mut uv::uv_handle_t>::into_inner(tcp))
     }
 }
 
