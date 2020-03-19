@@ -11,6 +11,9 @@ pub use connect::*;
 pub mod getaddrinfo;
 pub use getaddrinfo::*;
 
+pub mod getnameinfo;
+pub use getnameinfo::*;
+
 pub mod fs;
 pub use fs::*;
 
