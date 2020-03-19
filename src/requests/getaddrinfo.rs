@@ -58,10 +58,9 @@ impl GetAddrInfoReq {
         unsafe { std::alloc::dealloc(self.req as _, layout) };
     }
 
-    /// Retrieve the AddrInfo from the request
-    /// TODO: addrinfo is a linked list - need to iterate
-    pub fn addrinfo(&self) -> crate::AddrInfo {
-        (*self.req).addrinfo.into_inner()
+    /// Retrieve an iterator of AddrInfo responses
+    pub fn addrinfos(&self) -> AddrInfoIter {
+        AddrInfoIter { ai: (*self.req).addrinfo }
     }
 }
 
@@ -91,18 +90,39 @@ impl From<GetAddrInfoReq> for crate::Req {
 
 impl crate::ReqTrait for GetAddrInfoReq {}
 
+pub struct AddrInfoIter {
+    ai: *mut addrinfo,
+}
+
+impl Iterator for AddrInfoIter {
+    type Item = crate::AddrInfo;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.ai.is_null() {
+            return None;
+        }
+
+        let ai = self.ai.into_inner();
+        self.ai = (*self.ai).ai_next;
+        Some(ai)
+    }
+}
+
+impl std::iter::FusedIterator for AddrInfoIter {}
+
 impl crate::Loop {
     pub fn getaddrinfo(
         &self,
         node: Option<&str>,
         service: Option<&str>,
         hints: Option<crate::AddrInfo>,
-        cb: Option<impl FnMut(GetAddrInfoReq, i32, crate::AddrInfo)>,
+        cb: Option<impl FnMut(GetAddrInfoReq, i32, crate::AddrInfo) + 'static>,
     ) -> Result<GetAddrInfoReq, Box<dyn std::error::Error>> {
         let node = node.map(CString::new).transpose()?;
         let service = service.map(CString::new).transpose()?;
         let req = GetAddrInfoReq::new(cb)?;
         let uv_cb = cb.as_ref().map(|_| uv_getaddrinfo_cb as _);
+        let hints = hints.map(|h| h.into_inner());
         let result = crate::uvret(unsafe {
             uv_getaddrinfo(
                 self.into_inner(),
@@ -110,7 +130,7 @@ impl crate::Loop {
                 uv_cb,
                 if let Some(node) = node { node.as_ptr() } else { std::ptr::null() },
                 if let Some(service) = service { service.as_ptr() } else {std::ptr::null() },
-                if let Some(hints) = hints { hints.into_inner() } else { std::ptr::null() },
+                if let Some(hints) = hints { &hints as _ } else { std::ptr::null() },
             )
         }).map_err(|e| Box::new(e) as _);
         if result.is_err() {

@@ -40,3 +40,14 @@ impl FromInner<*mut addrinfo> for AddrInfo {
         }
     }
 }
+
+impl IntoInner<addrinfo> for AddrInfo {
+    fn into_inner(self) -> addrinfo {
+        let ai: addrinfo = std::mem::zeroed();
+        ai.ai_flags = self.flags as _;
+        ai.ai_family = self.family as _;
+        ai.ai_socktype = self.socktype as _;
+        ai.ai_protocol = self.protocol as _;
+        ai
+    }
+}
