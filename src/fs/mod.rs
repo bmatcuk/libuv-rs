@@ -14,11 +14,10 @@ use std::ffi::CString;
 use uv::{
     uv_fs_access, uv_fs_chmod, uv_fs_chown, uv_fs_close, uv_fs_closedir, uv_fs_copyfile,
     uv_fs_fchmod, uv_fs_fchown, uv_fs_fdatasync, uv_fs_fstat, uv_fs_fsync, uv_fs_ftruncate,
-    uv_fs_futime, uv_fs_get_ptr, uv_fs_get_result, uv_fs_get_statbuf, uv_fs_get_type, uv_fs_lchown,
-    uv_fs_link, uv_fs_lstat, uv_fs_mkdir, uv_fs_mkdtemp, uv_fs_mkstemp, uv_fs_open, uv_fs_opendir,
-    uv_fs_read, uv_fs_readdir, uv_fs_readlink, uv_fs_realpath, uv_fs_rename, uv_fs_rmdir,
-    uv_fs_scandir, uv_fs_scandir_next, uv_fs_sendfile, uv_fs_stat, uv_fs_statfs, uv_fs_symlink,
-    uv_fs_unlink, uv_fs_utime, uv_fs_write,
+    uv_fs_futime, uv_fs_lchown, uv_fs_link, uv_fs_lstat, uv_fs_mkdir, uv_fs_mkdtemp, uv_fs_mkstemp,
+    uv_fs_open, uv_fs_opendir, uv_fs_read, uv_fs_readdir, uv_fs_readlink, uv_fs_realpath,
+    uv_fs_rename, uv_fs_rmdir, uv_fs_scandir, uv_fs_scandir_next, uv_fs_sendfile, uv_fs_stat,
+    uv_fs_statfs, uv_fs_symlink, uv_fs_unlink, uv_fs_utime, uv_fs_write,
 };
 
 pub mod dir;
@@ -350,6 +349,31 @@ impl crate::Loop {
             req.destroy();
             return path;
         })
+    }
+
+    /// Private implementation for fs_mkstemp()
+    fn _fs_mkstemp(&self, tpl: &str, cb: Option<impl FnMut(FsReq) + 'static>) -> FsReqErrResult {
+        let tpl = CString::new(tpl)?;
+        let req = FsReq::new(cb)?;
+        let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let result = crate::uvret(unsafe {
+            uv_fs_mkstemp(self.into_inner(), req.into_inner(), tpl.as_ptr(), uv_cb)
+        })
+        .map_err(|e| Box::new(e) as _);
+        if result.is_err() {
+            req.destroy();
+        }
+        result.map(|_| req)
+    }
+
+    /// Equivalent to mkstemp(3).
+    pub fn fs_mkstemp(&self, tpl: &str, cb: impl FnMut(FsReq) + 'static) -> FsReqErrResult {
+        self._fs_mkstemp(tpl, Some(cb))
+    }
+
+    /// Equivalent to mkstemp(3).
+    pub fn fs_mkstemp_sync(&self, tpl: &str) -> SyncErrResult {
+        self._fs_mkstemp(tpl, None::<fn(FsMut)>).map(destroy_req_return_result)
     }
 
     /// Private implementation for fs_rmdir()
@@ -1269,7 +1293,7 @@ impl crate::Loop {
         let req = FsReq::new(cb)?;
         let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
         let result = crate::uvret(unsafe {
-            uv_fs_readline(self.into_inner(), req.into_inner(), path.as_ptr(), uv_cb)
+            uv_fs_readlink(self.into_inner(), req.into_inner(), path.as_ptr(), uv_cb)
         })
         .map_err(|e| Box::new(e) as _);
         if result.is_err() {
@@ -1380,7 +1404,8 @@ impl crate::Loop {
                 gid as _,
                 uv_cb,
             )
-        }).map_err(|e| Box::new(e) as _);
+        })
+        .map_err(|e| Box::new(e) as _);
         if result.is_err() {
             req.destroy();
         }
@@ -1404,7 +1429,8 @@ impl crate::Loop {
     ///
     /// Note: This functions are not implemented on Windows.
     pub fn fs_chown_sync(&self, path: &str, uid: Uid, gid: Gid) -> SyncErrResult {
-        self._fs_chown(path, uid, gid, None::<fn(FsReq)>).map(destroy_req_return_result)
+        self._fs_chown(path, uid, gid, None::<fn(FsReq)>)
+            .map(destroy_req_return_result)
     }
 
     /// Private implementation for fs_fchown()
@@ -1450,7 +1476,8 @@ impl crate::Loop {
     ///
     /// Note: This functions are not implemented on Windows.
     pub fn fs_fchown_sync(&self, file: File, uid: Uid, gid: Gid) -> SyncResult {
-        self._fs_fchown(file, uid, gid, None::<fn(FsReq)>).map(destroy_req_return_result)
+        self._fs_fchown(file, uid, gid, None::<fn(FsReq)>)
+            .map(destroy_req_return_result)
     }
 
     /// Private implementation for fs_lchown()
@@ -1473,7 +1500,8 @@ impl crate::Loop {
                 gid as _,
                 uv_cb,
             )
-        }).map_err(|e| Box::new(e) as _);
+        })
+        .map_err(|e| Box::new(e) as _);
         if result.is_err() {
             req.destroy();
         }
@@ -1497,7 +1525,8 @@ impl crate::Loop {
     ///
     /// Note: This functions are not implemented on Windows.
     pub fn fs_lchown_sync(&self, path: &str, uid: Uid, gid: Gid) -> SyncErrResult {
-        self._fs_lchown(path, uid, gid, None::<fn(FsReq)>).map(destroy_req_return_result)
+        self._fs_lchown(path, uid, gid, None::<fn(FsReq)>)
+            .map(destroy_req_return_result)
     }
 }
 
