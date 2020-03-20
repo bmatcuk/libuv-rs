@@ -35,6 +35,9 @@ pub use requests::*;
 pub mod shared_libs;
 pub use shared_libs::*;
 
+pub mod misc;
+pub use misc::*;
+
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[inline]

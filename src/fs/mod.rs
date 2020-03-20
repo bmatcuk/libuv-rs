@@ -26,6 +26,9 @@ pub use dir::*;
 pub mod dirent;
 pub use dirent::*;
 
+pub mod misc;
+pub use misc::*;
+
 pub mod stat;
 pub use stat::*;
 
@@ -373,7 +376,7 @@ impl crate::Loop {
 
     /// Equivalent to mkstemp(3).
     pub fn fs_mkstemp_sync(&self, tpl: &str) -> SyncErrResult {
-        self._fs_mkstemp(tpl, None::<fn(FsMut)>).map(destroy_req_return_result)
+        self._fs_mkstemp(tpl, None::<fn(FsReq)>).map(destroy_req_return_result)
     }
 
     /// Private implementation for fs_rmdir()
