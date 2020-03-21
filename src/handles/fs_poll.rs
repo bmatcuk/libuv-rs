@@ -1,5 +1,5 @@
 use crate::{FromInner, IntoInner};
-use std::ffi::CString;
+use std::ffi::{CStr, CString};
 use uv::{uv_fs_poll_getpath, uv_fs_poll_init, uv_fs_poll_start, uv_fs_poll_stop, uv_fs_poll_t};
 
 /// Additional data stored on the handle
@@ -96,14 +96,22 @@ impl FsPollHandle {
     pub fn getpath(&self) -> crate::Result<String> {
         // retrieve the size of the buffer we need to allocate
         let mut size = 0usize;
-        unsafe { uv_fs_poll_getpath(self.handle, std::ptr::null_mut(), &mut size as _) };
+        let result = crate::uvret(unsafe { uv_fs_poll_getpath(self.handle, std::ptr::null_mut(), &mut size as _) });
+        if let Err(e) = result {
+            if e != crate::Error::ENOBUFS {
+                return Err(e);
+            }
+        }
 
+        // On ENOBUFS, size is the length of the required buffer, *including* the null
         let mut buf: Vec<std::os::raw::c_uchar> = Vec::with_capacity(size);
         crate::uvret(unsafe {
             uv_fs_poll_getpath(self.handle, buf.as_mut_ptr() as _, &mut size as _)
         })
         .map(|_| {
-            unsafe { CString::from_vec_unchecked(buf) }
+            // size is the length of the string, *not* including the null
+            unsafe { buf.set_len(size + 1) };
+            unsafe { CStr::from_bytes_with_nul_unchecked(&buf) }
                 .to_string_lossy()
                 .into_owned()
         })

@@ -10,7 +10,7 @@ END {
   nerrors = asorti(errors);
 
   print "#[allow(non_camel_case_types)]";
-  print "#[derive(Clone, Copy, Debug)]";
+  print "#[derive(Clone, Copy, Debug, Eq, PartialEq)]";
   print "pub enum Error {";
   for (i = 1; i <= nerrors; i++)
     print indent errors[i] ",";

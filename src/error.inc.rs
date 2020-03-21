@@ -1,5 +1,5 @@
 #[allow(non_camel_case_types)]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Error {
     E2BIG,
     EACCES,

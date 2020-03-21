@@ -1,3 +1,4 @@
+use crate::IntoInner;
 use std::ffi::{CStr, CString};
 use uv::{uv_chdir, uv_cwd, uv_exepath, uv_guess_handle};
 
@@ -40,4 +41,12 @@ pub fn execpath() -> crate::Result<String> {
         unsafe { buf.set_len(size + 1) };
     }
     Ok(unsafe { CStr::from_bytes_with_nul_unchecked(&buf) }.to_string_lossy().into_owned())
+}
+
+/// Used to detect what type of stream should be used with a given file descriptor. Usually this
+/// will be used during initialization to guess the type of the stdio streams.
+///
+/// For isatty(3) equivalent functionality use this function and test for TTY.
+pub fn guess_handle(file: crate::File) -> crate::HandleType {
+    unsafe { uv_guess_handle(file as _) }.into_inner()
 }
