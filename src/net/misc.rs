@@ -48,3 +48,10 @@ pub fn if_indexto_iid(ifindex: u32) -> crate::Result<String> {
             .into_owned()
     })
 }
+
+pub fn interface_addresses() -> crate::Result<crate::InterfaceAddressesIter> {
+    let mut addresses: *mut uv::uv_interface_address_t = std::mem::zeroed();
+    let mut count: std::os::raw::c_int = 0;
+    crate::uvret(unsafe { uv_interface_addresses(&mut addresses as _, &mut count as _) })?;
+    Ok(crate::InterfaceAddressesIter::new(addresses, count))
+}
