@@ -14,10 +14,7 @@ pub fn cwd() -> crate::Result<String> {
     unsafe { uv_cwd(std::ptr::null_mut(), &mut size as _) };
 
     let mut buf: Vec<std::os::raw::c_uchar> = Vec::with_capacity(size);
-    crate::uvret(unsafe {
-        uv_cwd(buf.as_mut_ptr() as _, &mut size as _)
-    })
-    .map(|_| {
+    crate::uvret(unsafe { uv_cwd(buf.as_mut_ptr() as _, &mut size as _) }).map(|_| {
         unsafe { buf.set_len(size) };
         unsafe { CStr::from_bytes_with_nul_unchecked(&buf) }
             .to_string_lossy()
@@ -37,10 +34,12 @@ pub fn execpath() -> crate::Result<String> {
         buf.reserve(size - buf.len());
 
         // after uv_exepath, size will be the length of the string, *not* including the null
-        crate::uvret( unsafe { uv_exepath(buf.as_mut_ptr() as _, &mut size as _) })?;
+        crate::uvret(unsafe { uv_exepath(buf.as_mut_ptr() as _, &mut size as _) })?;
         unsafe { buf.set_len(size + 1) };
     }
-    Ok(unsafe { CStr::from_bytes_with_nul_unchecked(&buf) }.to_string_lossy().into_owned())
+    Ok(unsafe { CStr::from_bytes_with_nul_unchecked(&buf) }
+        .to_string_lossy()
+        .into_owned())
 }
 
 /// Used to detect what type of stream should be used with a given file descriptor. Usually this

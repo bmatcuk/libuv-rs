@@ -1,5 +1,42 @@
+use crate::{TryFromInner, TryIntoInner};
 use std::ffi::CStr;
-use uv::{uv_if_indextoiid, uv_if_indextoname, uv_interface_addresses, UV_IF_NAMESIZE};
+use uv::{
+    uv_free_interface_addresses, uv_if_indextoiid, uv_if_indextoname, uv_interface_address_t,
+    uv_interface_addresses, UV_IF_NAMESIZE,
+};
+
+/// Data type for interface addresses.
+pub struct InterfaceAddress {
+    pub name: String,
+    pub physical_address: [u8; 6],
+    pub is_internal: bool,
+    pub address: SocketAddr,
+    pub netmask: SocketAddr,
+}
+
+impl TryFromInner<&uv_interface_address_t> for InterfaceAddress {
+    type Error = crate::Error;
+
+    fn try_from_inner(addr: &uv_interface_address_t) -> Result<InterfaceAddress, Self::Error> {
+        let name = unsafe { CStr::from_ptr(addr.name) }
+            .to_string_lossy()
+            .into_owned();
+        let address = crate::build_socketaddr(uv_handle!(&addr.address))?;
+        let netmask = crate::build_socketaddr(uv_handle!(&addr.netmask))?;
+        let physical_address = [0u8; 6];
+        for (i, b) in addr.phys_addr.iter().enumerate() {
+            physical_address[i] = *b as _;
+        }
+
+        Ok(InterfaceAddress {
+            name,
+            physical_address,
+            is_internal: addr.is_internal != 0,
+            address,
+            netmask,
+        })
+    }
+}
 
 /// IPv6-capable implementation of if_indextoname(3).
 ///
@@ -44,9 +81,15 @@ pub fn if_indexto_iid(ifindex: u32) -> crate::Result<String> {
 }
 
 /// Gets address information about the network interfaces on the system.
-pub fn interface_addresses() -> crate::Result<crate::InterfaceAddressesIter> {
+pub fn interface_addresses() -> crate::Result<crate::Result<Vec<InterfaceAddress>>> {
     let mut addresses: *mut uv::uv_interface_address_t = std::mem::zeroed();
     let mut count: std::os::raw::c_int = 0;
     crate::uvret(unsafe { uv_interface_addresses(&mut addresses as _, &mut count as _) })?;
-    Ok(crate::InterfaceAddressesIter::new(addresses, count))
+
+    let result = unsafe { std::slice::from_raw_parts(addresses, count as _) }
+        .iter()
+        .map(|addr| addr.try_into_inner())
+        .collect();
+    unsafe { uv_free_interface_addresses(addresses, count as _) };
+    Ok(result)
 }
