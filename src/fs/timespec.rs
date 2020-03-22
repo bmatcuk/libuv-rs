@@ -3,8 +3,8 @@ use uv::uv_timespec_t;
 
 /// Portable equivalent of struct timespec
 pub struct TimeSpec {
-    sec: i64,
-    nsec: i64,
+    pub sec: i64,
+    pub nsec: i64,
 }
 
 impl FromInner<uv_timespec_t> for TimeSpec {

@@ -17,6 +17,9 @@ pub use getnameinfo::*;
 pub mod fs;
 pub use fs::*;
 
+pub mod random;
+pub use random::*;
+
 pub mod shutdown;
 pub use shutdown::*;
 
