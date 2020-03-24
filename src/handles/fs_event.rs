@@ -1,4 +1,4 @@
-use crate::{FromInner, IntoInner};
+use crate::{FromInner, Inner, IntoInner};
 use std::borrow::Cow;
 use std::ffi::{CStr, CString};
 use uv::{
@@ -163,15 +163,15 @@ impl FromInner<*mut uv_fs_event_t> for FsEventHandle {
     }
 }
 
-impl IntoInner<*mut uv::uv_handle_t> for FsEventHandle {
-    fn into_inner(self) -> *mut uv::uv_handle_t {
+impl Inner<*mut uv::uv_handle_t> for FsEventHandle {
+    fn inner(&self) -> *mut uv::uv_handle_t {
         uv_handle!(self.handle)
     }
 }
 
 impl From<FsEventHandle> for crate::Handle {
     fn from(fs_event: FsEventHandle) -> crate::Handle {
-        crate::Handle::from_inner(IntoInner::<*mut uv::uv_handle_t>::into_inner(fs_event))
+        crate::Handle::from_inner(Inner::<*mut uv::uv_handle_t>::inner(&fs_event))
     }
 }
 

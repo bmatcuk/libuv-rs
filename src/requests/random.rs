@@ -1,4 +1,4 @@
-use crate::{FromInner, IntoInner};
+use crate::{FromInner, Inner, IntoInner};
 use uv::{uv_random, uv_random_t};
 
 /// Additional data stored on the request
@@ -7,7 +7,12 @@ pub(crate) struct RandomDataFields {
 }
 
 /// Callback for uv_random
-extern "C" fn uv_random_cb(req: *mut uv_random_t, status: std::os::raw::c_int, buf: *mut std::os::raw::c_void, buflen: usize) {
+extern "C" fn uv_random_cb(
+    req: *mut uv_random_t,
+    status: std::os::raw::c_int,
+    buf: *mut std::os::raw::c_void,
+    buflen: usize,
+) {
     let dataptr = crate::Req::get_data(uv_handle!(req));
     if !dataptr.is_null() {
         unsafe {
@@ -32,7 +37,9 @@ pub struct RandomReq {
 
 impl RandomReq {
     /// Create a new random request
-    pub fn new(cb: Option<impl FnMut(RandomReq, i32, Vec<u8>) + 'static>) -> crate::Result<RandomReq> {
+    pub fn new(
+        cb: Option<impl FnMut(RandomReq, i32, Vec<u8>) + 'static>,
+    ) -> crate::Result<RandomReq> {
         let layout = std::alloc::Layout::new::<uv_random_t>();
         let req = unsafe { std::alloc::alloc(layout) as *mut uv_random_t };
         if req.is_null() {
@@ -40,7 +47,10 @@ impl RandomReq {
         }
 
         let random_cb = cb.map(|f| Box::new(f) as _);
-        crate::Req::initialize_data(uv_handle!(req), super::RandomData(RandomDataFields { random_cb }));
+        crate::Req::initialize_data(
+            uv_handle!(req),
+            super::RandomData(RandomDataFields { random_cb }),
+        );
 
         Ok(RandomReq { req })
     }
@@ -61,21 +71,21 @@ impl FromInner<*mut uv_random_t> for RandomReq {
     }
 }
 
-impl IntoInner<*mut uv_random_t> for RandomReq {
-    fn into_inner(self) -> *mut uv_random_t {
+impl Inner<*mut uv_random_t> for RandomReq {
+    fn inner(&self) -> *mut uv_random_t {
         self.req
     }
 }
 
-impl IntoInner<*mut uv::uv_req_t> for RandomReq {
-    fn into_inner(self) -> *mut uv::uv_req_t {
+impl Inner<*mut uv::uv_req_t> for RandomReq {
+    fn inner(&self) -> *mut uv::uv_req_t {
         uv_handle!(self.req)
     }
 }
 
 impl From<RandomReq> for crate::Req {
     fn from(random: RandomReq) -> crate::Req {
-        crate::Req::from_inner(IntoInner::<*mut uv::uv_req_t>::into_inner(random))
+        crate::Req::from_inner(Inner::<*mut uv::uv_req_t>::inner(&random))
     }
 }
 
@@ -162,8 +172,16 @@ impl crate::Loop {
                 buf.as_mut_ptr() as _,
                 buflen,
                 flags as _,
-                None::<fn(*mut uv_random_t, std::os::raw::c_int, *mut std::os::raw::c_void, usize)>,
+                None::<
+                    unsafe extern "C" fn(
+                        *mut uv_random_t,
+                        std::os::raw::c_int,
+                        *mut std::os::raw::c_void,
+                        usize,
+                    ),
+                >,
             )
-        }).map(|_| buf)
+        })
+        .map(|_| buf)
     }
 }

@@ -1,4 +1,4 @@
-use crate::{FromInner, IntoInner};
+use crate::{FromInner, Inner, IntoInner};
 use std::ffi::{CStr, CString};
 use uv::{uv_fs_poll_getpath, uv_fs_poll_init, uv_fs_poll_start, uv_fs_poll_stop, uv_fs_poll_t};
 
@@ -96,7 +96,9 @@ impl FsPollHandle {
     pub fn getpath(&self) -> crate::Result<String> {
         // retrieve the size of the buffer we need to allocate
         let mut size = 0usize;
-        let result = crate::uvret(unsafe { uv_fs_poll_getpath(self.handle, std::ptr::null_mut(), &mut size as _) });
+        let result = crate::uvret(unsafe {
+            uv_fs_poll_getpath(self.handle, std::ptr::null_mut(), &mut size as _)
+        });
         if let Err(e) = result {
             if e != crate::Error::ENOBUFS {
                 return Err(e);
@@ -124,15 +126,15 @@ impl FromInner<*mut uv_fs_poll_t> for FsPollHandle {
     }
 }
 
-impl IntoInner<*mut uv::uv_handle_t> for FsPollHandle {
-    fn into_inner(self) -> *mut uv::uv_handle_t {
+impl Inner<*mut uv::uv_handle_t> for FsPollHandle {
+    fn inner(&self) -> *mut uv::uv_handle_t {
         uv_handle!(self.handle)
     }
 }
 
 impl From<FsPollHandle> for crate::Handle {
     fn from(fs_poll: FsPollHandle) -> crate::Handle {
-        crate::Handle::from_inner(IntoInner::<*mut uv::uv_handle_t>::into_inner(fs_poll))
+        crate::Handle::from_inner(Inner::<*mut uv::uv_handle_t>::inner(&fs_poll))
     }
 }
 

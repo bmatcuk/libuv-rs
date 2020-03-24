@@ -150,9 +150,9 @@ impl crate::Loop {
         offset: i64,
         cb: Option<impl FnMut(FsReq) + 'static>,
     ) -> FsReqResult {
-        let req = FsReq::new(cb)?;
-        let (bufs_ptr, bufs_len, bufs_capacity) = bufs.into_inner();
         let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let req = FsReq::new(cb)?;
+        let (bufs_ptr, bufs_len, _) = bufs.into_inner();
         let result = crate::uvret(unsafe {
             uv_fs_read(
                 self.into_inner(),
@@ -229,9 +229,9 @@ impl crate::Loop {
         offset: i64,
         cb: Option<impl FnMut(FsReq) + 'static>,
     ) -> FsReqResult {
-        let req = FsReq::new(cb)?;
-        let (bufs_ptr, bufs_len, bufs_capacity) = bufs.into_inner();
         let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let req = FsReq::new(cb)?;
+        let (bufs_ptr, bufs_len, _) = bufs.into_inner();
         let result = crate::uvret(unsafe {
             uv_fs_write(
                 self.into_inner(),
@@ -437,7 +437,7 @@ impl crate::Loop {
     /// The contents of the directory can be iterated over by passing the resulting Dir to
     /// fs_readdir().
     pub fn fs_opendir_sync(&self, path: &str) -> Result<crate::Dir, Box<dyn std::error::Error>> {
-        self._fs_opendir(path, None::<fn(FsReq)>).and_then(|req| {
+        self._fs_opendir(path, None::<fn(FsReq)>).and_then(|mut req| {
             let dir = req.dir();
             req.destroy();
             dir.ok_or_else(|| Box::new(crate::Error::EINVAL) as _)
@@ -445,9 +445,9 @@ impl crate::Loop {
     }
 
     /// Private implementation for fs_closedir()
-    fn _fs_closedir(&self, dir: Dir, cb: Option<impl FnMut(FsReq) + 'static>) -> FsReqResult {
-        let req = FsReq::new(cb)?;
+    fn _fs_closedir(&self, dir: &Dir, cb: Option<impl FnMut(FsReq) + 'static>) -> FsReqResult {
         let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let req = FsReq::new(cb)?;
         let result = crate::uvret(unsafe {
             uv_fs_closedir(self.into_inner(), req.into_inner(), dir.into_inner(), uv_cb)
         });
@@ -459,26 +459,26 @@ impl crate::Loop {
 
     /// Closes the directory stream represented by dir and frees the memory allocated by
     /// fs_opendir(). Don't forget to call Dir::free_entries() first!
-    pub fn fs_closedir(&self, dir: Dir, cb: impl FnMut(FsReq) + 'static) -> FsReqResult {
+    pub fn fs_closedir(&self, dir: &Dir, cb: impl FnMut(FsReq) + 'static) -> FsReqResult {
         self._fs_closedir(dir, Some(cb))
     }
 
     /// Closes the directory stream represented by dir and frees the memory allocated by
     /// fs_opendir(). Don't forget to call Dir::free_entries() first!
-    pub fn fs_closedir_sync(&self, dir: Dir) -> SyncResult {
+    pub fn fs_closedir_sync(&self, dir: &Dir) -> SyncResult {
         self._fs_closedir(dir, None::<fn(FsReq)>)
             .map(destroy_req_return_result)
     }
 
     /// Private implementation for fs_readdir
     fn _fs_readdir(&self, dir: &Dir, cb: Option<impl FnMut(FsReq) + 'static>) -> FsReqResult {
-        let req = FsReq::new(cb)?;
         let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let req = FsReq::new(cb)?;
         let result = crate::uvret(unsafe {
             uv_fs_readdir(
                 self.into_inner(),
                 req.into_inner(),
-                (*dir).into_inner(),
+                dir.into_inner(),
                 uv_cb,
             )
         });
@@ -840,9 +840,9 @@ impl crate::Loop {
         cb: Option<impl FnMut(FsReq) + 'static>,
     ) -> FsReqErrResult {
         let path = CString::new(path)?;
-        let new_path = CString::new(path)?;
-        let req = FsReq::new(cb)?;
+        let new_path = CString::new(new_path)?;
         let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let req = FsReq::new(cb)?;
         let result = crate::uvret(unsafe {
             uv_fs_copyfile(
                 self.into_inner(),

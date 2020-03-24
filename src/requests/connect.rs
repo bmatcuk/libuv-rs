@@ -1,4 +1,4 @@
-use crate::{FromInner, IntoInner};
+use crate::{FromInner, Inner, IntoInner};
 use uv::uv_connect_t;
 
 /// Additional data stored on the request
@@ -61,21 +61,21 @@ impl FromInner<*mut uv_connect_t> for ConnectReq {
     }
 }
 
-impl IntoInner<*mut uv_connect_t> for ConnectReq {
-    fn into_inner(self) -> *mut uv_connect_t {
+impl Inner<*mut uv_connect_t> for ConnectReq {
+    fn inner(&self) -> *mut uv_connect_t {
         self.req
     }
 }
 
-impl IntoInner<*mut uv::uv_req_t> for ConnectReq {
-    fn into_inner(self) -> *mut uv::uv_req_t {
+impl Inner<*mut uv::uv_req_t> for ConnectReq {
+    fn inner(&self) -> *mut uv::uv_req_t {
         uv_handle!(self.req)
     }
 }
 
 impl From<ConnectReq> for crate::Req {
     fn from(connect: ConnectReq) -> crate::Req {
-        crate::Req::from_inner(IntoInner::<*mut uv::uv_req_t>::into_inner(connect))
+        crate::Req::from_inner(Inner::<*mut uv::uv_req_t>::inner(&connect))
     }
 }
 

@@ -1,4 +1,4 @@
-use crate::{FromInner, IntoInner};
+use crate::{FromInner, Inner, IntoInner};
 use uv::{uv_check_init, uv_check_start, uv_check_stop, uv_check_t};
 
 /// Additional data stored on the handle
@@ -75,15 +75,15 @@ impl FromInner<*mut uv_check_t> for CheckHandle {
     }
 }
 
-impl IntoInner<*mut uv::uv_handle_t> for CheckHandle {
-    fn into_inner(self) -> *mut uv::uv_handle_t {
+impl Inner<*mut uv::uv_handle_t> for CheckHandle {
+    fn inner(&self) -> *mut uv::uv_handle_t {
         uv_handle!(self.handle)
     }
 }
 
 impl From<CheckHandle> for crate::Handle {
     fn from(check: CheckHandle) -> crate::Handle {
-        crate::Handle::from_inner(IntoInner::<*mut uv::uv_handle_t>::into_inner(check))
+        crate::Handle::from_inner(Inner::<*mut uv::uv_handle_t>::inner(&check))
     }
 }
 

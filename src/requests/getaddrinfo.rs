@@ -1,4 +1,4 @@
-use crate::{FromInner, IntoInner};
+use crate::{FromInner, Inner, IntoInner};
 use std::ffi::CString;
 use uv::{addrinfo, uv_freeaddrinfo, uv_getaddrinfo, uv_getaddrinfo_t};
 
@@ -77,21 +77,21 @@ impl FromInner<*mut uv_getaddrinfo_t> for GetAddrInfoReq {
     }
 }
 
-impl IntoInner<*mut uv_getaddrinfo_t> for GetAddrInfoReq {
-    fn into_inner(self) -> *mut uv_getaddrinfo_t {
+impl Inner<*mut uv_getaddrinfo_t> for GetAddrInfoReq {
+    fn inner(&self) -> *mut uv_getaddrinfo_t {
         self.req
     }
 }
 
-impl IntoInner<*mut uv::uv_req_t> for GetAddrInfoReq {
-    fn into_inner(self) -> *mut uv::uv_req_t {
+impl Inner<*mut uv::uv_req_t> for GetAddrInfoReq {
+    fn inner(&self) -> *mut uv::uv_req_t {
         uv_handle!(self.req)
     }
 }
 
 impl From<GetAddrInfoReq> for crate::Req {
     fn from(req: GetAddrInfoReq) -> crate::Req {
-        crate::Req::from_inner(IntoInner::<*mut uv::uv_req_t>::into_inner(req))
+        crate::Req::from_inner(Inner::<*mut uv::uv_req_t>::inner(&req))
     }
 }
 

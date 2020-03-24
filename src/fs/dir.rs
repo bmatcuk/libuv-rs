@@ -15,24 +15,28 @@ impl Dir {
         self.free_entries();
 
         let mut v = std::mem::ManuallyDrop::new(Vec::<uv::uv_dirent_t>::with_capacity(size));
-        (*self.dir).dirents = v.as_mut_ptr();
-        (*self.dir).nentries = v.capacity();
+        unsafe {
+            (*self.dir).dirents = v.as_mut_ptr();
+            (*self.dir).nentries = v.capacity();
+        }
         self.capacity = v.capacity();
         self.len = v.len();
     }
 
     /// Deallocate the space for directories that was allocated with reserve()
     pub fn free_entries(&mut self) {
-        if !(*self.dir).dirents.is_null() {
-            std::mem::drop(Vec::from_raw_parts(
-                (*self.dir).dirents,
-                self.len,
-                self.capacity,
-            ));
-            (*self.dir).dirents = std::ptr::null_mut();
-            (*self.dir).nentries = 0;
-            self.capacity = 0;
-            self.len = 0;
+        unsafe {
+            if !(*self.dir).dirents.is_null() {
+                std::mem::drop(Vec::from_raw_parts(
+                    (*self.dir).dirents,
+                    self.len,
+                    self.capacity,
+                ));
+                (*self.dir).dirents = std::ptr::null_mut();
+                (*self.dir).nentries = 0;
+                self.capacity = 0;
+                self.len = 0;
+            }
         }
     }
 
@@ -52,16 +56,17 @@ impl Dir {
     }
 
     /// Create an iterator over the directory entries
-    pub fn iter(&self) -> std::slice::Iter<'_, crate::Dirent> {
-        let v = std::mem::ManuallyDrop::new(Vec::<uv::uv_dirent_t>::from_raw_parts(
-            (*self.dir).dirents,
-            self.len,
-            self.capacity,
-        ));
+    pub fn entries(&self) -> Vec<crate::Dirent> {
+        let v = unsafe {
+            std::mem::ManuallyDrop::new(Vec::<uv::uv_dirent_t>::from_raw_parts(
+                (*self.dir).dirents,
+                self.len,
+                self.capacity,
+            ))
+        };
         v.iter()
             .map(|d| crate::Dirent::from_inner(d as *const uv::uv_dirent_t))
-            .collect::<Vec<crate::Dirent>>()
-            .iter()
+            .collect()
     }
 }
 
@@ -75,17 +80,8 @@ impl FromInner<*mut uv_dir_t> for Dir {
     }
 }
 
-impl IntoInner<*mut uv_dir_t> for Dir {
+impl IntoInner<*mut uv_dir_t> for &Dir {
     fn into_inner(self) -> *mut uv_dir_t {
         self.dir
-    }
-}
-
-impl<'a> IntoIterator for &'a Dir {
-    type Item = &'a crate::Dirent;
-    type IntoIter = std::slice::Iter<'a, crate::Dirent>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.iter()
     }
 }

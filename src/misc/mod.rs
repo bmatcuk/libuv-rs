@@ -3,8 +3,8 @@ use std::ffi::{CStr, CString};
 use uv::{
     uv_cpu_info, uv_cpu_info_t, uv_free_cpu_info, uv_get_constrained_memory, uv_get_free_memory,
     uv_get_process_title, uv_get_total_memory, uv_getrusage, uv_gettimeofday, uv_hrtime,
-    uv_loadavg, uv_print_active_handles, uv_print_all_handles, uv_random, uv_resident_set_memory,
-    uv_set_process_title, uv_setup_args, uv_sleep, uv_uptime, uv_timeval_t, uv_timeval64_t, uv_rusage_t,
+    uv_loadavg, uv_resident_set_memory, uv_rusage_t, uv_set_process_title, uv_setup_args, uv_sleep,
+    uv_timeval64_t, uv_timeval_t, uv_uptime,
 };
 
 pub mod os;
@@ -229,7 +229,7 @@ pub fn cpu_info() -> crate::Result<Vec<CpuInfo>> {
 pub fn loadavg() -> [f64; 3] {
     let mut avg = [0f64; 3];
     unsafe { uv_loadavg(avg.as_mut_ptr()) };
-    return avg
+    return avg;
 }
 
 /// Gets memory information (in bytes).

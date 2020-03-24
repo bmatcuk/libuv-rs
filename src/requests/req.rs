@@ -1,6 +1,6 @@
 include!("./req_types.inc.rs");
 
-use crate::{FromInner, IntoInner};
+use crate::{FromInner, Inner, IntoInner};
 use std::ffi::CStr;
 use uv::{
     uv_cancel, uv_req_get_data, uv_req_get_type, uv_req_set_data, uv_req_t, uv_req_type_name,
@@ -55,13 +55,13 @@ impl FromInner<*mut uv_req_t> for Req {
     }
 }
 
-impl IntoInner<*mut uv_req_t> for Req {
-    fn into_inner(self) -> *mut uv_req_t {
+impl Inner<*mut uv_req_t> for Req {
+    fn inner(&self) -> *mut uv_req_t {
         self.req
     }
 }
 
-pub trait ReqTrait: IntoInner<*mut uv_req_t> {
+pub trait ReqTrait: Inner<*mut uv_req_t> {
     /// Cancel a pending request. Fails if the request is executing or has finished executing.
     ///
     /// Only cancellation of FsReq, GetAddrInfoReq, GetNameInfoReq and WorkReq requests is
@@ -75,12 +75,12 @@ pub trait ReqTrait: IntoInner<*mut uv_req_t> {
     ///   * A WorkReq, GetAddrInfoReq or GetNameInfoReq request has its callback invoked with
     ///     status == UV_ECANCELED.
     fn cancel(&mut self) -> crate::Result<()> {
-        crate::uvret(unsafe { uv_cancel((*self).into_inner()) })
+        crate::uvret(unsafe { uv_cancel(self.inner()) })
     }
 
     /// Returns the type of the request.
     fn get_type(&self) -> ReqType {
-        unsafe { uv_req_get_type((*self).into_inner()).into_inner() }
+        unsafe { uv_req_get_type(self.inner()).into_inner() }
     }
 }
 

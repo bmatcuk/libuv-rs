@@ -1,5 +1,4 @@
 use crate::{FromInner, IntoInner};
-use std::net::SocketAddr;
 use uv::addrinfo;
 
 pub struct AddrInfo {

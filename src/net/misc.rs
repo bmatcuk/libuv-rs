@@ -1,5 +1,6 @@
 use crate::{TryFromInner, TryIntoInner};
 use std::ffi::CStr;
+use std::net::SocketAddr;
 use uv::{
     uv_free_interface_addresses, uv_if_indextoiid, uv_if_indextoname, uv_interface_address_t,
     uv_interface_addresses, UV_IF_NAMESIZE,

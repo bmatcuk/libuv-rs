@@ -1,4 +1,4 @@
-use crate::{FromInner, IntoInner};
+use crate::{FromInner, Inner, IntoInner};
 use std::ffi::CString;
 use std::net::SocketAddr;
 use uv::{
@@ -142,33 +142,33 @@ impl FromInner<*mut uv_pipe_t> for PipeHandle {
     }
 }
 
-impl IntoInner<*mut uv_pipe_t> for PipeHandle {
-    fn into_inner(self) -> *mut uv_pipe_t {
+impl Inner<*mut uv_pipe_t> for PipeHandle {
+    fn inner(&self) -> *mut uv_pipe_t {
         self.handle
     }
 }
 
-impl IntoInner<*mut uv::uv_stream_t> for PipeHandle {
-    fn into_inner(self) -> *mut uv::uv_stream_t {
+impl Inner<*mut uv::uv_stream_t> for PipeHandle {
+    fn inner(&self) -> *mut uv::uv_stream_t {
         uv_handle!(self.handle)
     }
 }
 
-impl IntoInner<*mut uv::uv_handle_t> for PipeHandle {
-    fn into_inner(self) -> *mut uv::uv_handle_t {
+impl Inner<*mut uv::uv_handle_t> for PipeHandle {
+    fn inner(&self) -> *mut uv::uv_handle_t {
         uv_handle!(self.handle)
     }
 }
 
 impl From<PipeHandle> for crate::StreamHandle {
     fn from(pipe: PipeHandle) -> crate::StreamHandle {
-        crate::StreamHandle::from_inner(IntoInner::<*mut uv::uv_stream_t>::into_inner(pipe))
+        crate::StreamHandle::from_inner(Inner::<*mut uv::uv_stream_t>::inner(&pipe))
     }
 }
 
 impl From<PipeHandle> for crate::Handle {
     fn from(pipe: PipeHandle) -> crate::Handle {
-        crate::Handle::from_inner(IntoInner::<*mut uv::uv_handle_t>::into_inner(pipe))
+        crate::Handle::from_inner(Inner::<*mut uv::uv_handle_t>::inner(&pipe))
     }
 }
 

@@ -1,4 +1,4 @@
-use crate::{FromInner, IntoInner};
+use crate::FromInner;
 use uv::uv_statfs_t;
 
 /// Reduced cross platform equivalent of struct statfs. Used in statfs()

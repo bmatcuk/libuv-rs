@@ -29,7 +29,10 @@ pub(crate) trait TryIntoInner<T>: Sized {
 }
 
 // FromInner implies IntoInner
-impl<T, U> IntoInner<U> for T where U: FromInner<T> {
+impl<T, U> IntoInner<U> for T
+where
+    U: FromInner<T>,
+{
     fn into_inner(self) -> U {
         U::from_inner(self)
     }
@@ -37,11 +40,16 @@ impl<T, U> IntoInner<U> for T where U: FromInner<T> {
 
 // FromInner (and thus IntoInner) is reflexive
 impl<T> FromInner<T> for T {
-    fn from_inner(t: T) -> T { t }
+    fn from_inner(t: T) -> T {
+        t
+    }
 }
 
 // TryFromInner implies TryIntoInner
-impl<T, U> TryIntoInner<U> for T where U: TryFromInner<T> {
+impl<T, U> TryIntoInner<U> for T
+where
+    U: TryFromInner<T>,
+{
     type Error = U::Error;
 
     fn try_into_inner(self) -> Result<U, U::Error> {
@@ -51,11 +59,43 @@ impl<T, U> TryIntoInner<U> for T where U: TryFromInner<T> {
 
 // Infallible conversions are semantically equivalent to fallible conversions with an unihabited
 // error type
-impl<T, U> TryFromInner<U> for T where U: IntoInner<T> {
+impl<T, U> TryFromInner<U> for T
+where
+    U: IntoInner<T>,
+{
     type Error = std::convert::Infallible;
 
     fn try_from_inner(value: U) -> Result<Self, Self::Error> {
         Ok(U::into_inner(value))
+    }
+}
+
+/// Many structs are thin wrappers around structs from libuv_sys2 - the Inner trait extracts the
+/// wrapped struct.
+#[doc(hidden)]
+pub(crate) trait Inner<T>: Sized {
+    fn inner(&self) -> T;
+}
+
+/// Inner lifts over &
+#[doc(hidden)]
+impl<T, U> Inner<U> for &T
+where
+    T: Inner<U>,
+{
+    fn inner(&self) -> U {
+        <T as Inner<U>>::inner(*self)
+    }
+}
+
+/// Inner lefts over &mut
+#[doc(hidden)]
+impl<T, U> Inner<U> for &mut T
+where
+    T: Inner<U>,
+{
+    fn inner(&self) -> U {
+        <T as Inner<U>>::inner(*self)
     }
 }
 

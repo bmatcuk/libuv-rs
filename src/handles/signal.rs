@@ -1,4 +1,4 @@
-use crate::{FromInner, IntoInner};
+use crate::{FromInner, Inner, IntoInner};
 use uv::{uv_signal_init, uv_signal_start, uv_signal_start_oneshot, uv_signal_stop, uv_signal_t};
 
 /// Additional data stored on the handle
@@ -127,15 +127,15 @@ impl FromInner<*mut uv_signal_t> for SignalHandle {
     }
 }
 
-impl IntoInner<*mut uv::uv_handle_t> for SignalHandle {
-    fn into_inner(self) -> *mut uv::uv_handle_t {
+impl Inner<*mut uv::uv_handle_t> for SignalHandle {
+    fn inner(&self) -> *mut uv::uv_handle_t {
         uv_handle!(self.handle)
     }
 }
 
 impl From<SignalHandle> for crate::Handle {
     fn from(signal: SignalHandle) -> crate::Handle {
-        crate::Handle::from_inner(IntoInner::<*mut uv::uv_handle_t>::into_inner(signal))
+        crate::Handle::from_inner(Inner::<*mut uv::uv_handle_t>::inner(&signal))
     }
 }
 

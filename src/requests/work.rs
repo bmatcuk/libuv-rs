@@ -1,4 +1,4 @@
-use crate::{FromInner, IntoInner};
+use crate::{FromInner, Inner, IntoInner};
 use uv::{uv_queue_work, uv_work_t};
 
 /// Additional data stored on the request
@@ -82,21 +82,21 @@ impl FromInner<*mut uv_work_t> for WorkReq {
     }
 }
 
-impl IntoInner<*mut uv_work_t> for WorkReq {
-    fn into_inner(self) -> *mut uv_work_t {
+impl Inner<*mut uv_work_t> for WorkReq {
+    fn inner(&self) -> *mut uv_work_t {
         self.req
     }
 }
 
-impl IntoInner<*mut uv::uv_req_t> for WorkReq {
-    fn into_inner(self) -> *mut uv::uv_req_t {
+impl Inner<*mut uv::uv_req_t> for WorkReq {
+    fn inner(&self) -> *mut uv::uv_req_t {
         uv_handle!(self.req)
     }
 }
 
 impl From<WorkReq> for crate::Req {
     fn from(work: WorkReq) -> crate::Req {
-        crate::Req::from_inner(IntoInner::<*mut uv::uv_req_t>::into_inner(work))
+        crate::Req::from_inner(Inner::<*mut uv::uv_req_t>::inner(&work))
     }
 }
 

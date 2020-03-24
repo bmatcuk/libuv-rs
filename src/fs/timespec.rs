@@ -1,4 +1,4 @@
-use crate::{FromInner, IntoInner};
+use crate::FromInner;
 use uv::uv_timespec_t;
 
 /// Portable equivalent of struct timespec

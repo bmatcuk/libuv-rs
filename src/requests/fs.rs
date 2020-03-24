@@ -1,4 +1,4 @@
-use crate::{FromInner, IntoInner};
+use crate::{FromInner, Inner, IntoInner};
 use std::ffi::CStr;
 use uv::{
     uv_fs_get_path, uv_fs_get_ptr, uv_fs_get_result, uv_fs_get_statbuf, uv_fs_get_type,
@@ -65,7 +65,7 @@ impl FsReq {
 
     /// Returns the file stats
     pub fn stat(&self) -> crate::Stat {
-        unsafe { uv_fs_get_statbuf(self.req).into_inner() }
+        unsafe { uv_fs_get_statbuf(self.req) as *const uv::uv_stat_t }.into_inner()
     }
 
     /// If this request is from opendir() or readdir(), return the Dir struct
@@ -127,21 +127,21 @@ impl FromInner<*mut uv_fs_t> for FsReq {
     }
 }
 
-impl IntoInner<*mut uv_fs_t> for FsReq {
-    fn into_inner(self) -> *mut uv_fs_t {
+impl Inner<*mut uv_fs_t> for FsReq {
+    fn inner(&self) -> *mut uv_fs_t {
         self.req
     }
 }
 
-impl IntoInner<*mut uv::uv_req_t> for FsReq {
-    fn into_inner(self) -> *mut uv::uv_req_t {
+impl Inner<*mut uv::uv_req_t> for FsReq {
+    fn inner(&self) -> *mut uv::uv_req_t {
         uv_handle!(self.req)
     }
 }
 
 impl From<FsReq> for crate::Req {
     fn from(fs: FsReq) -> crate::Req {
-        crate::Req::from_inner(IntoInner::<*mut uv::uv_req_t>::into_inner(fs))
+        crate::Req::from_inner(Inner::<*mut uv::uv_req_t>::inner(&fs))
     }
 }
 

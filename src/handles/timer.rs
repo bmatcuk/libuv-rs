@@ -1,4 +1,4 @@
-use crate::{FromInner, IntoInner};
+use crate::{FromInner, Inner, IntoInner};
 use uv::{
     uv_timer_again, uv_timer_get_repeat, uv_timer_init, uv_timer_set_repeat, uv_timer_start,
     uv_timer_stop, uv_timer_t,
@@ -118,15 +118,15 @@ impl FromInner<*mut uv_timer_t> for TimerHandle {
     }
 }
 
-impl IntoInner<*mut uv::uv_handle_t> for TimerHandle {
-    fn into_inner(self) -> *mut uv::uv_handle_t {
+impl Inner<*mut uv::uv_handle_t> for TimerHandle {
+    fn inner(&self) -> *mut uv::uv_handle_t {
         uv_handle!(self.handle)
     }
 }
 
 impl From<TimerHandle> for crate::Handle {
     fn from(timer: TimerHandle) -> crate::Handle {
-        crate::Handle::from_inner(IntoInner::<*mut uv::uv_handle_t>::into_inner(timer))
+        crate::Handle::from_inner(Inner::<*mut uv::uv_handle_t>::inner(&timer))
     }
 }
 

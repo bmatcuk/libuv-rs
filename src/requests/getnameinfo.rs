@@ -1,4 +1,4 @@
-use crate::{FromInner, IntoInner};
+use crate::{FromInner, Inner, IntoInner};
 use std::ffi::CStr;
 use std::net::SocketAddr;
 use uv::{uv_getnameinfo, uv_getnameinfo_t};
@@ -93,21 +93,21 @@ impl FromInner<*mut uv_getnameinfo_t> for GetNameInfoReq {
     }
 }
 
-impl IntoInner<*mut uv_getnameinfo_t> for GetNameInfoReq {
-    fn into_inner(self) -> *mut uv_getnameinfo_t {
+impl Inner<*mut uv_getnameinfo_t> for GetNameInfoReq {
+    fn inner(&self) -> *mut uv_getnameinfo_t {
         self.req
     }
 }
 
-impl IntoInner<*mut uv::uv_req_t> for GetNameInfoReq {
-    fn into_inner(self) -> *mut uv::uv_req_t {
+impl Inner<*mut uv::uv_req_t> for GetNameInfoReq {
+    fn inner(&self) -> *mut uv::uv_req_t {
         uv_handle!(self.req)
     }
 }
 
 impl From<GetNameInfoReq> for crate::Req {
     fn from(req: GetNameInfoReq) -> crate::Req {
-        crate::Req::from_inner(IntoInner::<*mut uv::uv_req_t>::into_inner(req))
+        crate::Req::from_inner(Inner::<*mut uv::uv_req_t>::inner(&req))
     }
 }
 

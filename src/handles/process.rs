@@ -1,4 +1,4 @@
-use crate::{FromInner, IntoInner};
+use crate::{FromInner, Inner, IntoInner};
 use std::ffi::CString;
 use uv::uv_stdio_container_s__bindgen_ty_1 as uv_stdio_container_data;
 use uv::{
@@ -268,14 +268,15 @@ impl ProcessHandle {
         let args: Vec<CString> = args
             .iter()
             .take(args.len() - 1)
-            .map(|a| CString::from_raw(*a))
+            .map(|a| unsafe { CString::from_raw(*a) })
             .collect();
+        std::mem::drop(args);
 
         // env is the same as args except it's Option'al
         let env: Option<Vec<CString>> = env.map(|env| {
             env.iter()
                 .take(env.len() - 1)
-                .map(|e| CString::from_raw(*e))
+                .map(|e| unsafe { CString::from_raw(*e) })
                 .collect()
         });
 
@@ -306,15 +307,15 @@ impl FromInner<*mut uv_process_t> for ProcessHandle {
     }
 }
 
-impl IntoInner<*mut uv::uv_handle_t> for ProcessHandle {
-    fn into_inner(self) -> *mut uv::uv_handle_t {
+impl Inner<*mut uv::uv_handle_t> for ProcessHandle {
+    fn inner(&self) -> *mut uv::uv_handle_t {
         uv_handle!(self.handle)
     }
 }
 
 impl From<ProcessHandle> for crate::Handle {
     fn from(process: ProcessHandle) -> crate::Handle {
-        crate::Handle::from_inner(IntoInner::<*mut uv::uv_handle_t>::into_inner(process))
+        crate::Handle::from_inner(Inner::<*mut uv::uv_handle_t>::inner(&process))
     }
 }
 

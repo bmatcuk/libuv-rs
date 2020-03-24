@@ -21,8 +21,8 @@ pub struct Stat {
     pub birthtim: crate::TimeSpec,
 }
 
-impl FromInner<*mut uv_stat_t> for Stat {
-    fn from_inner(stat: *mut uv_stat_t) -> Stat {
+impl FromInner<*const uv_stat_t> for Stat {
+    fn from_inner(stat: *const uv_stat_t) -> Stat {
         Stat {
             dev: (*stat).st_dev,
             mode: (*stat).st_mode,

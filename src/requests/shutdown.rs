@@ -1,4 +1,4 @@
-use crate::{FromInner, IntoInner};
+use crate::{FromInner, Inner, IntoInner};
 use uv::uv_shutdown_t;
 
 /// Additional data stored on the request
@@ -62,21 +62,21 @@ impl FromInner<*mut uv_shutdown_t> for ShutdownReq {
     }
 }
 
-impl IntoInner<*mut uv_shutdown_t> for ShutdownReq {
-    fn into_inner(self) -> *mut uv_shutdown_t {
+impl Inner<*mut uv_shutdown_t> for ShutdownReq {
+    fn inner(&self) -> *mut uv_shutdown_t {
         self.req
     }
 }
 
-impl IntoInner<*mut uv::uv_req_t> for ShutdownReq {
-    fn into_inner(self) -> *mut uv::uv_req_t {
+impl Inner<*mut uv::uv_req_t> for ShutdownReq {
+    fn inner(&self) -> *mut uv::uv_req_t {
         uv_handle!(self.req)
     }
 }
 
 impl From<ShutdownReq> for crate::Req {
     fn from(shutdown: ShutdownReq) -> crate::Req {
-        crate::Req::from_inner(IntoInner::<*mut uv::uv_req_t>::into_inner(shutdown))
+        crate::Req::from_inner(Inner::<*mut uv::uv_req_t>::inner(&shutdown))
     }
 }
 

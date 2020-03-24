@@ -1,4 +1,4 @@
-use crate::{FromInner, IntoInner};
+use crate::{FromInner, Inner, IntoInner};
 use uv::{
     uv_accept, uv_is_readable, uv_is_writable, uv_listen, uv_read_start, uv_read_stop, uv_shutdown,
     uv_stream_get_write_queue_size, uv_stream_set_blocking, uv_stream_t, uv_try_write, uv_write,
@@ -91,25 +91,25 @@ impl FromInner<*mut uv_stream_t> for StreamHandle {
     }
 }
 
-impl IntoInner<*mut uv_stream_t> for StreamHandle {
-    fn into_inner(self) -> *mut uv_stream_t {
+impl Inner<*mut uv_stream_t> for StreamHandle {
+    fn inner(&self) -> *mut uv_stream_t {
         self.handle
     }
 }
 
-impl IntoInner<*mut uv::uv_handle_t> for StreamHandle {
-    fn into_inner(self) -> *mut uv::uv_handle_t {
+impl Inner<*mut uv::uv_handle_t> for StreamHandle {
+    fn inner(&self) -> *mut uv::uv_handle_t {
         uv_handle!(self.handle)
     }
 }
 
 impl From<StreamHandle> for crate::Handle {
     fn from(stream: StreamHandle) -> crate::Handle {
-        crate::Handle::from_inner(IntoInner::<*mut uv::uv_handle_t>::into_inner(stream))
+        crate::Handle::from_inner(Inner::<*mut uv::uv_handle_t>::inner(&stream))
     }
 }
 
-pub trait StreamTrait: IntoInner<*mut uv_stream_t> {
+pub trait StreamTrait: Inner<*mut uv_stream_t> {
     /// Shutdown the outgoing (write) side of a duplex stream. It waits for pending write requests
     /// to complete. The handle should refer to a initialized stream. The cb is called after
     /// shutdown is complete at which point the returned ShutdownReq is automatically destroy()'d.
@@ -119,11 +119,7 @@ pub trait StreamTrait: IntoInner<*mut uv_stream_t> {
     ) -> crate::Result<crate::ShutdownReq> {
         let req = crate::ShutdownReq::new(cb)?;
         let result = crate::uvret(unsafe {
-            uv_shutdown(
-                req.into_inner(),
-                (*self).into_inner(),
-                Some(crate::uv_shutdown_cb),
-            )
+            uv_shutdown(req.into_inner(), self.inner(), Some(crate::uv_shutdown_cb))
         });
         if result.is_err() {
             req.destroy();
@@ -141,12 +137,12 @@ pub trait StreamTrait: IntoInner<*mut uv_stream_t> {
 
         // cb is either Some(closure) or None
         let cb = cb.map(|f| Box::new(f) as _);
-        let dataptr = StreamHandle::get_data((*self).into_inner());
+        let dataptr = StreamHandle::get_data(self.inner());
         if !dataptr.is_null() {
             (*dataptr).connection_cb = cb;
         }
 
-        crate::uvret(unsafe { uv_listen((*self).into_inner(), backlog, uv_cb) })
+        crate::uvret(unsafe { uv_listen(self.inner(), backlog, uv_cb) })
     }
 
     /// This call is used in conjunction with listen() to accept incoming connections. Call this
@@ -159,7 +155,7 @@ pub trait StreamTrait: IntoInner<*mut uv_stream_t> {
     ///
     /// Note: server and client must be handles running on the same loop.
     fn accept(&mut self, client: &mut StreamHandle) -> crate::Result<()> {
-        crate::uvret(unsafe { uv_accept((*self).into_inner(), (*client).into_inner()) })
+        crate::uvret(unsafe { uv_accept(self.inner(), client.inner()) })
     }
 
     /// Read data from an incoming stream. The read_cb callback will be made several times until
@@ -178,20 +174,20 @@ pub trait StreamTrait: IntoInner<*mut uv_stream_t> {
         // read_cb is either Some(closure) or None
         let alloc_cb = alloc_cb.map(|f| Box::new(f) as _);
         let read_cb = read_cb.map(|f| Box::new(f) as _);
-        let dataptr = StreamHandle::get_data((*self).into_inner());
+        let dataptr = StreamHandle::get_data(self.inner());
         if !dataptr.is_null() {
             (*dataptr).alloc_cb = alloc_cb;
             (*dataptr).read_cb = read_cb;
         }
 
-        crate::uvret(unsafe { uv_read_start((*self).into_inner(), uv_alloc_cb, uv_read_cb) })
+        crate::uvret(unsafe { uv_read_start(self.inner(), uv_alloc_cb, uv_read_cb) })
     }
 
     /// Stop reading data from the stream. The uv_read_cb callback will no longer be called.
     ///
     /// This function is idempotent and may be safely called on a stopped stream.
     fn read_stop(&mut self) -> crate::Result<()> {
-        crate::uvret(unsafe { uv_read_stop((*self).into_inner()) })
+        crate::uvret(unsafe { uv_read_stop(self.inner()) })
     }
 
     /// Write data to stream. Buffers are written in order.
@@ -207,7 +203,7 @@ pub trait StreamTrait: IntoInner<*mut uv_stream_t> {
         let result = crate::uvret(unsafe {
             uv_write(
                 req.into_inner(),
-                (*self).into_inner(),
+                self.inner(),
                 req.bufs_ptr,
                 bufs.len() as _,
                 Some(crate::uv_write_cb),
@@ -237,10 +233,10 @@ pub trait StreamTrait: IntoInner<*mut uv_stream_t> {
         let result = crate::uvret(unsafe {
             uv_write2(
                 req.into_inner(),
-                (*self).into_inner(),
+                self.inner(),
                 req.bufs_ptr,
                 bufs.len() as _,
-                (*send_handle).into_inner(),
+                send_handle.inner(),
                 Some(crate::uv_write_cb),
             )
         });
@@ -255,7 +251,7 @@ pub trait StreamTrait: IntoInner<*mut uv_stream_t> {
     /// Will return number of bytes written (can be less than the supplied buffer size).
     fn try_write(&mut self, bufs: &[impl crate::BufTrait]) -> crate::Result<i32> {
         let (bufs_ptr, bufs_len, bufs_capacity) = bufs.into_inner();
-        let result = unsafe { uv_try_write((*self).into_inner(), bufs_ptr, bufs_len as _) };
+        let result = unsafe { uv_try_write(self.inner(), bufs_ptr, bufs_len as _) };
 
         std::mem::drop(Vec::from_raw_parts(bufs_ptr, bufs_len, bufs_capacity));
 
@@ -264,12 +260,12 @@ pub trait StreamTrait: IntoInner<*mut uv_stream_t> {
 
     /// Returns true if the stream is readable, false otherwise.
     fn is_readable(&self) -> bool {
-        unsafe { uv_is_readable((*self).into_inner()) != 0 }
+        unsafe { uv_is_readable(self.inner()) != 0 }
     }
 
     /// Returns true if the stream is writable, false otherwise.
     fn is_writable(&self) -> bool {
-        unsafe { uv_is_writable((*self).into_inner()) != 0 }
+        unsafe { uv_is_writable(self.inner()) != 0 }
     }
 
     /// Enable or disable blocking mode for a stream.
@@ -288,14 +284,12 @@ pub trait StreamTrait: IntoInner<*mut uv_stream_t> {
     /// write requests have already been submitted. Therefore it is recommended to set the blocking
     /// mode immediately after opening or creating the stream.
     fn set_blocking(&mut self, blocking: bool) -> crate::Result<()> {
-        crate::uvret(unsafe {
-            uv_stream_set_blocking((*self).into_inner(), if blocking { 1 } else { 0 })
-        })
+        crate::uvret(unsafe { uv_stream_set_blocking(self.inner(), if blocking { 1 } else { 0 }) })
     }
 
     /// Returns the size of the write queue.
     fn get_write_queue_size(&self) -> usize {
-        unsafe { uv_stream_get_write_queue_size((*self).into_inner()) }
+        unsafe { uv_stream_get_write_queue_size(self.inner()) }
     }
 }
 

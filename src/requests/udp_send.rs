@@ -1,4 +1,4 @@
-use crate::{FromInner, IntoInner};
+use crate::{FromInner, Inner, IntoInner};
 use uv::uv_udp_send_t;
 
 /// Additional data stored on the request
@@ -90,21 +90,21 @@ impl FromInner<*mut uv_udp_send_t> for UdpSendReq {
     }
 }
 
-impl IntoInner<*mut uv_udp_send_t> for UdpSendReq {
-    fn into_inner(self) -> *mut uv_udp_send_t {
+impl Inner<*mut uv_udp_send_t> for UdpSendReq {
+    fn inner(&self) -> *mut uv_udp_send_t {
         self.req
     }
 }
 
-impl IntoInner<*mut uv::uv_req_t> for UdpSendReq {
-    fn into_inner(self) -> *mut uv::uv_req_t {
+impl Inner<*mut uv::uv_req_t> for UdpSendReq {
+    fn inner(&self) -> *mut uv::uv_req_t {
         uv_handle!(self.req)
     }
 }
 
 impl From<UdpSendReq> for crate::Req {
     fn from(udp_send: UdpSendReq) -> crate::Req {
-        crate::Req::from_inner(IntoInner::<*mut uv::uv_req_t>::into_inner(udp_send))
+        crate::Req::from_inner(Inner::<*mut uv::uv_req_t>::inner(&udp_send))
     }
 }
 

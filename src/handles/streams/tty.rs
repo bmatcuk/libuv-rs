@@ -1,4 +1,4 @@
-use crate::{FromInner, IntoInner};
+use crate::{FromInner, Inner, IntoInner};
 use uv::{
     uv_tty_get_vterm_state, uv_tty_get_winsize, uv_tty_init, uv_tty_reset_mode, uv_tty_set_mode,
     uv_tty_set_vterm_state, uv_tty_t,
@@ -113,33 +113,33 @@ impl FromInner<*mut uv_tty_t> for TtyHandle {
     }
 }
 
-impl IntoInner<*mut uv_tty_t> for TtyHandle {
-    fn into_inner(self) -> *mut uv_tty_t {
+impl Inner<*mut uv_tty_t> for TtyHandle {
+    fn inner(&self) -> *mut uv_tty_t {
         self.handle
     }
 }
 
-impl IntoInner<*mut uv::uv_stream_t> for TtyHandle {
-    fn into_inner(self) -> *mut uv::uv_stream_t {
+impl Inner<*mut uv::uv_stream_t> for TtyHandle {
+    fn inner(&self) -> *mut uv::uv_stream_t {
         uv_handle!(self.handle)
     }
 }
 
-impl IntoInner<*mut uv::uv_handle_t> for TtyHandle {
-    fn into_inner(self) -> *mut uv::uv_handle_t {
+impl Inner<*mut uv::uv_handle_t> for TtyHandle {
+    fn inner(&self) -> *mut uv::uv_handle_t {
         uv_handle!(self.handle)
     }
 }
 
 impl From<TtyHandle> for crate::StreamHandle {
     fn from(tty: TtyHandle) -> crate::StreamHandle {
-        crate::StreamHandle::from_inner(IntoInner::<*mut uv::uv_stream_t>::into_inner(tty))
+        crate::StreamHandle::from_inner(Inner::<*mut uv::uv_stream_t>::inner(&tty))
     }
 }
 
 impl From<TtyHandle> for crate::Handle {
     fn from(tty: TtyHandle) -> crate::Handle {
-        crate::Handle::from_inner(IntoInner::<*mut uv::uv_handle_t>::into_inner(tty))
+        crate::Handle::from_inner(Inner::<*mut uv::uv_handle_t>::inner(&tty))
     }
 }
 

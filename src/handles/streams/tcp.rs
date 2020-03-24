@@ -1,4 +1,4 @@
-use crate::{FromInner, IntoInner};
+use crate::{FromInner, Inner, IntoInner};
 use std::net::SocketAddr;
 use uv::{
     uv_tcp_bind, uv_tcp_close_reset, uv_tcp_connect, uv_tcp_getpeername, uv_tcp_getsockname,
@@ -194,33 +194,33 @@ impl FromInner<*mut uv_tcp_t> for TcpHandle {
     }
 }
 
-impl IntoInner<*mut uv_tcp_t> for TcpHandle {
-    fn into_inner(self) -> *mut uv_tcp_t {
+impl Inner<*mut uv_tcp_t> for TcpHandle {
+    fn inner(&self) -> *mut uv_tcp_t {
         return self.handle;
     }
 }
 
-impl IntoInner<*mut uv::uv_stream_t> for TcpHandle {
-    fn into_inner(self) -> *mut uv::uv_stream_t {
+impl Inner<*mut uv::uv_stream_t> for TcpHandle {
+    fn inner(&self) -> *mut uv::uv_stream_t {
         uv_handle!(self.handle)
     }
 }
 
-impl IntoInner<*mut uv::uv_handle_t> for TcpHandle {
-    fn into_inner(self) -> *mut uv::uv_handle_t {
+impl Inner<*mut uv::uv_handle_t> for TcpHandle {
+    fn inner(&self) -> *mut uv::uv_handle_t {
         uv_handle!(self.handle)
     }
 }
 
 impl From<TcpHandle> for crate::StreamHandle {
     fn from(tcp: TcpHandle) -> crate::StreamHandle {
-        crate::StreamHandle::from_inner(IntoInner::<*mut uv::uv_stream_t>::into_inner(tcp))
+        crate::StreamHandle::from_inner(Inner::<*mut uv::uv_stream_t>::inner(&tcp))
     }
 }
 
 impl From<TcpHandle> for crate::Handle {
     fn from(tcp: TcpHandle) -> crate::Handle {
-        crate::Handle::from_inner(IntoInner::<*mut uv::uv_handle_t>::into_inner(tcp))
+        crate::Handle::from_inner(Inner::<*mut uv::uv_handle_t>::inner(&tcp))
     }
 }
 

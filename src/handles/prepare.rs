@@ -1,4 +1,4 @@
-use crate::{FromInner, IntoInner};
+use crate::{FromInner, Inner, IntoInner};
 use uv::{uv_prepare_init, uv_prepare_start, uv_prepare_stop, uv_prepare_t};
 
 /// Additional data stored on the handle
@@ -76,15 +76,15 @@ impl FromInner<*mut uv_prepare_t> for PrepareHandle {
     }
 }
 
-impl IntoInner<*mut uv::uv_handle_t> for PrepareHandle {
-    fn into_inner(self) -> *mut uv::uv_handle_t {
+impl Inner<*mut uv::uv_handle_t> for PrepareHandle {
+    fn inner(&self) -> *mut uv::uv_handle_t {
         uv_handle!(self.handle)
     }
 }
 
 impl From<PrepareHandle> for crate::Handle {
     fn from(prepare: PrepareHandle) -> crate::Handle {
-        crate::Handle::from_inner(IntoInner::<*mut uv::uv_handle_t>::into_inner(prepare))
+        crate::Handle::from_inner(Inner::<*mut uv::uv_handle_t>::inner(&prepare))
     }
 }
 
