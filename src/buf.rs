@@ -1,4 +1,4 @@
-use crate::{FromInner, IntoInner};
+use crate::{FromInner, Inner, IntoInner};
 use std::borrow::Cow;
 use std::ffi::{CStr, CString, NulError};
 use uv::{uv_buf_init, uv_buf_t};
@@ -31,8 +31,8 @@ impl FromInner<*const uv_buf_t> for ReadonlyBuf {
     }
 }
 
-impl IntoInner<*const uv_buf_t> for ReadonlyBuf {
-    fn into_inner(self) -> *const uv_buf_t {
+impl Inner<*const uv_buf_t> for ReadonlyBuf {
+    fn inner(&self) -> *const uv_buf_t {
         self.buf
     }
 }
@@ -47,23 +47,26 @@ impl Buf {
     /// Create a new Buf with the given string
     pub fn new(s: &str) -> Result<Buf, NulError> {
         let s = CString::new(s)?;
-        let buf = Box::new(unsafe { uv_buf_init(s.into_raw(), s.as_bytes().len() as _) });
+        let len = s.as_bytes().len();
+        let buf = Box::new(unsafe { uv_buf_init(s.into_raw(), len as _) });
         Ok(Box::into_raw(buf).into_inner())
     }
 
     /// Deallocate the string inside the Buf, but leave the Buf intact.
     pub fn dealloc_string(&mut self) {
-        if !(*self.buf).base.is_null() {
-            std::mem::drop(CString::from_raw((*self.buf).base));
-            (*self.buf).base = std::ptr::null_mut();
-            (*self.buf).len = 0;
+        unsafe {
+            if !(*self.buf).base.is_null() {
+                std::mem::drop(CString::from_raw((*self.buf).base));
+                (*self.buf).base = std::ptr::null_mut();
+                (*self.buf).len = 0;
+            }
         }
     }
 
     /// Deallocates the string inside the Buf, *and* deallocs the Buf itself
     pub fn dealloc(&mut self) {
         self.dealloc_string();
-        std::mem::drop(Box::from_raw(self.buf));
+        std::mem::drop(unsafe { Box::from_raw(self.buf) });
     }
 }
 
@@ -73,14 +76,14 @@ impl FromInner<*mut uv_buf_t> for Buf {
     }
 }
 
-impl IntoInner<*mut uv_buf_t> for Buf {
-    fn into_inner(self) -> *mut uv_buf_t {
+impl Inner<*mut uv_buf_t> for Buf {
+    fn inner(&self) -> *mut uv_buf_t {
         self.buf
     }
 }
 
-impl IntoInner<*const uv_buf_t> for Buf {
-    fn into_inner(self) -> *const uv_buf_t {
+impl Inner<*const uv_buf_t> for Buf {
+    fn inner(&self) -> *const uv_buf_t {
         self.buf
     }
 }
@@ -99,14 +102,16 @@ impl std::convert::TryFrom<&str> for Buf {
     }
 }
 
-pub trait BufTrait: IntoInner<*const uv_buf_t> {
+pub trait BufTrait: Inner<*const uv_buf_t> {
     /// Convert the Buf to a CStr. Returns an error if the Buf is empty.
     fn as_c_str(&self) -> Result<&'_ CStr, EmptyBufError> {
-        let ptr: *const uv_buf_t = (*self).into_inner();
-        if (*ptr).base.is_null() {
-            Err(EmptyBufError)
-        } else {
-            Ok(CStr::from_ptr((*ptr).base))
+        let ptr: *const uv_buf_t = self.inner();
+        unsafe {
+            if (*ptr).base.is_null() {
+                Err(EmptyBufError)
+            } else {
+                Ok(CStr::from_ptr((*ptr).base))
+            }
         }
     }
 
@@ -120,38 +125,6 @@ pub trait BufTrait: IntoInner<*const uv_buf_t> {
 impl BufTrait for ReadonlyBuf {}
 impl BufTrait for Buf {}
 
-impl<'a> std::convert::TryInto<&'a CStr> for ReadonlyBuf {
-    type Error = EmptyBufError;
-
-    fn try_into(self) -> Result<&'a CStr, EmptyBufError> {
-        self.as_c_str()
-    }
-}
-
-impl<'a> std::convert::TryInto<&'a CStr> for Buf {
-    type Error = EmptyBufError;
-
-    fn try_into(self) -> Result<&'a CStr, EmptyBufError> {
-        self.as_c_str()
-    }
-}
-
-impl<'a> std::convert::TryInto<Cow<'a, str>> for Buf {
-    type Error = EmptyBufError;
-
-    fn try_into(self) -> Result<Cow<'a, str>, EmptyBufError> {
-        self.to_string_lossy()
-    }
-}
-
-impl<'a> std::convert::TryInto<Cow<'a, str>> for ReadonlyBuf {
-    type Error = EmptyBufError;
-
-    fn try_into(self) -> Result<Cow<'a, str>, EmptyBufError> {
-        self.to_string_lossy()
-    }
-}
-
 impl<T> FromInner<&[T]> for (*mut uv_buf_t, usize, usize)
 where
     T: BufTrait,
@@ -161,7 +134,7 @@ where
         // functions like uv_write, uv_udf_send, etc expect an array of uv_buf_t objects, *not* an
         // array of pointers. So, we need to create a Vec of copies of the data from the
         // dereferenced pointers.
-        let bufs: Vec<uv::uv_buf_t> = bufs.iter().map(|b| (*(*b).into_inner()).clone()).collect();
+        let mut bufs: Vec<uv::uv_buf_t> = bufs.iter().map(|b| unsafe { *b.inner() }.clone()).collect();
         let bufs_ptr = bufs.as_mut_ptr();
         let bufs_len = bufs.len();
         let bufs_capacity = bufs.capacity();

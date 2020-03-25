@@ -67,7 +67,7 @@ impl PipeHandle {
         let name = CString::new(name)?;
         unsafe {
             uv_pipe_connect(
-                req.into_inner(),
+                req.inner(),
                 self.handle,
                 name.as_ptr(),
                 Some(crate::uv_connect_cb as _),

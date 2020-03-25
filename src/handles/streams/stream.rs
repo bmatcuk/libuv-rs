@@ -119,7 +119,7 @@ pub trait StreamTrait: Inner<*mut uv_stream_t> {
     ) -> crate::Result<crate::ShutdownReq> {
         let req = crate::ShutdownReq::new(cb)?;
         let result = crate::uvret(unsafe {
-            uv_shutdown(req.into_inner(), self.inner(), Some(crate::uv_shutdown_cb))
+            uv_shutdown(req.inner(), self.inner(), Some(crate::uv_shutdown_cb))
         });
         if result.is_err() {
             req.destroy();
@@ -202,7 +202,7 @@ pub trait StreamTrait: Inner<*mut uv_stream_t> {
         let req = crate::WriteReq::new(bufs, cb)?;
         let result = crate::uvret(unsafe {
             uv_write(
-                req.into_inner(),
+                req.inner(),
                 self.inner(),
                 req.bufs_ptr,
                 bufs.len() as _,
@@ -232,7 +232,7 @@ pub trait StreamTrait: Inner<*mut uv_stream_t> {
         let req = crate::WriteReq::new(bufs, cb)?;
         let result = crate::uvret(unsafe {
             uv_write2(
-                req.into_inner(),
+                req.inner(),
                 self.inner(),
                 req.bufs_ptr,
                 bufs.len() as _,

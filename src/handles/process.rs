@@ -93,7 +93,7 @@ impl IntoInner<uv_stdio_container_data> for StdioType {
     fn into_inner(self) -> uv_stdio_container_data {
         match self {
             StdioType::Stream(s) => uv_stdio_container_data {
-                stream: s.into_inner(),
+                stream: s.inner(),
             },
             StdioType::Fd(fd) => uv_stdio_container_data { fd },
         }
@@ -279,6 +279,7 @@ impl ProcessHandle {
                 .map(|e| unsafe { CString::from_raw(*e) })
                 .collect()
         });
+        std::mem::drop(env);
 
         result
     }

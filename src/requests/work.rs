@@ -118,7 +118,7 @@ impl crate::Loop {
         let result = crate::uvret(unsafe {
             uv_queue_work(
                 self.into_inner(),
-                req.into_inner(),
+                req.inner(),
                 uv_work_cb,
                 uv_after_work_cb,
             )

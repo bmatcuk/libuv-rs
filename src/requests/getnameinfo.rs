@@ -129,7 +129,7 @@ impl crate::Loop {
         let result = crate::uvret(unsafe {
             uv_getnameinfo(
                 self.into_inner(),
-                req.into_inner(),
+                req.inner(),
                 uv_cb,
                 &sockaddr as _,
                 flags as _,

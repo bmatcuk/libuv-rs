@@ -159,7 +159,7 @@ impl TcpHandle {
 
         let result = crate::uvret(unsafe {
             uv_tcp_connect(
-                req.into_inner(),
+                req.inner(),
                 self.handle,
                 &sockaddr as _,
                 Some(crate::uv_connect_cb),

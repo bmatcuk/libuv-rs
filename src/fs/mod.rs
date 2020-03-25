@@ -9,7 +9,7 @@ include!("./fs_mode_flags.rs");
 include!("./fs_symlink_flags.inc.rs");
 include!("./fs_types.inc.rs");
 
-use crate::{FromInner, FsReq, IntoInner};
+use crate::{FromInner, FsReq, Inner, IntoInner};
 use std::ffi::CString;
 use uv::{
     uv_fs_access, uv_fs_chmod, uv_fs_chown, uv_fs_close, uv_fs_closedir, uv_fs_copyfile,
@@ -53,7 +53,7 @@ pub type Uid = u32;
 pub type Gid = u32;
 
 /// Destroys the given FsReq and returns the result
-fn destroy_req_return_result(req: FsReq) -> isize {
+fn destroy_req_return_result(mut req: FsReq) -> isize {
     let result = req.result();
     req.destroy();
     result
@@ -62,10 +62,10 @@ fn destroy_req_return_result(req: FsReq) -> isize {
 impl crate::Loop {
     /// Private implementation for fs_close()
     fn _fs_close(&self, file: File, cb: Option<impl FnMut(FsReq) + 'static>) -> FsReqResult {
-        let req = FsReq::new(cb)?;
         let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let mut req = FsReq::new(cb)?;
         let result = crate::uvret(unsafe {
-            uv_fs_close(self.into_inner(), req.into_inner(), file as _, uv_cb)
+            uv_fs_close(self.into_inner(), req.inner(), file as _, uv_cb)
         });
         if result.is_err() {
             req.destroy();
@@ -92,13 +92,13 @@ impl crate::Loop {
         mode: FsModeFlags,
         cb: Option<impl FnMut(FsReq) + 'static>,
     ) -> FsReqErrResult {
-        let path = CString::new(path)?;
-        let req = FsReq::new(cb)?;
         let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let path = CString::new(path)?;
+        let mut req = FsReq::new(cb)?;
         let result = crate::uvret(unsafe {
             uv_fs_open(
                 self.into_inner(),
-                req.into_inner(),
+                req.inner(),
                 path.as_ptr(),
                 flags.bits(),
                 mode.bits(),
@@ -135,7 +135,7 @@ impl crate::Loop {
         mode: FsModeFlags,
     ) -> Result<File, Box<dyn std::error::Error>> {
         self._fs_open(path, flags, mode, None::<fn(FsReq)>)
-            .map(|req| {
+            .map(|mut req| {
                 let file = req.file();
                 req.destroy();
                 return file as _;
@@ -151,12 +151,12 @@ impl crate::Loop {
         cb: Option<impl FnMut(FsReq) + 'static>,
     ) -> FsReqResult {
         let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
-        let req = FsReq::new(cb)?;
+        let mut req = FsReq::new(cb)?;
         let (bufs_ptr, bufs_len, _) = bufs.into_inner();
         let result = crate::uvret(unsafe {
             uv_fs_read(
                 self.into_inner(),
-                req.into_inner(),
+                req.inner(),
                 file as _,
                 bufs_ptr as _,
                 bufs_len as _,
@@ -197,11 +197,11 @@ impl crate::Loop {
 
     /// Private implementation for fs_unlink()
     fn _fs_unlink(&self, path: &str, cb: Option<impl FnMut(FsReq) + 'static>) -> FsReqErrResult {
-        let path = CString::new(path)?;
-        let req = FsReq::new(cb)?;
         let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let path = CString::new(path)?;
+        let mut req = FsReq::new(cb)?;
         let result = crate::uvret(unsafe {
-            uv_fs_unlink(self.into_inner(), req.into_inner(), path.as_ptr(), uv_cb)
+            uv_fs_unlink(self.into_inner(), req.inner(), path.as_ptr(), uv_cb)
         })
         .map_err(|e| Box::new(e) as _);
         if result.is_err() {
@@ -230,12 +230,12 @@ impl crate::Loop {
         cb: Option<impl FnMut(FsReq) + 'static>,
     ) -> FsReqResult {
         let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
-        let req = FsReq::new(cb)?;
+        let mut req = FsReq::new(cb)?;
         let (bufs_ptr, bufs_len, _) = bufs.into_inner();
         let result = crate::uvret(unsafe {
             uv_fs_write(
                 self.into_inner(),
-                req.into_inner(),
+                req.inner(),
                 file as _,
                 bufs_ptr as _,
                 bufs_len as _,
@@ -286,13 +286,13 @@ impl crate::Loop {
         mode: FsModeFlags,
         cb: Option<impl FnMut(FsReq) + 'static>,
     ) -> FsReqErrResult {
-        let path = CString::new(path)?;
-        let req = FsReq::new(cb)?;
         let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let path = CString::new(path)?;
+        let mut req = FsReq::new(cb)?;
         let result = crate::uvret(unsafe {
             uv_fs_mkdir(
                 self.into_inner(),
-                req.into_inner(),
+                req.inner(),
                 path.as_ptr() as _,
                 mode.bits(),
                 uv_cb,
@@ -327,11 +327,11 @@ impl crate::Loop {
 
     /// Private implementation for fs_mkdtemp()
     fn _fs_mkdtemp(&self, tpl: &str, cb: Option<impl FnMut(FsReq) + 'static>) -> FsReqErrResult {
-        let tpl = CString::new(tpl)?;
-        let req = FsReq::new(cb)?;
         let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let tpl = CString::new(tpl)?;
+        let mut req = FsReq::new(cb)?;
         let result = crate::uvret(unsafe {
-            uv_fs_mkdtemp(self.into_inner(), req.into_inner(), tpl.as_ptr(), uv_cb)
+            uv_fs_mkdtemp(self.into_inner(), req.inner(), tpl.as_ptr(), uv_cb)
         })
         .map_err(|e| Box::new(e) as _);
         if result.is_err() {
@@ -347,7 +347,7 @@ impl crate::Loop {
 
     /// Equivalent to mkdtemp(3).
     pub fn fs_mkdtemp_sync(&self, tpl: &str) -> Result<String, Box<dyn std::error::Error>> {
-        self._fs_mkdtemp(tpl, None::<fn(FsReq)>).map(|req| {
+        self._fs_mkdtemp(tpl, None::<fn(FsReq)>).map(|mut req| {
             let path = req.path();
             req.destroy();
             return path;
@@ -356,11 +356,11 @@ impl crate::Loop {
 
     /// Private implementation for fs_mkstemp()
     fn _fs_mkstemp(&self, tpl: &str, cb: Option<impl FnMut(FsReq) + 'static>) -> FsReqErrResult {
-        let tpl = CString::new(tpl)?;
-        let req = FsReq::new(cb)?;
         let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let tpl = CString::new(tpl)?;
+        let mut req = FsReq::new(cb)?;
         let result = crate::uvret(unsafe {
-            uv_fs_mkstemp(self.into_inner(), req.into_inner(), tpl.as_ptr(), uv_cb)
+            uv_fs_mkstemp(self.into_inner(), req.inner(), tpl.as_ptr(), uv_cb)
         })
         .map_err(|e| Box::new(e) as _);
         if result.is_err() {
@@ -381,11 +381,11 @@ impl crate::Loop {
 
     /// Private implementation for fs_rmdir()
     fn _fs_rmdir(&self, path: &str, cb: Option<impl FnMut(FsReq) + 'static>) -> FsReqErrResult {
-        let path = CString::new(path)?;
-        let req = FsReq::new(cb)?;
         let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let path = CString::new(path)?;
+        let mut req = FsReq::new(cb)?;
         let result = crate::uvret(unsafe {
-            uv_fs_rmdir(self.into_inner(), req.into_inner(), path.as_ptr(), uv_cb)
+            uv_fs_rmdir(self.into_inner(), req.inner(), path.as_ptr(), uv_cb)
         })
         .map_err(|e| Box::new(e) as _);
         if result.is_err() {
@@ -407,11 +407,11 @@ impl crate::Loop {
 
     /// Private implementation for fs_opendir()
     fn _fs_opendir(&self, path: &str, cb: Option<impl FnMut(FsReq) + 'static>) -> FsReqErrResult {
-        let path = CString::new(path)?;
-        let req = FsReq::new(cb)?;
         let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let path = CString::new(path)?;
+        let mut req = FsReq::new(cb)?;
         let result = crate::uvret(unsafe {
-            uv_fs_opendir(self.into_inner(), req.into_inner(), path.as_ptr(), uv_cb)
+            uv_fs_opendir(self.into_inner(), req.inner(), path.as_ptr(), uv_cb)
         })
         .map_err(|e| Box::new(e) as _);
         if result.is_err() {
@@ -447,9 +447,9 @@ impl crate::Loop {
     /// Private implementation for fs_closedir()
     fn _fs_closedir(&self, dir: &Dir, cb: Option<impl FnMut(FsReq) + 'static>) -> FsReqResult {
         let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
-        let req = FsReq::new(cb)?;
+        let mut req = FsReq::new(cb)?;
         let result = crate::uvret(unsafe {
-            uv_fs_closedir(self.into_inner(), req.into_inner(), dir.into_inner(), uv_cb)
+            uv_fs_closedir(self.into_inner(), req.inner(), dir.into_inner(), uv_cb)
         });
         if result.is_err() {
             req.destroy();
@@ -473,11 +473,11 @@ impl crate::Loop {
     /// Private implementation for fs_readdir
     fn _fs_readdir(&self, dir: &Dir, cb: Option<impl FnMut(FsReq) + 'static>) -> FsReqResult {
         let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
-        let req = FsReq::new(cb)?;
+        let mut req = FsReq::new(cb)?;
         let result = crate::uvret(unsafe {
             uv_fs_readdir(
                 self.into_inner(),
-                req.into_inner(),
+                req.inner(),
                 dir.into_inner(),
                 uv_cb,
             )
@@ -500,7 +500,7 @@ impl crate::Loop {
     /// destroy() must be called before closing the directory with fs_closedir().
     pub fn fs_readdir(&self, dir: &Dir, cb: impl FnMut(FsReq) + 'static) -> FsReqResult {
         self._fs_readdir(dir, Some(cb)).and_then(|req| {
-            if let Some(dir) = req.dir() {
+            if let Some(dir) = req.dir().as_mut() {
                 dir.set_len(req.result() as _);
             }
             Ok(req)
@@ -529,13 +529,13 @@ impl crate::Loop {
         flags: FsOpenFlags,
         cb: Option<impl FnMut(FsReq) + 'static>,
     ) -> FsReqErrResult {
-        let path = CString::new(path)?;
-        let req = FsReq::new(cb)?;
         let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let path = CString::new(path)?;
+        let mut req = FsReq::new(cb)?;
         let result = crate::uvret(unsafe {
             uv_fs_scandir(
                 self.into_inner(),
-                req.into_inner(),
+                req.inner(),
                 path.as_ptr(),
                 flags.bits(),
                 uv_cb,
@@ -576,11 +576,11 @@ impl crate::Loop {
 
     /// Private implementation for fs_stat()
     fn _fs_stat(&self, path: &str, cb: Option<impl FnMut(FsReq) + 'static>) -> FsReqErrResult {
-        let path = CString::new(path)?;
-        let req = FsReq::new(cb)?;
         let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let path = CString::new(path)?;
+        let mut req = FsReq::new(cb)?;
         let result = crate::uvret(unsafe {
-            uv_fs_stat(self.into_inner(), req.into_inner(), path.as_ptr(), uv_cb)
+            uv_fs_stat(self.into_inner(), req.inner(), path.as_ptr(), uv_cb)
         })
         .map_err(|e| Box::new(e) as _);
         if result.is_err() {
@@ -596,7 +596,7 @@ impl crate::Loop {
 
     /// Equivalent to stat(2).
     pub fn fs_stat_sync(&self, path: &str) -> Result<Stat, Box<dyn std::error::Error>> {
-        self._fs_stat(path, None::<fn(FsReq)>).map(|req| {
+        self._fs_stat(path, None::<fn(FsReq)>).map(|mut req| {
             let stat = req.stat();
             req.destroy();
             return stat;
@@ -605,10 +605,10 @@ impl crate::Loop {
 
     /// Private implementation for fs_fstat()
     fn _fs_fstat(&self, file: File, cb: Option<impl FnMut(FsReq) + 'static>) -> FsReqResult {
-        let req = FsReq::new(cb)?;
         let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let mut req = FsReq::new(cb)?;
         let result = crate::uvret(unsafe {
-            uv_fs_fstat(self.into_inner(), req.into_inner(), file as _, uv_cb)
+            uv_fs_fstat(self.into_inner(), req.inner(), file as _, uv_cb)
         });
         if result.is_err() {
             req.destroy();
@@ -623,7 +623,7 @@ impl crate::Loop {
 
     /// Equivalent to fstat(2).
     pub fn fs_fstat_sync(&self, file: File) -> crate::Result<Stat> {
-        self._fs_fstat(file, None::<fn(FsReq)>).map(|req| {
+        self._fs_fstat(file, None::<fn(FsReq)>).map(|mut req| {
             let stat = req.stat();
             req.destroy();
             return stat;
@@ -632,11 +632,11 @@ impl crate::Loop {
 
     /// Private implementation for fs_lstat
     fn _fs_lstat(&self, path: &str, cb: Option<impl FnMut(FsReq) + 'static>) -> FsReqErrResult {
-        let path = CString::new(path)?;
-        let req = FsReq::new(cb)?;
         let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let path = CString::new(path)?;
+        let mut req = FsReq::new(cb)?;
         let result = crate::uvret(unsafe {
-            uv_fs_lstat(self.into_inner(), req.into_inner(), path.as_ptr(), uv_cb)
+            uv_fs_lstat(self.into_inner(), req.inner(), path.as_ptr(), uv_cb)
         })
         .map_err(|e| Box::new(e) as _);
         if result.is_err() {
@@ -652,7 +652,7 @@ impl crate::Loop {
 
     /// Equivalent to lstat(2).
     pub fn fs_lstat_sync(&self, path: &str) -> Result<Stat, Box<dyn std::error::Error>> {
-        self._fs_lstat(path, None::<fn(FsReq)>).map(|req| {
+        self._fs_lstat(path, None::<fn(FsReq)>).map(|mut req| {
             let stat = req.stat();
             req.destroy();
             return stat;
@@ -661,11 +661,11 @@ impl crate::Loop {
 
     /// Private implementation for fs_statfs()
     fn _fs_statfs(&self, path: &str, cb: Option<impl FnMut(FsReq) + 'static>) -> FsReqErrResult {
-        let path = CString::new(path)?;
-        let req = FsReq::new(cb)?;
         let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let path = CString::new(path)?;
+        let mut req = FsReq::new(cb)?;
         let result = crate::uvret(unsafe {
-            uv_fs_statfs(self.into_inner(), req.into_inner(), path.as_ptr(), uv_cb)
+            uv_fs_statfs(self.into_inner(), req.inner(), path.as_ptr(), uv_cb)
         })
         .map_err(|e| Box::new(e) as _);
         if result.is_err() {
@@ -687,7 +687,7 @@ impl crate::Loop {
     /// Note: Any fields in the resulting StatFs that are not supported by the underlying operating
     /// system are set to zero.
     pub fn fs_statfs_sync(&self, path: &str) -> Result<StatFs, Box<dyn std::error::Error>> {
-        self._fs_statfs(path, None::<fn(FsReq)>).and_then(|req| {
+        self._fs_statfs(path, None::<fn(FsReq)>).and_then(|mut req| {
             let statfs = req.statfs();
             req.destroy();
             statfs.ok_or_else(|| Box::new(crate::Error::EINVAL) as _)
@@ -701,14 +701,14 @@ impl crate::Loop {
         new_path: &str,
         cb: Option<impl FnMut(FsReq) + 'static>,
     ) -> FsReqErrResult {
+        let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
         let path = CString::new(path)?;
         let new_path = CString::new(new_path)?;
-        let req = FsReq::new(cb)?;
-        let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let mut req = FsReq::new(cb)?;
         let result = crate::uvret(unsafe {
             uv_fs_rename(
                 self.into_inner(),
-                req.into_inner(),
+                req.inner(),
                 path.as_ptr(),
                 new_path.as_ptr(),
                 uv_cb,
@@ -739,10 +739,10 @@ impl crate::Loop {
 
     /// Private implementation for fs_fsync()
     fn _fs_fsync(&self, file: File, cb: Option<impl FnMut(FsReq) + 'static>) -> FsReqResult {
-        let req = FsReq::new(cb)?;
         let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let mut req = FsReq::new(cb)?;
         let result = crate::uvret(unsafe {
-            uv_fs_fsync(self.into_inner(), req.into_inner(), file as _, uv_cb)
+            uv_fs_fsync(self.into_inner(), req.inner(), file as _, uv_cb)
         });
         if result.is_err() {
             req.destroy();
@@ -772,7 +772,7 @@ impl crate::Loop {
         let req = FsReq::new(cb)?;
         let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
         let result = crate::uvret(unsafe {
-            uv_fs_fdatasync(self.into_inner(), req.into_inner(), file as _, uv_cb)
+            uv_fs_fdatasync(self.into_inner(), req.inner(), file as _, uv_cb)
         });
         if result.is_err() {
             req.destroy();
@@ -798,12 +798,12 @@ impl crate::Loop {
         offset: i64,
         cb: Option<impl FnMut(FsReq) + 'static>,
     ) -> FsReqResult {
-        let req = FsReq::new(cb)?;
         let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let mut req = FsReq::new(cb)?;
         let result = crate::uvret(unsafe {
             uv_fs_ftruncate(
                 self.into_inner(),
-                req.into_inner(),
+                req.inner(),
                 file as _,
                 offset,
                 uv_cb,
@@ -839,14 +839,14 @@ impl crate::Loop {
         flags: FsCopyFlags,
         cb: Option<impl FnMut(FsReq) + 'static>,
     ) -> FsReqErrResult {
+        let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
         let path = CString::new(path)?;
         let new_path = CString::new(new_path)?;
-        let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
-        let req = FsReq::new(cb)?;
+        let mut req = FsReq::new(cb)?;
         let result = crate::uvret(unsafe {
             uv_fs_copyfile(
                 self.into_inner(),
-                req.into_inner(),
+                req.inner(),
                 path.as_ptr(),
                 new_path.as_ptr(),
                 flags.bits(),
@@ -919,12 +919,12 @@ impl crate::Loop {
         len: usize,
         cb: Option<impl FnMut(FsReq) + 'static>,
     ) -> FsReqResult {
-        let req = FsReq::new(cb)?;
         let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let mut req = FsReq::new(cb)?;
         let result = crate::uvret(unsafe {
             uv_fs_sendfile(
                 self.into_inner(),
-                req.into_inner(),
+                req.inner(),
                 out_file as _,
                 in_file as _,
                 offset,
@@ -969,13 +969,13 @@ impl crate::Loop {
         mode: FsAccessFlags,
         cb: Option<impl FnMut(FsReq) + 'static>,
     ) -> FsReqErrResult {
-        let path = CString::new(path)?;
-        let req = FsReq::new(cb)?;
         let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let path = CString::new(path)?;
+        let mut req = FsReq::new(cb)?;
         let result = crate::uvret(unsafe {
             uv_fs_access(
                 self.into_inner(),
-                req.into_inner(),
+                req.inner(),
                 path.as_ptr(),
                 mode.bits(),
                 uv_cb,
@@ -1011,13 +1011,13 @@ impl crate::Loop {
         mode: FsModeFlags,
         cb: Option<impl FnMut(FsReq) + 'static>,
     ) -> FsReqErrResult {
-        let path = CString::new(path)?;
-        let req = FsReq::new(cb)?;
         let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let path = CString::new(path)?;
+        let mut req = FsReq::new(cb)?;
         let result = crate::uvret(unsafe {
             uv_fs_chmod(
                 self.into_inner(),
-                req.into_inner(),
+                req.inner(),
                 path.as_ptr(),
                 mode.bits(),
                 uv_cb,
@@ -1053,12 +1053,12 @@ impl crate::Loop {
         mode: FsModeFlags,
         cb: Option<impl FnMut(FsReq) + 'static>,
     ) -> FsReqResult {
-        let req = FsReq::new(cb)?;
         let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let mut req = FsReq::new(cb)?;
         let result = crate::uvret(unsafe {
             uv_fs_fchmod(
                 self.into_inner(),
-                req.into_inner(),
+                req.inner(),
                 file as _,
                 mode.bits(),
                 uv_cb,
@@ -1093,13 +1093,13 @@ impl crate::Loop {
         mtime: f64,
         cb: Option<impl FnMut(FsReq) + 'static>,
     ) -> FsReqErrResult {
-        let path = CString::new(path)?;
-        let req = FsReq::new(cb)?;
         let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let path = CString::new(path)?;
+        let mut req = FsReq::new(cb)?;
         let result = crate::uvret(unsafe {
             uv_fs_utime(
                 self.into_inner(),
-                req.into_inner(),
+                req.inner(),
                 path.as_ptr(),
                 atime,
                 mtime,
@@ -1144,12 +1144,12 @@ impl crate::Loop {
         mtime: f64,
         cb: Option<impl FnMut(FsReq) + 'static>,
     ) -> FsReqResult {
-        let req = FsReq::new(cb)?;
         let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let mut req = FsReq::new(cb)?;
         let result = crate::uvret(unsafe {
             uv_fs_futime(
                 self.into_inner(),
-                req.into_inner(),
+                req.inner(),
                 file as _,
                 atime,
                 mtime,
@@ -1192,14 +1192,14 @@ impl crate::Loop {
         new_path: &str,
         cb: Option<impl FnMut(FsReq) + 'static>,
     ) -> FsReqErrResult {
+        let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
         let path = CString::new(path)?;
         let new_path = CString::new(new_path)?;
-        let req = FsReq::new(cb)?;
-        let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let mut req = FsReq::new(cb)?;
         let result = crate::uvret(unsafe {
             uv_fs_link(
                 self.into_inner(),
-                req.into_inner(),
+                req.inner(),
                 path.as_ptr(),
                 new_path.as_ptr(),
                 uv_cb,
@@ -1236,14 +1236,14 @@ impl crate::Loop {
         flags: FsSymlinkFlags,
         cb: Option<impl FnMut(FsReq) + 'static>,
     ) -> FsReqErrResult {
+        let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
         let path = CString::new(path)?;
         let new_path = CString::new(new_path)?;
-        let req = FsReq::new(cb)?;
-        let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let mut req = FsReq::new(cb)?;
         let result = crate::uvret(unsafe {
             uv_fs_symlink(
                 self.into_inner(),
-                req.into_inner(),
+                req.inner(),
                 path.as_ptr(),
                 new_path.as_ptr(),
                 flags.bits(),
@@ -1292,11 +1292,11 @@ impl crate::Loop {
     }
 
     fn _fs_readlink(&self, path: &str, cb: Option<impl FnMut(FsReq) + 'static>) -> FsReqErrResult {
-        let path = CString::new(path)?;
-        let req = FsReq::new(cb)?;
         let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let path = CString::new(path)?;
+        let mut req = FsReq::new(cb)?;
         let result = crate::uvret(unsafe {
-            uv_fs_readlink(self.into_inner(), req.into_inner(), path.as_ptr(), uv_cb)
+            uv_fs_readlink(self.into_inner(), req.inner(), path.as_ptr(), uv_cb)
         })
         .map_err(|e| Box::new(e) as _);
         if result.is_err() {
@@ -1312,7 +1312,7 @@ impl crate::Loop {
 
     /// Equivalent to readlink(2).
     pub fn fs_readlink_sync(&self, path: &str) -> Result<String, Box<dyn std::error::Error>> {
-        self._fs_readlink(path, None::<fn(FsReq)>).and_then(|req| {
+        self._fs_readlink(path, None::<fn(FsReq)>).and_then(|mut req| {
             let path = req.real_path();
             req.destroy();
             path.ok_or_else(|| Box::new(crate::Error::EINVAL) as _)
@@ -1321,11 +1321,11 @@ impl crate::Loop {
 
     /// Private implementation for fs_realpath()
     fn _fs_realpath(&self, path: &str, cb: Option<impl FnMut(FsReq) + 'static>) -> FsReqErrResult {
-        let path = CString::new(path)?;
-        let req = FsReq::new(cb)?;
         let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let path = CString::new(path)?;
+        let mut req = FsReq::new(cb)?;
         let result = crate::uvret(unsafe {
-            uv_fs_realpath(self.into_inner(), req.into_inner(), path.as_ptr(), uv_cb)
+            uv_fs_realpath(self.into_inner(), req.inner(), path.as_ptr(), uv_cb)
         })
         .map_err(|e| Box::new(e) as _);
         if result.is_err() {
@@ -1380,7 +1380,7 @@ impl crate::Loop {
     /// Note: This function is not implemented on Windows XP and Windows Server 2003. On these
     /// systems, ENOSYS is returned.
     pub fn fs_realpath_sync(&self, path: &str) -> Result<String, Box<dyn std::error::Error>> {
-        self._fs_realpath(path, None::<fn(FsReq)>).and_then(|req| {
+        self._fs_realpath(path, None::<fn(FsReq)>).and_then(|mut req| {
             let path = req.real_path();
             req.destroy();
             path.ok_or_else(|| Box::new(crate::Error::EINVAL) as _)
@@ -1395,13 +1395,13 @@ impl crate::Loop {
         gid: Gid,
         cb: Option<impl FnMut(FsReq) + 'static>,
     ) -> FsReqErrResult {
-        let path = CString::new(path)?;
-        let req = FsReq::new(cb)?;
         let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let path = CString::new(path)?;
+        let mut req = FsReq::new(cb)?;
         let result = crate::uvret(unsafe {
             uv_fs_chown(
                 self.into_inner(),
-                req.into_inner(),
+                req.inner(),
                 path.as_ptr(),
                 uid as _,
                 gid as _,
@@ -1444,12 +1444,12 @@ impl crate::Loop {
         gid: Gid,
         cb: Option<impl FnMut(FsReq) + 'static>,
     ) -> FsReqResult {
-        let req = FsReq::new(cb)?;
         let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let mut req = FsReq::new(cb)?;
         let result = crate::uvret(unsafe {
             uv_fs_fchown(
                 self.into_inner(),
-                req.into_inner(),
+                req.inner(),
                 file as _,
                 uid as _,
                 gid as _,
@@ -1491,13 +1491,13 @@ impl crate::Loop {
         gid: Gid,
         cb: Option<impl FnMut(FsReq) + 'static>,
     ) -> FsReqErrResult {
-        let path = CString::new(path)?;
-        let req = FsReq::new(cb)?;
         let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let path = CString::new(path)?;
+        let mut req = FsReq::new(cb)?;
         let result = crate::uvret(unsafe {
             uv_fs_lchown(
                 self.into_inner(),
-                req.into_inner(),
+                req.inner(),
                 path.as_ptr(),
                 uid as _,
                 gid as _,
@@ -1547,9 +1547,9 @@ impl Iterator for ScandirIter {
     type Item = crate::Result<crate::Dirent>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let mut dirent: uv::uv_dirent_t = std::mem::zeroed();
+        let mut dirent: uv::uv_dirent_t = unsafe { std::mem::zeroed() };
         let result =
-            crate::uvret(unsafe { uv_fs_scandir_next(self.req.into_inner(), &mut dirent as _) });
+            crate::uvret(unsafe { uv_fs_scandir_next(self.req.inner(), &mut dirent as _) });
         match result {
             Ok(_) => Some(Ok(crate::Dirent::from_inner(
                 &dirent as *const uv::uv_dirent_t,

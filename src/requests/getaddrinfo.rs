@@ -141,7 +141,7 @@ impl crate::Loop {
         let result = crate::uvret(unsafe {
             uv_getaddrinfo(
                 self.into_inner(),
-                req.into_inner(),
+                req.inner(),
                 uv_cb,
                 if let Some(node) = node {
                     node.as_ptr()

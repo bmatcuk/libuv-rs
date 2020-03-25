@@ -275,7 +275,7 @@ impl UdpHandle {
 
         let result = crate::uvret(unsafe {
             uv_udp_send(
-                req.into_inner(),
+                req.inner(),
                 self.handle,
                 req.bufs_ptr,
                 bufs.len() as _,

@@ -126,7 +126,7 @@ impl crate::Loop {
         let result = crate::uvret(unsafe {
             uv_random(
                 self.into_inner(),
-                req.into_inner(),
+                req.inner(),
                 buf.as_mut_ptr() as _,
                 buflen,
                 flags as _,
