@@ -89,13 +89,13 @@ pub enum StdioType {
     Fd(i32),
 }
 
-impl IntoInner<uv_stdio_container_data> for StdioType {
-    fn into_inner(self) -> uv_stdio_container_data {
+impl Inner<uv_stdio_container_data> for StdioType {
+    fn inner(&self) -> uv_stdio_container_data {
         match self {
             StdioType::Stream(s) => uv_stdio_container_data {
                 stream: s.inner(),
             },
-            StdioType::Fd(fd) => uv_stdio_container_data { fd },
+            StdioType::Fd(fd) => uv_stdio_container_data { fd: *fd },
         }
     }
 }
@@ -193,6 +193,7 @@ impl ProcessHandle {
         r#loop: &crate::Loop,
         options: ProcessOptions,
     ) -> Result<(), Box<dyn std::error::Error>> {
+        let exit_cb_uv = options.exit_cb.as_ref().map(|_| uv_exit_cb as _);
         let dataptr = crate::Handle::get_data(uv_handle!(self.handle));
         if !dataptr.is_null() {
             if let super::ProcessData(d) = unsafe { &mut (*dataptr).addl } {
@@ -210,7 +211,7 @@ impl ProcessHandle {
         // need to grab a *mut pointer to the data using CString::into_raw() which will "leak" the
         // CStrings out of rust. Then we need to add a final null pointer to the end (the C code
         // requires it so it can find the end of the array) and collect it all into a Vec.
-        let args = options
+        let mut args = options
             .args
             .iter()
             .map(|a| CString::new(*a).map(|s| s.into_raw()))
@@ -218,7 +219,7 @@ impl ProcessHandle {
             .collect::<Result<Vec<*mut std::os::raw::c_char>, std::ffi::NulError>>()?;
 
         // env is similar to args except that it is Option'al.
-        let env = options
+        let mut env = options
             .env
             .map(|env| {
                 env.iter()
@@ -232,20 +233,20 @@ impl ProcessHandle {
         let cwd = options.cwd.map(|cwd| CString::new(cwd)).transpose()?;
 
         // stdio is an array of uv_stdio_container_t objects
-        let stdio = options
+        let mut stdio = options
             .stdio
             .iter()
             .map(|stdio| uv_stdio_container_t {
                 flags: stdio.flags.bits(),
-                data: stdio.data.into_inner(),
+                data: stdio.data.inner(),
             })
             .collect::<Vec<uv_stdio_container_t>>();
 
         let options = uv_process_options_t {
-            exit_cb: options.exit_cb.map(|_| uv_exit_cb as _),
+            exit_cb: exit_cb_uv,
             file: file.as_ptr(),
             args: args.as_mut_ptr(),
-            env: env.map_or(std::ptr::null_mut(), |e| e.as_mut_ptr()),
+            env: env.as_mut().map_or(std::ptr::null_mut(), |e| e.as_mut_ptr()),
             cwd: cwd.map_or(std::ptr::null(), |s| s.as_ptr()),
             flags: options.flags.bits(),
             stdio_count: options.stdio.len() as _,
@@ -328,7 +329,7 @@ impl crate::Loop {
         &self,
         options: ProcessOptions,
     ) -> Result<ProcessHandle, Box<dyn std::error::Error>> {
-        let process = ProcessHandle::new()?;
+        let mut process = ProcessHandle::new()?;
         process.spawn(self, options)?;
         Ok(process)
     }

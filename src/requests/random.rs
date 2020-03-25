@@ -16,7 +16,7 @@ extern "C" fn uv_random_cb(
     let dataptr = crate::Req::get_data(uv_handle!(req));
     if !dataptr.is_null() {
         unsafe {
-            if let super::RandomData(d) = *dataptr {
+            if let super::RandomData(d) = &mut *dataptr {
                 if let Some(f) = d.random_cb.as_mut() {
                     let buf = Vec::from_raw_parts(buf as _, buflen, buflen);
                     f(req.into_inner(), status as _, buf);
@@ -26,7 +26,7 @@ extern "C" fn uv_random_cb(
     }
 
     // free memory
-    let req = RandomReq::from_inner(req);
+    let mut req = RandomReq::from_inner(req);
     req.destroy();
 }
 
@@ -121,8 +121,8 @@ impl crate::Loop {
         flags: u32,
         cb: impl FnMut(RandomReq, i32, Vec<u8>) + 'static,
     ) -> crate::Result<RandomReq> {
-        let req = RandomReq::new(Some(cb))?;
-        let buf = std::mem::ManuallyDrop::new(Vec::<u8>::with_capacity(buflen));
+        let mut req = RandomReq::new(Some(cb))?;
+        let mut buf = std::mem::ManuallyDrop::new(Vec::<u8>::with_capacity(buflen));
         let result = crate::uvret(unsafe {
             uv_random(
                 self.into_inner(),
@@ -163,7 +163,7 @@ impl crate::Loop {
     ///   * IBM i: /dev/urandom.
     ///   * Other UNIX: /dev/urandom after reading from /dev/random once.
     pub fn random_sync(buflen: usize, flags: u32) -> crate::Result<Vec<u8>> {
-        let buf: Vec<u8> = Vec::with_capacity(buflen);
+        let mut buf: Vec<u8> = Vec::with_capacity(buflen);
         unsafe { buf.set_len(buflen) };
         crate::uvret(unsafe {
             uv_random(

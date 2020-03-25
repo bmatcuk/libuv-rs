@@ -12,7 +12,7 @@ extern "C" fn uv_getaddrinfo_cb(req: *mut uv_getaddrinfo_t, status: i32, res: *m
     let dataptr = crate::Req::get_data(uv_handle!(req));
     if !dataptr.is_null() {
         unsafe {
-            if let super::GetAddrInfoData(d) = *dataptr {
+            if let super::GetAddrInfoData(d) = &mut *dataptr {
                 if let Some(f) = d.cb.as_mut() {
                     f(req.into_inner(), status, res.into_inner());
                 }
@@ -21,7 +21,7 @@ extern "C" fn uv_getaddrinfo_cb(req: *mut uv_getaddrinfo_t, status: i32, res: *m
     }
 
     // free memory
-    let req = GetAddrInfoReq::from_inner(req);
+    let mut req = GetAddrInfoReq::from_inner(req);
     req.destroy();
 }
 
@@ -63,10 +63,11 @@ impl GetAddrInfoReq {
     }
 
     /// Retrieve an iterator of AddrInfo responses
-    pub fn addrinfos(&self) -> AddrInfoIter {
+    pub fn addrinfos(self) -> AddrInfoIter {
+        let ai = unsafe { (*self.req).addrinfo };
         AddrInfoIter {
-            req: *self,
-            ai: (*self.req).addrinfo,
+            req: self,
+            ai,
         }
     }
 }
@@ -111,7 +112,7 @@ impl Iterator for AddrInfoIter {
         }
 
         let ai = self.ai.into_inner();
-        self.ai = (*self.ai).ai_next;
+        self.ai = unsafe { (*self.ai).ai_next };
         Some(ai)
     }
 }
@@ -133,10 +134,10 @@ impl crate::Loop {
         hints: Option<crate::AddrInfo>,
         cb: Option<impl FnMut(GetAddrInfoReq, i32, crate::AddrInfo) + 'static>,
     ) -> Result<GetAddrInfoReq, Box<dyn std::error::Error>> {
+        let uv_cb = cb.as_ref().map(|_| uv_getaddrinfo_cb as _);
         let node = node.map(CString::new).transpose()?;
         let service = service.map(CString::new).transpose()?;
-        let req = GetAddrInfoReq::new(cb)?;
-        let uv_cb = cb.as_ref().map(|_| uv_getaddrinfo_cb as _);
+        let mut req = GetAddrInfoReq::new(cb)?;
         let hints = hints.map(|h| h.into_inner());
         let result = crate::uvret(unsafe {
             uv_getaddrinfo(

@@ -11,7 +11,7 @@ pub(crate) extern "C" fn uv_connect_cb(req: *mut uv_connect_t, status: std::os::
     let dataptr = crate::Req::get_data(uv_handle!(req));
     if !dataptr.is_null() {
         unsafe {
-            if let super::ConnectData(d) = *dataptr {
+            if let super::ConnectData(d) = &mut *dataptr {
                 if let Some(f) = d.connect_cb.as_mut() {
                     f(req.into_inner(), status as _);
                 }
@@ -20,7 +20,7 @@ pub(crate) extern "C" fn uv_connect_cb(req: *mut uv_connect_t, status: std::os::
     }
 
     // free memory
-    let req = ConnectReq::from_inner(req);
+    let mut req = ConnectReq::from_inner(req);
     req.destroy();
 }
 

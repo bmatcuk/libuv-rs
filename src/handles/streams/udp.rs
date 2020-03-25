@@ -50,7 +50,7 @@ extern "C" fn uv_udp_recv_cb(
 ) {
     let dataptr = crate::StreamHandle::get_data(uv_handle!(handle));
     if !dataptr.is_null() {
-        if let super::UdpData(d) = unsafe { (*dataptr).addl } {
+        if let super::UdpData(d) = unsafe { &mut (*dataptr).addl } {
             if let Some(f) = d.recv_cb.as_mut() {
                 let sockaddr = crate::build_socketaddr(addr);
                 if let Ok(sockaddr) = sockaddr {
@@ -265,8 +265,8 @@ impl UdpHandle {
         bufs: &[impl crate::BufTrait],
         cb: Option<impl FnMut(crate::UdpSendReq, i32) + 'static>,
     ) -> crate::Result<crate::UdpSendReq> {
-        let req = crate::UdpSendReq::new(bufs, cb)?;
-        let mut sockaddr: uv::sockaddr = std::mem::zeroed();
+        let mut req = crate::UdpSendReq::new(bufs, cb)?;
+        let mut sockaddr: uv::sockaddr = unsafe { std::mem::zeroed() };
         let mut sockaddr_ptr: *const uv::sockaddr = std::ptr::null();
         if let Some(addr) = addr {
             crate::fill_sockaddr(&mut sockaddr, addr);
@@ -302,7 +302,7 @@ impl UdpHandle {
         bufs: &[impl crate::BufTrait],
     ) -> crate::Result<i32> {
         let (bufs_ptr, bufs_len, bufs_capacity) = bufs.into_inner();
-        let mut sockaddr: uv::sockaddr = std::mem::zeroed();
+        let mut sockaddr: uv::sockaddr = unsafe { std::mem::zeroed() };
         let mut sockaddr_ptr: *const uv::sockaddr = std::ptr::null();
         if let Some(addr) = addr {
             crate::fill_sockaddr(&mut sockaddr, addr);
@@ -311,7 +311,7 @@ impl UdpHandle {
 
         let result = unsafe { uv_udp_try_send(self.handle, bufs_ptr, bufs_len as _, sockaddr_ptr) };
 
-        std::mem::drop(Vec::from_raw_parts(bufs_ptr, bufs_len, bufs_capacity));
+        unsafe { std::mem::drop(Vec::from_raw_parts(bufs_ptr, bufs_len, bufs_capacity)) };
 
         crate::uvret(result).map(|_| result as _)
     }
@@ -336,8 +336,8 @@ impl UdpHandle {
         let recv_cb = recv_cb.map(|f| Box::new(f) as _);
         let dataptr = crate::StreamHandle::get_data(uv_handle!(self.handle));
         if !dataptr.is_null() {
-            (*dataptr).alloc_cb = alloc_cb;
-            if let super::UdpData(d) = (*dataptr).addl {
+            unsafe { (*dataptr).alloc_cb = alloc_cb };
+            if let super::UdpData(d) = unsafe { &mut (*dataptr).addl } {
                 d.recv_cb = recv_cb;
             }
         }

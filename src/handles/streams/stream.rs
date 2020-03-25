@@ -117,7 +117,7 @@ pub trait StreamTrait: Inner<*mut uv_stream_t> {
         &mut self,
         cb: Option<impl FnMut(crate::ShutdownReq, i32) + 'static>,
     ) -> crate::Result<crate::ShutdownReq> {
-        let req = crate::ShutdownReq::new(cb)?;
+        let mut req = crate::ShutdownReq::new(cb)?;
         let result = crate::uvret(unsafe {
             uv_shutdown(req.inner(), self.inner(), Some(crate::uv_shutdown_cb))
         });
@@ -139,7 +139,7 @@ pub trait StreamTrait: Inner<*mut uv_stream_t> {
         let cb = cb.map(|f| Box::new(f) as _);
         let dataptr = StreamHandle::get_data(self.inner());
         if !dataptr.is_null() {
-            (*dataptr).connection_cb = cb;
+            unsafe { (*dataptr).connection_cb = cb };
         }
 
         crate::uvret(unsafe { uv_listen(self.inner(), backlog, uv_cb) })
@@ -199,7 +199,7 @@ pub trait StreamTrait: Inner<*mut uv_stream_t> {
         bufs: &[impl crate::BufTrait],
         cb: Option<impl FnMut(crate::WriteReq, i32) + 'static>,
     ) -> crate::Result<crate::WriteReq> {
-        let req = crate::WriteReq::new(bufs, cb)?;
+        let mut req = crate::WriteReq::new(bufs, cb)?;
         let result = crate::uvret(unsafe {
             uv_write(
                 req.inner(),
@@ -229,7 +229,7 @@ pub trait StreamTrait: Inner<*mut uv_stream_t> {
         bufs: &[impl crate::BufTrait],
         cb: Option<impl FnMut(crate::WriteReq, i32) + 'static>,
     ) -> crate::Result<crate::WriteReq> {
-        let req = crate::WriteReq::new(bufs, cb)?;
+        let mut req = crate::WriteReq::new(bufs, cb)?;
         let result = crate::uvret(unsafe {
             uv_write2(
                 req.inner(),

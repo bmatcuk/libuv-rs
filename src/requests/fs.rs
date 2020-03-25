@@ -15,7 +15,7 @@ pub(crate) extern "C" fn uv_fs_cb(req: *mut uv_fs_t) {
     let dataptr = crate::Req::get_data(uv_handle!(req));
     if !dataptr.is_null() {
         unsafe {
-            if let super::FsData(d) = *dataptr {
+            if let super::FsData(d) = &mut *dataptr {
                 if let Some(f) = d.fs_cb.as_mut() {
                     f(req.into_inner());
                 }
@@ -24,7 +24,7 @@ pub(crate) extern "C" fn uv_fs_cb(req: *mut uv_fs_t) {
     }
 
     // free memory
-    let req = FsReq::from_inner(req);
+    let mut req = FsReq::from_inner(req);
     req.destroy();
 }
 
@@ -60,7 +60,7 @@ impl FsReq {
 
     /// Returns the file handle from the request
     pub fn file(&self) -> crate::File {
-        (*self.req).file
+        unsafe { (*self.req).file }
     }
 
     /// Returns the file stats
@@ -95,7 +95,7 @@ impl FsReq {
         match self.request_type() {
             crate::FsType::READLINK | crate::FsType::REALPATH => {
                 let ptr: *const i8 = unsafe { uv_fs_get_ptr(self.req) } as _;
-                Some(CStr::from_ptr(ptr).to_string_lossy().into_owned())
+                Some(unsafe { CStr::from_ptr(ptr).to_string_lossy().into_owned() })
             }
             _ => None,
         }
@@ -103,8 +103,10 @@ impl FsReq {
 
     /// Returns the path of this file
     pub fn path(&self) -> String {
-        let path = unsafe { uv_fs_get_path(self.req) };
-        CStr::from_ptr(path).to_string_lossy().into_owned()
+        unsafe {
+            let path = uv_fs_get_path(self.req);
+            CStr::from_ptr(path).to_string_lossy().into_owned()
+        }
     }
 
     /// Free up memory associated with this request. If you are using one of the async fs_*

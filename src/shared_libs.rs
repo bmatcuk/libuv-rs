@@ -1,4 +1,4 @@
-use crate::{FromInner, IntoInner};
+use crate::{FromInner, Inner, IntoInner};
 use std::ffi::{CStr, CString};
 use uv::{uv_dlclose, uv_dlerror, uv_dlopen, uv_dlsym, uv_lib_t};
 
@@ -8,9 +8,9 @@ pub struct DLError(String);
 
 impl DLError {
     /// Construct a new DLError
-    fn new(lib: DLib) -> DLError {
-        let ptr = unsafe { uv_dlerror(lib.into_inner()) };
-        DLError(CStr::from_ptr(ptr).to_string_lossy().into_owned())
+    fn new(lib: &DLib) -> DLError {
+        let ptr = unsafe { uv_dlerror(lib.inner()) };
+        DLError(unsafe { CStr::from_ptr(ptr).to_string_lossy().into_owned() })
     }
 
     /// Retrieve the error message
@@ -26,15 +26,6 @@ impl std::fmt::Display for DLError {
 }
 
 impl std::error::Error for DLError {}
-
-/// Constructs a Result from one of the uv_dl* functions
-fn dlret(lib: DLib, result: std::os::raw::c_int) -> Result<DLib, DLError> {
-    if result < 0 {
-        Err(DLError::new(lib))
-    } else {
-        Ok(lib)
-    }
-}
 
 /// Shared library data type.
 pub struct DLib {
@@ -56,10 +47,15 @@ impl DLib {
     pub fn open(filename: &str) -> Result<DLib, Box<dyn std::error::Error>> {
         let filename = CString::new(filename)?;
         let lib = DLib::new()?;
-        dlret(lib, unsafe {
-            uv_dlopen(filename.as_ptr(), lib.into_inner())
-        })
-        .map_err(|e| Box::new(e) as _)
+        let libptr = lib.inner();
+        let result = unsafe {
+            uv_dlopen(filename.as_ptr(), libptr)
+        };
+        if result < 0 {
+            Err(Box::new(DLError::new(&lib)))
+        } else {
+            Ok(lib)
+        }
     }
 
     /// Close the shared library.
@@ -71,12 +67,15 @@ impl DLib {
     /// Returns a DLError if the symbol was not found.
     pub fn sym<T>(&self, name: &str) -> Result<*mut T, Box<dyn std::error::Error>> {
         let name = CString::new(name)?;
-        let ptr: *mut std::os::raw::c_void = std::ptr::null_mut();
-        dlret(*self, unsafe {
-            uv_dlsym((*self).into_inner(), name.as_ptr(), &mut ptr)
-        })
-        .map(|_| ptr as _)
-        .map_err(|e| Box::new(e) as _)
+        let mut ptr: *mut std::os::raw::c_void = std::ptr::null_mut();
+        let result = unsafe {
+            uv_dlsym((*self).inner(), name.as_ptr(), &mut ptr)
+        };
+        if result < 0 {
+            Err(Box::new(DLError::new(self)))
+        } else {
+            Ok(ptr as _)
+        }
     }
 }
 
@@ -93,14 +92,14 @@ impl FromInner<*mut uv_lib_t> for DLib {
     }
 }
 
-impl IntoInner<*mut uv_lib_t> for DLib {
-    fn into_inner(self) -> *mut uv_lib_t {
+impl Inner<*mut uv_lib_t> for DLib {
+    fn inner(&self) -> *mut uv_lib_t {
         self.lib
     }
 }
 
-impl IntoInner<*const uv_lib_t> for DLib {
-    fn into_inner(self) -> *const uv_lib_t {
+impl Inner<*const uv_lib_t> for DLib {
+    fn inner(&self) -> *const uv_lib_t {
         self.lib as _
     }
 }

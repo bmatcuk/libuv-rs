@@ -14,7 +14,7 @@ pub(crate) extern "C" fn uv_write_cb(req: *mut uv_write_t, status: std::os::raw:
     let dataptr = crate::Req::get_data(uv_handle!(req));
     if !dataptr.is_null() {
         unsafe {
-            if let super::WriteData(d) = *dataptr {
+            if let super::WriteData(d) = &mut *dataptr {
                 if let Some(f) = d.write_cb.as_mut() {
                     f(req.into_inner(), status as _);
                 }
@@ -23,7 +23,7 @@ pub(crate) extern "C" fn uv_write_cb(req: *mut uv_write_t, status: std::os::raw:
     }
 
     // free memory
-    let req = WriteReq::from_inner(req);
+    let mut req = WriteReq::from_inner(req);
     req.destroy();
 }
 
@@ -70,11 +70,13 @@ impl WriteReq {
     pub fn destroy(&mut self) {
         let dataptr = crate::Req::get_data(uv_handle!(self.req));
         if !dataptr.is_null() {
-            if let super::WriteData(d) = unsafe { *dataptr } {
+            if let super::WriteData(d) = unsafe { &mut *dataptr } {
                 if !d.bufs_ptr.is_null() {
                     // This will destroy the Vec<uv_buf_t>, but will not actually deallocate the
                     // uv_buf_t's themselves. That's up to the user to do.
-                    std::mem::drop(Vec::from_raw_parts(d.bufs_ptr, d.bufs_len, d.bufs_capacity));
+                    unsafe {
+                        std::mem::drop(Vec::from_raw_parts(d.bufs_ptr, d.bufs_len, d.bufs_capacity))
+                    };
                 }
             }
         }

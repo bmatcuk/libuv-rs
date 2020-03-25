@@ -18,7 +18,7 @@ extern "C" fn uv_getnameinfo_cb(
     let dataptr = crate::Req::get_data(uv_handle!(req));
     if !dataptr.is_null() {
         unsafe {
-            if let super::GetNameInfoData(d) = *dataptr {
+            if let super::GetNameInfoData(d) = &mut *dataptr {
                 if let Some(f) = d.cb.as_mut() {
                     let hostname = CStr::from_ptr(hostname).to_string_lossy().into_owned();
                     let service = CStr::from_ptr(service).to_string_lossy().into_owned();
@@ -29,7 +29,7 @@ extern "C" fn uv_getnameinfo_cb(
     }
 
     // free memory
-    let req = GetNameInfoReq::from_inner(req);
+    let mut req = GetNameInfoReq::from_inner(req);
     req.destroy();
 }
 
@@ -60,19 +60,23 @@ impl GetNameInfoReq {
 
     /// Returns the host result
     pub fn host(&self) -> String {
-        // converting [i8] to [u8] is difficult
-        let host = &(*self.req).host;
-        CStr::from_ptr(host.as_ptr() as _)
-            .to_string_lossy()
-            .into_owned()
+        unsafe {
+            // converting [i8] to [u8] is difficult
+            let host = &(*self.req).host;
+            CStr::from_ptr(host.as_ptr() as _)
+                .to_string_lossy()
+                .into_owned()
+        }
     }
 
     /// Returns the service result
     pub fn service(&self) -> String {
-        let service = &(*self.req).service;
-        CStr::from_ptr(service.as_ptr() as _)
-            .to_string_lossy()
-            .into_owned()
+        unsafe {
+            let service = &(*self.req).service;
+            CStr::from_ptr(service.as_ptr() as _)
+                .to_string_lossy()
+                .into_owned()
+        }
     }
 
     /// Free memory associated with this request
@@ -121,11 +125,11 @@ impl crate::Loop {
         flags: u32,
         cb: Option<impl FnMut(GetNameInfoReq, i32, String, String) + 'static>,
     ) -> crate::Result<GetNameInfoReq> {
-        let sockaddr: uv::sockaddr = std::mem::zeroed();
+        let mut sockaddr: uv::sockaddr = unsafe { std::mem::zeroed() };
         crate::fill_sockaddr(&mut sockaddr, addr);
 
-        let req = GetNameInfoReq::new(cb)?;
         let uv_cb = cb.as_ref().map(|_| uv_getnameinfo_cb as _);
+        let mut req = GetNameInfoReq::new(cb)?;
         let result = crate::uvret(unsafe {
             uv_getnameinfo(
                 self.into_inner(),
@@ -167,7 +171,7 @@ impl crate::Loop {
         flags: u32,
     ) -> crate::Result<(String, String)> {
         self._getnameinfo(addr, flags, None::<fn(GetNameInfoReq, i32, String, String)>)
-            .map(|req| {
+            .map(|mut req| {
                 let res = (req.host(), req.service());
                 req.destroy();
                 return res;

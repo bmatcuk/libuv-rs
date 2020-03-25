@@ -127,7 +127,7 @@ impl TcpHandle {
 
     /// Get the address of the peer connected to the handle.
     pub fn getpeername(&self) -> crate::Result<SocketAddr> {
-        let mut sockaddr: uv::sockaddr_storage = std::mem::zeroed();
+        let mut sockaddr: uv::sockaddr_storage = unsafe { std::mem::zeroed() };
         let mut sockaddr_len: std::os::raw::c_int =
             std::mem::size_of::<uv::sockaddr_storage>() as _;
         crate::uvret(unsafe {
@@ -153,8 +153,8 @@ impl TcpHandle {
         addr: &SocketAddr,
         cb: Option<impl FnMut(crate::ConnectReq, i32) + 'static>,
     ) -> crate::Result<crate::ConnectReq> {
-        let req = crate::ConnectReq::new(cb)?;
-        let sockaddr: uv::sockaddr = std::mem::zeroed();
+        let mut req = crate::ConnectReq::new(cb)?;
+        let mut sockaddr: uv::sockaddr = unsafe { std::mem::zeroed() };
         crate::fill_sockaddr(&mut sockaddr, addr);
 
         let result = crate::uvret(unsafe {

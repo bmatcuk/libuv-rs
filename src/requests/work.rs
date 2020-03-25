@@ -12,7 +12,7 @@ extern "C" fn uv_work_cb(req: *mut uv_work_t) {
     let dataptr = crate::Req::get_data(uv_handle!(req));
     if !dataptr.is_null() {
         unsafe {
-            if let super::WorkData(d) = *dataptr {
+            if let super::WorkData(d) = &mut *dataptr {
                 if let Some(f) = d.work_cb.as_mut() {
                     f(req.into_inner());
                 }
@@ -25,7 +25,7 @@ extern "C" fn uv_after_work_cb(req: *mut uv_work_t, status: i32) {
     let dataptr = crate::Req::get_data(uv_handle!(req));
     if !dataptr.is_null() {
         unsafe {
-            if let super::WorkData(d) = *dataptr {
+            if let super::WorkData(d) = &mut *dataptr {
                 if let Some(f) = d.after_work_cb.as_mut() {
                     f(req.into_inner(), status);
                 }
@@ -34,7 +34,7 @@ extern "C" fn uv_after_work_cb(req: *mut uv_work_t, status: i32) {
     }
 
     // free memory
-    let req = WorkReq::from_inner(req);
+    let mut req = WorkReq::from_inner(req);
     req.destroy();
 }
 
@@ -112,8 +112,8 @@ impl crate::Loop {
         work_cb: Option<impl FnMut(WorkReq) + 'static>,
         after_work_cb: Option<impl FnMut(WorkReq, i32) + 'static>,
     ) -> crate::Result<WorkReq> {
-        let req = WorkReq::new(work_cb, after_work_cb)?;
         let uv_work_cb = work_cb.as_ref().map(|_| uv_work_cb as _);
+        let mut req = WorkReq::new(work_cb, after_work_cb)?;
         let uv_after_work_cb = Some(uv_after_work_cb as _);
         let result = crate::uvret(unsafe {
             uv_queue_work(
