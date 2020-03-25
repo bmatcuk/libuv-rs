@@ -549,7 +549,8 @@ impl crate::Loop {
     }
 
     /// Start scanning a directory. Unlike most other fs_* methods, the callback is passed a
-    /// ScandirIter which is an iterator over the entries in the directory.
+    /// ScandirIter which is an iterator over the entries in the directory. If you need access to
+    /// the FsReq in the callback, you can access iter.req.
     ///
     /// Note: Unlike scandir(3), this function does not return the “.” and “..” entries.
     ///
@@ -559,9 +560,9 @@ impl crate::Loop {
         &self,
         path: &str,
         flags: FsOpenFlags,
-        cb: impl FnMut(&FsReq, ScandirIter) + 'static,
+        mut cb: impl FnMut(ScandirIter) + 'static,
     ) -> FsReqErrResult {
-        self._fs_scandir(path, flags, Some(|req| cb(&req, ScandirIter { req })))
+        self._fs_scandir(path, flags, Some(move |req| cb(ScandirIter { req })))
     }
 
     /// Returns a ScandirIter that can be used to iterate over the contents of a directory.
@@ -769,8 +770,8 @@ impl crate::Loop {
 
     /// Private implementation for fs_fdatasync()
     fn _fs_fdatasync(&self, file: File, cb: Option<impl FnMut(FsReq) + 'static>) -> FsReqResult {
-        let req = FsReq::new(cb)?;
         let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let mut req = FsReq::new(cb)?;
         let result = crate::uvret(unsafe {
             uv_fs_fdatasync(self.into_inner(), req.inner(), file as _, uv_cb)
         });
@@ -1540,7 +1541,7 @@ impl crate::Loop {
 /// Note: On Linux, getting the type of an entry is only supported by some file systems (btrfs,
 /// ext2, ext3 and ext4 at the time of this writing), check the getdents(2) man page.
 pub struct ScandirIter {
-    req: FsReq,
+    pub req: FsReq,
 }
 
 impl Iterator for ScandirIter {

@@ -24,7 +24,7 @@ impl TryFromInner<&uv_interface_address_t> for InterfaceAddress {
             .into_owned();
         let address = crate::build_socketaddr(uv_handle!(&addr.address))?;
         let netmask = crate::build_socketaddr(uv_handle!(&addr.netmask))?;
-        let physical_address = [0u8; 6];
+        let mut physical_address = [0u8; 6];
         for (i, b) in addr.phys_addr.iter().enumerate() {
             physical_address[i] = *b as _;
         }

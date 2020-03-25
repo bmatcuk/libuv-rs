@@ -21,28 +21,30 @@ pub struct AddrInfo {
 
 impl FromInner<*mut addrinfo> for AddrInfo {
     fn from_inner(info: *mut addrinfo) -> AddrInfo {
-        let canonical_name = if (*info).ai_canonname.is_null() {
-            None
-        } else {
-            Some(
-                std::ffi::CStr::from_ptr((*info).ai_canonname as _)
-                    .to_string_lossy()
-                    .into_owned(),
-            )
-        };
-        AddrInfo {
-            flags: (*info).ai_flags as _,
-            family: (*info).ai_family as _,
-            socktype: (*info).ai_socktype as _,
-            protocol: (*info).ai_protocol as _,
-            canonical_name,
+        unsafe {
+            let canonical_name = if (*info).ai_canonname.is_null() {
+                None
+            } else {
+                Some(
+                    std::ffi::CStr::from_ptr((*info).ai_canonname as _)
+                        .to_string_lossy()
+                        .into_owned(),
+                )
+            };
+            AddrInfo {
+                flags: (*info).ai_flags as _,
+                family: (*info).ai_family as _,
+                socktype: (*info).ai_socktype as _,
+                protocol: (*info).ai_protocol as _,
+                canonical_name,
+            }
         }
     }
 }
 
 impl IntoInner<addrinfo> for AddrInfo {
     fn into_inner(self) -> addrinfo {
-        let ai: addrinfo = std::mem::zeroed();
+        let mut ai: addrinfo = unsafe { std::mem::zeroed() };
         ai.ai_flags = self.flags as _;
         ai.ai_family = self.family as _;
         ai.ai_socktype = self.socktype as _;

@@ -58,12 +58,11 @@ pub(crate) struct HandleData {
 
 /// Callback for uv_close
 pub(crate) extern "C" fn uv_close_cb(handle: *mut uv_handle_t) {
-    let handle_obj: Handle = handle.into_inner();
     let dataptr = Handle::get_data(handle);
     if !dataptr.is_null() {
         unsafe {
             if let Some(f) = (*dataptr).close_cb.as_mut() {
-                f(handle_obj);
+                f(handle.into_inner());
             }
         }
     }
@@ -71,6 +70,7 @@ pub(crate) extern "C" fn uv_close_cb(handle: *mut uv_handle_t) {
     // free memory
     Handle::free_data(handle);
 
+    let handle_obj: Handle = handle.into_inner();
     let layout: Option<Layout> = handle_obj.get_type().into_inner();
     if let Some(layout) = layout {
         unsafe { std::alloc::dealloc(handle as _, layout) };
