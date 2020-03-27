@@ -122,16 +122,32 @@ impl std::convert::TryFrom<&str> for Buf {
     }
 }
 
+pub trait BufTrait {
+    fn readonly(&self) -> ReadonlyBuf;
+}
+
+impl BufTrait for ReadonlyBuf {
+    fn readonly(&self) -> ReadonlyBuf {
+        ReadonlyBuf { buf: self.buf }
+    }
+}
+
+impl BufTrait for Buf {
+    fn readonly(&self) -> ReadonlyBuf {
+        ReadonlyBuf { buf: self.buf }
+    }
+}
+
 impl<T> FromInner<&[T]> for (*mut uv_buf_t, usize, usize)
 where
-    T: Inner<*const uv_buf_t>
+    T: BufTrait
 {
     fn from_inner(bufs: &[T]) -> (*mut uv_buf_t, usize, usize) {
         // Buf/ReadonlyBuf objects contain pointers to uv_buf_t objects on the heap. However,
         // functions like uv_write, uv_udf_send, etc expect an array of uv_buf_t objects, *not* an
         // array of pointers. So, we need to create a Vec of copies of the data from the
         // dereferenced pointers.
-        let mut bufs: Vec<uv::uv_buf_t> = bufs.iter().map(|b| unsafe { *b.inner() }.clone()).collect();
+        let mut bufs: Vec<uv::uv_buf_t> = bufs.iter().map(|b| unsafe { *b.readonly().inner() }.clone()).collect();
         let bufs_ptr = bufs.as_mut_ptr();
         let bufs_len = bufs.len();
         let bufs_capacity = bufs.capacity();
