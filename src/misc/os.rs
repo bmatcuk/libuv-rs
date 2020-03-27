@@ -11,25 +11,25 @@ pub type Pid = i32;
 
 /// Data type for user information.
 pub struct User {
-    username: String,
-    uid: Option<crate::Uid>,
-    gid: Option<crate::Gid>,
-    shell: Option<String>,
-    homedir: String,
+    pub username: String,
+    pub uid: Option<crate::Uid>,
+    pub gid: Option<crate::Gid>,
+    pub shell: Option<String>,
+    pub homedir: String,
 }
 
 impl FromInner<uv_passwd_t> for User {
     fn from_inner(passwd: uv_passwd_t) -> User {
-        let username = CStr::from_ptr(passwd.username)
+        let username = unsafe { CStr::from_ptr(passwd.username) }
             .to_string_lossy()
             .into_owned();
-        let homedir = CStr::from_ptr(passwd.homedir)
+        let homedir = unsafe { CStr::from_ptr(passwd.homedir) }
             .to_string_lossy()
             .into_owned();
         let shell = if passwd.shell.is_null() {
             None
         } else {
-            Some(CStr::from_ptr(passwd.shell).to_string_lossy().into_owned())
+            Some(unsafe { CStr::from_ptr(passwd.shell) }.to_string_lossy().into_owned())
         };
         let uid = if passwd.uid >= 0 {
             Some(passwd.uid as _)
@@ -53,24 +53,24 @@ impl FromInner<uv_passwd_t> for User {
 
 /// Data type for operating system name and version information.
 pub struct SystemInfo {
-    sysname: String,
-    release: String,
-    version: String,
-    machine: String,
+    pub sysname: String,
+    pub release: String,
+    pub version: String,
+    pub machine: String,
 }
 
 impl FromInner<uv_utsname_t> for SystemInfo {
     fn from_inner(uname: uv_utsname_t) -> SystemInfo {
-        let sysname = CStr::from_ptr(&uname.sysname as _)
+        let sysname = unsafe { CStr::from_ptr(&uname.sysname as _) }
             .to_string_lossy()
             .into_owned();
-        let release = CStr::from_ptr(&uname.release as _)
+        let release = unsafe { CStr::from_ptr(&uname.release as _) }
             .to_string_lossy()
             .into_owned();
-        let version = CStr::from_ptr(&uname.version as _)
+        let version = unsafe { CStr::from_ptr(&uname.version as _) }
             .to_string_lossy()
             .into_owned();
-        let machine = CStr::from_ptr(&uname.machine as _)
+        let machine = unsafe { CStr::from_ptr(&uname.machine as _) }
             .to_string_lossy()
             .into_owned();
         SystemInfo {
@@ -87,7 +87,7 @@ impl FromInner<uv_utsname_t> for SystemInfo {
 /// systems, all data comes from getpwuid_r(3). On Windows, uid, gid, and shell are all set to
 /// None.
 pub fn get_passwd() -> crate::Result<User> {
-    let mut passwd: uv_passwd_t = std::mem::zeroed();
+    let mut passwd: uv_passwd_t = unsafe { std::mem::zeroed() };
     crate::uvret(unsafe { uv_os_get_passwd(&mut passwd as _) })?;
 
     let result = passwd.into_inner();
@@ -147,7 +147,7 @@ pub fn setpriority(pid: Pid, priority: i32) -> crate::Result<()> {
 /// release, version, and machine. On non-Windows systems, uv_os_uname() is a thin wrapper around
 /// uname(2).
 pub fn uname() -> crate::Result<SystemInfo> {
-    let mut buf: uv_utsname_t = std::mem::zeroed();
+    let mut buf: uv_utsname_t = unsafe { std::mem::zeroed() };
     crate::uvret(unsafe { uv_os_uname(&mut buf as _) })?;
     Ok(buf.into_inner())
 }

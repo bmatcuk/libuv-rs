@@ -130,6 +130,12 @@ impl From<TimerHandle> for crate::Handle {
     }
 }
 
+impl crate::ToHandle for TimerHandle {
+    fn to_handle(&self) -> crate::Handle {
+        crate::Handle::from_inner(Inner::<*mut uv::uv_handle_t>::inner(self))
+    }
+}
+
 impl crate::HandleTrait for TimerHandle {}
 
 impl crate::Loop {

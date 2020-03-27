@@ -110,4 +110,10 @@ impl From<UdpSendReq> for crate::Req {
     }
 }
 
+impl crate::ToReq for UdpSendReq {
+    fn to_req(&self) -> crate::Req {
+        crate::Req::from_inner(Inner::<*mut uv::uv_req_t>::inner(self))
+    }
+}
+
 impl crate::ReqTrait for UdpSendReq {}

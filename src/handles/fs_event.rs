@@ -175,6 +175,12 @@ impl From<FsEventHandle> for crate::Handle {
     }
 }
 
+impl crate::ToHandle for FsEventHandle {
+    fn to_handle(&self) -> crate::Handle {
+        crate::Handle::from_inner(Inner::<*mut uv::uv_handle_t>::inner(self))
+    }
+}
+
 impl crate::HandleTrait for FsEventHandle {}
 
 impl crate::Loop {

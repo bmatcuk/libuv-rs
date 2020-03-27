@@ -80,4 +80,10 @@ impl From<ShutdownReq> for crate::Req {
     }
 }
 
+impl crate::ToReq for ShutdownReq {
+    fn to_req(&self) -> crate::Req {
+        crate::Req::from_inner(Inner::<*mut uv::uv_req_t>::inner(self))
+    }
+}
+
 impl crate::ReqTrait for ShutdownReq {}

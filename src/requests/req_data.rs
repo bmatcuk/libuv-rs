@@ -1,5 +1,4 @@
 pub(crate) enum ReqData {
-    NoData,
     ConnectData(crate::ConnectDataFields),
     FsData(crate::FsDataFields),
     GetAddrInfoData(crate::GetAddrInfoDataFields),

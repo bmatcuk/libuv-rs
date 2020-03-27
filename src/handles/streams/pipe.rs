@@ -78,7 +78,7 @@ impl PipeHandle {
 
     /// Get the name of the Unix domain socket or the named pipe.
     pub fn getsockname(&self) -> crate::Result<SocketAddr> {
-        let mut sockaddr: uv::sockaddr_storage = std::mem::zeroed();
+        let mut sockaddr: uv::sockaddr_storage = unsafe { std::mem::zeroed() };
         let mut sockaddr_len: std::os::raw::c_int =
             std::mem::size_of::<uv::sockaddr_storage>() as _;
         crate::uvret(unsafe {
@@ -94,7 +94,7 @@ impl PipeHandle {
 
     /// Get the name of the Unix domain socket or the named pipe to which the handle is connected.
     pub fn getpeername(&self) -> crate::Result<SocketAddr> {
-        let mut sockaddr: uv::sockaddr_storage = std::mem::zeroed();
+        let mut sockaddr: uv::sockaddr_storage = unsafe { std::mem::zeroed() };
         let mut sockaddr_len: std::os::raw::c_int =
             std::mem::size_of::<uv::sockaddr_storage>() as _;
         crate::uvret(unsafe {
@@ -169,6 +169,18 @@ impl From<PipeHandle> for crate::StreamHandle {
 impl From<PipeHandle> for crate::Handle {
     fn from(pipe: PipeHandle) -> crate::Handle {
         crate::Handle::from_inner(Inner::<*mut uv::uv_handle_t>::inner(&pipe))
+    }
+}
+
+impl crate::ToStream for PipeHandle {
+    fn to_stream(&self) -> crate::StreamHandle {
+        crate::StreamHandle::from_inner(Inner::<*mut uv::uv_stream_t>::inner(self))
+    }
+}
+
+impl crate::ToHandle for PipeHandle {
+    fn to_handle(&self) -> crate::Handle {
+        crate::Handle::from_inner(Inner::<*mut uv::uv_handle_t>::inner(self))
     }
 }
 

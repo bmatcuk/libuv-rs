@@ -147,4 +147,10 @@ impl From<FsReq> for crate::Req {
     }
 }
 
+impl crate::ToReq for FsReq {
+    fn to_req(&self) -> crate::Req {
+        crate::Req::from_inner(Inner::<*mut uv::uv_req_t>::inner(self))
+    }
+}
+
 impl crate::ReqTrait for FsReq {}

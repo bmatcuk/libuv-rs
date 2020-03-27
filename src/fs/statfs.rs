@@ -15,15 +15,17 @@ pub struct StatFs {
 
 impl FromInner<*mut uv_statfs_t> for StatFs {
     fn from_inner(statfs: *mut uv_statfs_t) -> StatFs {
-        StatFs {
-            r#type: (*statfs).f_type,
-            bsize: (*statfs).f_bsize,
-            blocks: (*statfs).f_blocks,
-            bfree: (*statfs).f_bfree,
-            bavail: (*statfs).f_bavail,
-            files: (*statfs).f_files,
-            ffree: (*statfs).f_ffree,
-            spare: (*statfs).f_spare,
+        unsafe {
+            StatFs {
+                r#type: (*statfs).f_type,
+                bsize: (*statfs).f_bsize,
+                blocks: (*statfs).f_blocks,
+                bfree: (*statfs).f_bfree,
+                bavail: (*statfs).f_bavail,
+                files: (*statfs).f_files,
+                ffree: (*statfs).f_ffree,
+                spare: (*statfs).f_spare,
+            }
         }
     }
 }

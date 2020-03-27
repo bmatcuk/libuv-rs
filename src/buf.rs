@@ -25,6 +25,26 @@ pub struct ReadonlyBuf {
     buf: *const uv_buf_t,
 }
 
+impl ReadonlyBuf {
+    /// Convert the Buf to a CStr. Returns an error if the Buf is empty.
+    pub fn as_c_str(&self) -> Result<&'_ CStr, EmptyBufError> {
+        let ptr: *const uv_buf_t = self.inner();
+        unsafe {
+            if (*ptr).base.is_null() {
+                Err(EmptyBufError)
+            } else {
+                Ok(CStr::from_ptr((*ptr).base))
+            }
+        }
+    }
+
+    /// Convert the Buf to a string. Returns an error if the Buf is empty.
+    pub fn to_string_lossy(&self) -> Result<Cow<'_, str>, EmptyBufError> {
+        let cstr: &CStr = self.as_c_str()?;
+        Ok(cstr.to_string_lossy())
+    }
+}
+
 impl FromInner<*const uv_buf_t> for ReadonlyBuf {
     fn from_inner(buf: *const uv_buf_t) -> ReadonlyBuf {
         ReadonlyBuf { buf }
@@ -102,32 +122,9 @@ impl std::convert::TryFrom<&str> for Buf {
     }
 }
 
-pub trait BufTrait: Inner<*const uv_buf_t> {
-    /// Convert the Buf to a CStr. Returns an error if the Buf is empty.
-    fn as_c_str(&self) -> Result<&'_ CStr, EmptyBufError> {
-        let ptr: *const uv_buf_t = self.inner();
-        unsafe {
-            if (*ptr).base.is_null() {
-                Err(EmptyBufError)
-            } else {
-                Ok(CStr::from_ptr((*ptr).base))
-            }
-        }
-    }
-
-    /// Convert the Buf to a string. Returns an error if the Buf is empty.
-    fn to_string_lossy(&self) -> Result<Cow<'_, str>, EmptyBufError> {
-        let cstr: &CStr = self.as_c_str()?;
-        Ok(cstr.to_string_lossy())
-    }
-}
-
-impl BufTrait for ReadonlyBuf {}
-impl BufTrait for Buf {}
-
 impl<T> FromInner<&[T]> for (*mut uv_buf_t, usize, usize)
 where
-    T: BufTrait,
+    T: Inner<*const uv_buf_t>
 {
     fn from_inner(bufs: &[T]) -> (*mut uv_buf_t, usize, usize) {
         // Buf/ReadonlyBuf objects contain pointers to uv_buf_t objects on the heap. However,

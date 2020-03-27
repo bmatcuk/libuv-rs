@@ -106,6 +106,16 @@ impl Handle {
     }
 }
 
+pub trait ToHandle {
+    fn to_handle(&self) -> Handle;
+}
+
+impl ToHandle for Handle {
+    fn to_handle(&self) -> Handle {
+        Handle { handle: self.handle }
+    }
+}
+
 impl FromInner<*mut uv_handle_t> for Handle {
     fn from_inner(handle: *mut uv_handle_t) -> Handle {
         Handle { handle }
@@ -118,7 +128,7 @@ impl Inner<*mut uv_handle_t> for Handle {
     }
 }
 
-pub trait HandleTrait: Inner<*mut uv_handle_t> {
+pub trait HandleTrait: ToHandle {
     /// Returns non-zero if the handle is active, zero if it’s inactive. What “active” means
     /// depends on the type of handle:
     ///   * An AsyncHandle is always active and cannot be deactivated, except by closing it with
@@ -132,7 +142,7 @@ pub trait HandleTrait: Inner<*mut uv_handle_t> {
     /// Rule of thumb: if a handle start() function, then it’s active from the moment that function
     /// is called. Likewise, stop() deactivates the handle again.
     fn is_active(&self) -> bool {
-        unsafe { uv_is_active(self.inner()) != 0 }
+        unsafe { uv_is_active(self.to_handle().inner()) != 0 }
     }
 
     /// Returns non-zero if the handle is closing or closed, zero otherwise.
@@ -140,7 +150,7 @@ pub trait HandleTrait: Inner<*mut uv_handle_t> {
     /// Note: This function should only be used between the initialization of the handle and the
     /// arrival of the close callback.
     fn is_closing(&self) -> bool {
-        unsafe { uv_is_closing(self.inner()) != 0 }
+        unsafe { uv_is_closing(self.to_handle().inner()) != 0 }
     }
 
     /// Request handle to be closed. close_cb will be called asynchronously after this call. This
@@ -154,7 +164,7 @@ pub trait HandleTrait: Inner<*mut uv_handle_t> {
     /// In-progress requests, like ConnectRequest or WriteRequest, are cancelled and have their
     /// callbacks called asynchronously with status=UV_ECANCELED.
     fn close(&mut self, cb: Option<(impl FnMut(Handle) + 'static)>) {
-        let handle = self.inner();
+        let handle = self.to_handle().inner();
 
         // cb is either Some(closure) or None - it is saved into data
         let cb = cb.map(|f| Box::new(f) as _);
@@ -169,18 +179,18 @@ pub trait HandleTrait: Inner<*mut uv_handle_t> {
     /// Reference the given handle. References are idempotent, that is, if a handle is already
     /// referenced calling this function again will have no effect.
     fn r#ref(&mut self) {
-        unsafe { uv_ref(self.inner()) };
+        unsafe { uv_ref(self.to_handle().inner()) };
     }
 
     /// Un-reference the given handle. References are idempotent, that is, if a handle is not
     /// referenced calling this function again will have no effect.
     fn unref(&mut self) {
-        unsafe { uv_unref(self.inner()) };
+        unsafe { uv_unref(self.to_handle().inner()) };
     }
 
     /// Returns true if the handle referenced, zero otherwise.
     fn has_ref(&self) -> bool {
-        unsafe { uv_has_ref(self.inner()) != 0 }
+        unsafe { uv_has_ref(self.to_handle().inner()) != 0 }
     }
 
     /// Gets or sets the size of the send buffer that the operating system uses for the socket.
@@ -194,7 +204,7 @@ pub trait HandleTrait: Inner<*mut uv_handle_t> {
     /// Note: Linux will set double the size and return double the size of the original set value.
     fn send_buffer_size(&mut self, value: i32) -> crate::Result<i32> {
         let mut v = value;
-        crate::uvret(unsafe { uv_send_buffer_size(self.inner(), &mut v as _) })?;
+        crate::uvret(unsafe { uv_send_buffer_size(self.to_handle().inner(), &mut v as _) })?;
         Ok(v)
     }
 
@@ -209,18 +219,18 @@ pub trait HandleTrait: Inner<*mut uv_handle_t> {
     /// Note: Linux will set double the size and return double the size of the original set value.
     fn recv_buffer_size(&mut self, value: i32) -> crate::Result<i32> {
         let mut v = value;
-        crate::uvret(unsafe { uv_recv_buffer_size(self.inner(), &mut v as _) })?;
+        crate::uvret(unsafe { uv_recv_buffer_size(self.to_handle().inner(), &mut v as _) })?;
         Ok(v)
     }
 
     /// Returns the Loop associated with this handle.
     fn get_loop(&self) -> crate::Loop {
-        unsafe { uv_handle_get_loop(self.inner()).into_inner() }
+        unsafe { uv_handle_get_loop(self.to_handle().inner()).into_inner() }
     }
 
     /// Returns the type of the handle.
     fn get_type(&self) -> HandleType {
-        unsafe { uv_handle_get_type(self.inner()).into_inner() }
+        unsafe { uv_handle_get_type(self.to_handle().inner()).into_inner() }
     }
 }
 

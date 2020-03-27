@@ -104,14 +104,14 @@ impl TcpHandle {
     /// flags can contain IPV6ONLY, in which case dual-stack support is disabled and only IPv6 is
     /// used.
     pub fn bind(&mut self, addr: &SocketAddr, flags: TcpBindFlags) -> crate::Result<()> {
-        let mut sockaddr: uv::sockaddr = std::mem::zeroed();
+        let mut sockaddr: uv::sockaddr = unsafe { std::mem::zeroed() };
         crate::fill_sockaddr(&mut sockaddr, addr);
         crate::uvret(unsafe { uv_tcp_bind(self.handle, &sockaddr as _, flags.bits()) })
     }
 
     /// Get the current address to which the handle is bound.
     pub fn getsockname(&self) -> crate::Result<SocketAddr> {
-        let mut sockaddr: uv::sockaddr_storage = std::mem::zeroed();
+        let mut sockaddr: uv::sockaddr_storage = unsafe { std::mem::zeroed() };
         let mut sockaddr_len: std::os::raw::c_int =
             std::mem::size_of::<uv::sockaddr_storage>() as _;
         crate::uvret(unsafe {
@@ -221,6 +221,18 @@ impl From<TcpHandle> for crate::StreamHandle {
 impl From<TcpHandle> for crate::Handle {
     fn from(tcp: TcpHandle) -> crate::Handle {
         crate::Handle::from_inner(Inner::<*mut uv::uv_handle_t>::inner(&tcp))
+    }
+}
+
+impl crate::ToStream for TcpHandle {
+    fn to_stream(&self) -> crate::StreamHandle {
+        crate::StreamHandle::from_inner(Inner::<*mut uv::uv_stream_t>::inner(self))
+    }
+}
+
+impl crate::ToHandle for TcpHandle {
+    fn to_handle(&self) -> crate::Handle {
+        crate::Handle::from_inner(Inner::<*mut uv::uv_handle_t>::inner(self))
     }
 }
 

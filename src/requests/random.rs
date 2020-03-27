@@ -89,6 +89,12 @@ impl From<RandomReq> for crate::Req {
     }
 }
 
+impl crate::ToReq for RandomReq {
+    fn to_req(&self) -> crate::Req {
+        crate::Req::from_inner(Inner::<*mut uv::uv_req_t>::inner(self))
+    }
+}
+
 impl crate::ReqTrait for RandomReq {}
 
 impl crate::Loop {

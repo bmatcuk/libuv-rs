@@ -25,7 +25,7 @@ pub enum VTermState {
 }
 
 /// TTY handles represent a stream for the console.
-struct TtyHandle {
+pub struct TtyHandle {
     handle: *mut uv_tty_t,
 }
 
@@ -140,6 +140,18 @@ impl From<TtyHandle> for crate::StreamHandle {
 impl From<TtyHandle> for crate::Handle {
     fn from(tty: TtyHandle) -> crate::Handle {
         crate::Handle::from_inner(Inner::<*mut uv::uv_handle_t>::inner(&tty))
+    }
+}
+
+impl crate::ToStream for TtyHandle {
+    fn to_stream(&self) -> crate::StreamHandle {
+        crate::StreamHandle::from_inner(Inner::<*mut uv::uv_stream_t>::inner(self))
+    }
+}
+
+impl crate::ToHandle for TtyHandle {
+    fn to_handle(&self) -> crate::Handle {
+        crate::Handle::from_inner(Inner::<*mut uv::uv_handle_t>::inner(self))
     }
 }
 

@@ -1,5 +1,4 @@
 pub(crate) enum AddlHandleData {
-    NoAddlData,
     AsyncData(crate::AsyncDataFields),
     CheckData(crate::CheckDataFields),
     FsEventData(crate::FsEventDataFields),

@@ -286,19 +286,19 @@ impl ProcessHandle {
     }
 
     /// The PID of the spawned process. It’s set after calling spawn().
-    fn pid(&self) -> i32 {
+    pub fn pid(&self) -> i32 {
         unsafe { uv_process_get_pid(self.handle) as _ }
     }
 
     /// Sends the specified signal to the given process handle. Check the documentation on
     /// SignalHandle for signal support, specially on Windows.
-    fn kill(&mut self, signum: i32) -> crate::Result<()> {
+    pub fn kill(&mut self, signum: i32) -> crate::Result<()> {
         crate::uvret(unsafe { uv_process_kill(self.handle, signum) })
     }
 
     /// Sends the specified signal to the given PID. Check the documentation on SignalHandle for
     /// signal support, specially on Windows.
-    fn kill_pid(pid: i32, signum: i32) -> crate::Result<()> {
+    pub fn kill_pid(pid: i32, signum: i32) -> crate::Result<()> {
         crate::uvret(unsafe { uv_kill(pid, signum) })
     }
 }
@@ -318,6 +318,12 @@ impl Inner<*mut uv::uv_handle_t> for ProcessHandle {
 impl From<ProcessHandle> for crate::Handle {
     fn from(process: ProcessHandle) -> crate::Handle {
         crate::Handle::from_inner(Inner::<*mut uv::uv_handle_t>::inner(&process))
+    }
+}
+
+impl crate::ToHandle for ProcessHandle {
+    fn to_handle(&self) -> crate::Handle {
+        crate::Handle::from_inner(Inner::<*mut uv::uv_handle_t>::inner(self))
     }
 }
 

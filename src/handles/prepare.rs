@@ -88,6 +88,12 @@ impl From<PrepareHandle> for crate::Handle {
     }
 }
 
+impl crate::ToHandle for PrepareHandle {
+    fn to_handle(&self) -> crate::Handle {
+        crate::Handle::from_inner(Inner::<*mut uv::uv_handle_t>::inner(self))
+    }
+}
+
 impl crate::HandleTrait for PrepareHandle {}
 
 impl crate::Loop {

@@ -115,6 +115,12 @@ impl From<GetNameInfoReq> for crate::Req {
     }
 }
 
+impl crate::ToReq for GetNameInfoReq {
+    fn to_req(&self) -> crate::Req {
+        crate::Req::from_inner(Inner::<*mut uv::uv_req_t>::inner(self))
+    }
+}
+
 impl crate::ReqTrait for GetNameInfoReq {}
 
 impl crate::Loop {

@@ -110,18 +110,18 @@ impl FromInner<uv_rusage_t> for ResourceUsage {
 
 /// Data type for CPU information.
 pub struct CpuInfo {
-    model: String,
-    speed: i32,
-    user_time: u64,
-    nice_time: u64,
-    sys_time: u64,
-    idle_time: u64,
-    irq_time: u64,
+    pub model: String,
+    pub speed: i32,
+    pub user_time: u64,
+    pub nice_time: u64,
+    pub sys_time: u64,
+    pub idle_time: u64,
+    pub irq_time: u64,
 }
 
 impl FromInner<&uv_cpu_info_t> for CpuInfo {
     fn from_inner(cpu: &uv_cpu_info_t) -> CpuInfo {
-        let model = CStr::from_ptr(cpu.model).to_string_lossy().into_owned();
+        let model = unsafe { CStr::from_ptr(cpu.model) }.to_string_lossy().into_owned();
         CpuInfo {
             model,
             speed: cpu.speed,
@@ -139,11 +139,11 @@ impl FromInner<&uv_cpu_info_t> for CpuInfo {
 /// program start-up.
 pub fn setup_args() -> Result<Vec<String>, std::ffi::NulError> {
     // Get arguments, transform into CStrings and then into raw bytes
-    let args = std::env::args()
+    let mut args = std::env::args()
         .map(|s| CString::new(s).map(|s| s.into_bytes_with_nul()))
         .collect::<Result<Vec<_>, std::ffi::NulError>>()?;
-    let argsptr: Vec<*mut std::os::raw::c_char> =
-        args.iter().map(|s| s.as_mut_ptr() as _).collect();
+    let mut argsptr: Vec<*mut std::os::raw::c_char> =
+        args.iter_mut().map(|s| s.as_mut_ptr() as _).collect();
     let argc = args.len();
 
     // rebuild args from the return value
@@ -151,7 +151,7 @@ pub fn setup_args() -> Result<Vec<String>, std::ffi::NulError> {
     let args = unsafe { std::slice::from_raw_parts(args, argc) };
     Ok(args
         .iter()
-        .map(|arg| CStr::from_ptr(*arg).to_string_lossy().into_owned())
+        .map(|arg| unsafe { CStr::from_ptr(*arg) }.to_string_lossy().into_owned())
         .collect())
 }
 
@@ -205,13 +205,13 @@ pub fn uptime() -> crate::Result<f64> {
 /// Note: On Windows not all fields are set, the unsupported fields are filled with zeroes. See
 /// ResourceUsage for more details.
 pub fn getrusage() -> crate::Result<ResourceUsage> {
-    let mut usage: uv_rusage_t = std::mem::zeroed();
+    let mut usage: uv_rusage_t = unsafe { std::mem::zeroed() };
     crate::uvret(unsafe { uv_getrusage(&mut usage as _) }).map(|_| usage.into_inner())
 }
 
 /// Gets information about the CPUs on the system.
 pub fn cpu_info() -> crate::Result<Vec<CpuInfo>> {
-    let mut infos: *mut uv_cpu_info_t = std::mem::zeroed();
+    let mut infos: *mut uv_cpu_info_t = unsafe { std::mem::zeroed() };
     let mut count: std::os::raw::c_int = 0;
     crate::uvret(unsafe { uv_cpu_info(&mut infos as _, &mut count as _) })?;
 
@@ -265,7 +265,7 @@ pub fn hrtime() -> u64 {
 /// Cross-platform implementation of gettimeofday(2). The timezone argument to gettimeofday() is
 /// not supported, as it is considered obsolete.
 pub fn gettimeofday() -> crate::Result<TimeVal> {
-    let tv: uv_timeval64_t = std::mem::zeroed();
+    let mut tv: uv_timeval64_t = unsafe { std::mem::zeroed() };
     crate::uvret(unsafe { uv_gettimeofday(&mut tv as _) }).map(|_| tv.into_inner())
 }
 

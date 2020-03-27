@@ -120,7 +120,7 @@ impl UdpHandle {
 
     /// Bind the UDP handle to an IP address and port.
     pub fn bind(&mut self, addr: &SocketAddr, flags: UdpBindFlags) -> crate::Result<()> {
-        let mut sockaddr: uv::sockaddr = std::mem::zeroed();
+        let mut sockaddr: uv::sockaddr = unsafe { std::mem::zeroed() };
         crate::fill_sockaddr(&mut sockaddr, addr);
         crate::uvret(unsafe { uv_udp_bind(self.handle, &sockaddr as _, flags.bits()) })
     }
@@ -132,7 +132,7 @@ impl UdpHandle {
     /// ENOTCONN error.
     pub fn connect(&mut self, addr: Option<&SocketAddr>) -> crate::Result<()> {
         if let Some(addr) = addr {
-            let mut sockaddr: uv::sockaddr = std::mem::zeroed();
+            let mut sockaddr: uv::sockaddr = unsafe { std::mem::zeroed() };
             crate::fill_sockaddr(&mut sockaddr, addr);
             crate::uvret(unsafe { uv_udp_connect(self.handle, &sockaddr as _) })
         } else {
@@ -143,7 +143,7 @@ impl UdpHandle {
     /// Get the remote IP and port of the UDP handle on connected UDP handles. On unconnected
     /// handles, it returns ENOTCONN.
     pub fn getpeername(&self) -> crate::Result<SocketAddr> {
-        let mut sockaddr: uv::sockaddr_storage = std::mem::zeroed();
+        let mut sockaddr: uv::sockaddr_storage = unsafe { std::mem::zeroed() };
         let mut sockaddr_len: std::os::raw::c_int =
             std::mem::size_of::<uv::sockaddr_storage>() as _;
         crate::uvret(unsafe {
@@ -159,7 +159,7 @@ impl UdpHandle {
 
     /// Get the local IP and port of the UDP handle.
     pub fn getsockname(&self) -> crate::Result<SocketAddr> {
-        let mut sockaddr: uv::sockaddr_storage = std::mem::zeroed();
+        let mut sockaddr: uv::sockaddr_storage = unsafe { std::mem::zeroed() };
         let mut sockaddr_len: std::os::raw::c_int =
             std::mem::size_of::<uv::sockaddr_storage>() as _;
         crate::uvret(unsafe {
@@ -394,6 +394,18 @@ impl From<UdpHandle> for crate::StreamHandle {
 impl From<UdpHandle> for crate::Handle {
     fn from(udp: UdpHandle) -> crate::Handle {
         crate::Handle::from_inner(Inner::<*mut uv::uv_handle_t>::inner(&udp))
+    }
+}
+
+impl crate::ToStream for UdpHandle {
+    fn to_stream(&self) -> crate::StreamHandle {
+        crate::StreamHandle::from_inner(Inner::<*mut uv::uv_stream_t>::inner(self))
+    }
+}
+
+impl crate::ToHandle for UdpHandle {
+    fn to_handle(&self) -> crate::Handle {
+        crate::Handle::from_inner(Inner::<*mut uv::uv_handle_t>::inner(self))
     }
 }
 
