@@ -112,7 +112,9 @@ pub trait ToHandle {
 
 impl ToHandle for Handle {
     fn to_handle(&self) -> Handle {
-        Handle { handle: self.handle }
+        Handle {
+            handle: self.handle,
+        }
     }
 }
 

@@ -92,9 +92,7 @@ pub enum StdioType {
 impl Inner<uv_stdio_container_data> for StdioType {
     fn inner(&self) -> uv_stdio_container_data {
         match self {
-            StdioType::Stream(s) => uv_stdio_container_data {
-                stream: s.inner(),
-            },
+            StdioType::Stream(s) => uv_stdio_container_data { stream: s.inner() },
             StdioType::Fd(fd) => uv_stdio_container_data { fd: *fd },
         }
     }
@@ -246,7 +244,9 @@ impl ProcessHandle {
             exit_cb: exit_cb_uv,
             file: file.as_ptr(),
             args: args.as_mut_ptr(),
-            env: env.as_mut().map_or(std::ptr::null_mut(), |e| e.as_mut_ptr()),
+            env: env
+                .as_mut()
+                .map_or(std::ptr::null_mut(), |e| e.as_mut_ptr()),
             cwd: cwd.map_or(std::ptr::null(), |s| s.as_ptr()),
             flags: options.flags.bits(),
             stdio_count: options.stdio.len() as _,

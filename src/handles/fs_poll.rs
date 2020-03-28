@@ -5,7 +5,7 @@ use uv::{uv_fs_poll_getpath, uv_fs_poll_init, uv_fs_poll_start, uv_fs_poll_stop,
 /// Additional data stored on the handle
 #[derive(Default)]
 pub(crate) struct FsPollDataFields {
-    fs_poll_cb: Option<Box<dyn FnMut(FsPollHandle, i32, crate::Stat, crate::Stat)>>,
+    fs_poll_cb: Option<Box<dyn FnMut(FsPollHandle, crate::Result<i32>, crate::Stat, crate::Stat)>>,
 }
 
 /// Callback for uv_fs_poll_start
@@ -20,9 +20,14 @@ extern "C" fn uv_fs_poll_cb(
         unsafe {
             if let super::FsPollData(d) = &mut (*dataptr).addl {
                 if let Some(f) = d.fs_poll_cb.as_mut() {
+                    let status = if status < 0 {
+                        Err(crate::Error::from_inner(status as uv::uv_errno_t))
+                    } else {
+                        Ok(status)
+                    };
                     f(
                         handle.into_inner(),
-                        status as _,
+                        status,
                         prev.into_inner(),
                         curr.into_inner(),
                     )
@@ -67,7 +72,9 @@ impl FsPollHandle {
         &mut self,
         path: &str,
         interval: u32,
-        cb: Option<impl FnMut(FsPollHandle, i32, crate::Stat, crate::Stat) + 'static>,
+        cb: Option<
+            impl FnMut(FsPollHandle, crate::Result<i32>, crate::Stat, crate::Stat) + 'static,
+        >,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let path = CString::new(path)?;
 

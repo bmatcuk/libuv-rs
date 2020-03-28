@@ -5,7 +5,7 @@ use uv::{uv_getnameinfo, uv_getnameinfo_t};
 
 /// Additional data stored on the request
 pub(crate) struct GetNameInfoDataFields {
-    cb: Option<Box<dyn FnMut(GetNameInfoReq, i32, String, String)>>,
+    cb: Option<Box<dyn FnMut(GetNameInfoReq, crate::Result<i32>, String, String)>>,
 }
 
 /// Callback for uv_getnameinfo
@@ -22,6 +22,11 @@ extern "C" fn uv_getnameinfo_cb(
                 if let Some(f) = d.cb.as_mut() {
                     let hostname = CStr::from_ptr(hostname).to_string_lossy().into_owned();
                     let service = CStr::from_ptr(service).to_string_lossy().into_owned();
+                    let status = if status < 0 {
+                        Err(crate::Error::from_inner(status as uv::uv_errno_t))
+                    } else {
+                        Ok(status)
+                    };
                     f(req.into_inner(), status, hostname, service);
                 }
             }
@@ -41,7 +46,7 @@ pub struct GetNameInfoReq {
 impl GetNameInfoReq {
     /// Create a new GetNameInfo request
     pub fn new(
-        cb: Option<impl FnMut(GetNameInfoReq, i32, String, String) + 'static>,
+        cb: Option<impl FnMut(GetNameInfoReq, crate::Result<i32>, String, String) + 'static>,
     ) -> crate::Result<GetNameInfoReq> {
         let layout = std::alloc::Layout::new::<uv_getnameinfo_t>();
         let req = unsafe { std::alloc::alloc(layout) as *mut uv_getnameinfo_t };
@@ -129,7 +134,7 @@ impl crate::Loop {
         &self,
         addr: &SocketAddr,
         flags: u32,
-        cb: Option<impl FnMut(GetNameInfoReq, i32, String, String) + 'static>,
+        cb: Option<impl FnMut(GetNameInfoReq, crate::Result<i32>, String, String) + 'static>,
     ) -> crate::Result<GetNameInfoReq> {
         let mut sockaddr: uv::sockaddr = unsafe { std::mem::zeroed() };
         crate::fill_sockaddr(&mut sockaddr, addr);
@@ -161,7 +166,7 @@ impl crate::Loop {
         &self,
         addr: &SocketAddr,
         flags: u32,
-        cb: impl FnMut(GetNameInfoReq, i32, String, String) + 'static,
+        cb: impl FnMut(GetNameInfoReq, crate::Result<i32>, String, String) + 'static,
     ) -> crate::Result<GetNameInfoReq> {
         self._getnameinfo(addr, flags, Some(cb))
     }
@@ -176,7 +181,7 @@ impl crate::Loop {
         addr: &SocketAddr,
         flags: u32,
     ) -> crate::Result<(String, String)> {
-        self._getnameinfo(addr, flags, None::<fn(GetNameInfoReq, i32, String, String)>)
+        self._getnameinfo(addr, flags, None::<fn(_, _, _, _)>)
             .map(|mut req| {
                 let res = (req.host(), req.service());
                 req.destroy();

@@ -6,7 +6,7 @@ pub(crate) struct WriteDataFields {
     bufs_ptr: *mut uv::uv_buf_t,
     bufs_len: usize,
     bufs_capacity: usize,
-    write_cb: Option<Box<dyn FnMut(WriteReq, i32)>>,
+    write_cb: Option<Box<dyn FnMut(WriteReq, crate::Result<i32>)>>,
 }
 
 /// Callback for uv_write/uv_write2
@@ -16,7 +16,12 @@ pub(crate) extern "C" fn uv_write_cb(req: *mut uv_write_t, status: std::os::raw:
         unsafe {
             if let super::WriteData(d) = &mut *dataptr {
                 if let Some(f) = d.write_cb.as_mut() {
-                    f(req.into_inner(), status as _);
+                    let status = if status < 0 {
+                        Err(crate::Error::from_inner(status as uv::uv_errno_t))
+                    } else {
+                        Ok(status)
+                    };
+                    f(req.into_inner(), status);
                 }
             }
         }
@@ -43,7 +48,7 @@ impl WriteReq {
     /// Create a new write request
     pub fn new(
         bufs: &[impl crate::BufTrait],
-        cb: Option<impl FnMut(WriteReq, i32) + 'static>,
+        cb: Option<impl FnMut(WriteReq, crate::Result<i32>) + 'static>,
     ) -> crate::Result<WriteReq> {
         let layout = std::alloc::Layout::new::<uv_write_t>();
         let req = unsafe { std::alloc::alloc(layout) as *mut uv_write_t };

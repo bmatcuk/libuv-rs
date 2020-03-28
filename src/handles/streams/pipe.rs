@@ -61,7 +61,7 @@ impl PipeHandle {
     pub fn connect(
         &mut self,
         name: &str,
-        cb: Option<impl FnMut(crate::ConnectReq, i32) + 'static>,
+        cb: Option<impl FnMut(crate::ConnectReq, crate::Result<i32>) + 'static>,
     ) -> Result<crate::ConnectReq, Box<dyn std::error::Error>> {
         let req = crate::ConnectReq::new(cb)?;
         let name = CString::new(name)?;

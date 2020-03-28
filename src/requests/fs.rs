@@ -54,8 +54,13 @@ impl FsReq {
     }
 
     /// Returns the result from the request
-    pub fn result(&self) -> isize {
-        unsafe { uv_fs_get_result(self.req) }
+    pub fn result(&self) -> crate::Result<isize> {
+        let result = unsafe { uv_fs_get_result(self.req) };
+        if result < 0 {
+            Err(crate::Error::from_inner(result as uv::uv_errno_t))
+        } else {
+            Ok(result)
+        }
     }
 
     /// Returns the file handle from the request

@@ -34,7 +34,7 @@ bitflags! {
 /// Additional data stored on the handle
 #[derive(Default)]
 pub(crate) struct FsEventDataFields {
-    fs_event_cb: Option<Box<dyn FnMut(FsEventHandle, Cow<str>, i32, i32)>>,
+    fs_event_cb: Option<Box<dyn FnMut(FsEventHandle, Cow<str>, i32, crate::Result<i32>)>>,
 }
 
 /// Callback for uv_fs_event_start
@@ -50,7 +50,12 @@ extern "C" fn uv_fs_event_cb(
             if let super::FsEventData(d) = &mut (*dataptr).addl {
                 if let Some(f) = d.fs_event_cb.as_mut() {
                     let filename = CStr::from_ptr(filename).to_string_lossy();
-                    f(handle.into_inner(), filename, events as _, status as _);
+                    let status = if status < 0 {
+                        Err(crate::Error::from_inner(status as uv::uv_errno_t))
+                    } else {
+                        Ok(status)
+                    };
+                    f(handle.into_inner(), filename, events as _, status);
                 }
             }
         }
@@ -104,7 +109,7 @@ impl FsEventHandle {
         &mut self,
         path: &str,
         flags: FsEventFlags,
-        cb: Option<impl FnMut(FsEventHandle, Cow<str>, i32, i32) + 'static>,
+        cb: Option<impl FnMut(FsEventHandle, Cow<str>, i32, crate::Result<i32>) + 'static>,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let path = CString::new(path)?;
 

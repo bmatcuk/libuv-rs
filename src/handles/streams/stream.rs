@@ -8,7 +8,7 @@ use uv::{
 /// Additional data to store on the handle
 pub(crate) struct StreamDataFields {
     pub(crate) alloc_cb: Option<Box<dyn FnMut(crate::Handle, usize, crate::Buf)>>,
-    connection_cb: Option<Box<dyn FnMut(StreamHandle, i32)>>,
+    connection_cb: Option<Box<dyn FnMut(StreamHandle, crate::Result<i32>)>>,
     read_cb: Option<Box<dyn FnMut(StreamHandle, isize, crate::ReadonlyBuf)>>,
     pub(crate) addl: super::AddlStreamData,
 }
@@ -35,7 +35,12 @@ extern "C" fn uv_connection_cb(stream: *mut uv_stream_t, status: std::os::raw::c
     if !dataptr.is_null() {
         unsafe {
             if let Some(f) = (*dataptr).connection_cb.as_mut() {
-                f(stream.into_inner(), status as _);
+                let status = if status < 0 {
+                    Err(crate::Error::from_inner(status as uv::uv_errno_t))
+                } else {
+                    Ok(status)
+                };
+                f(stream.into_inner(), status);
             }
         }
     }
@@ -117,7 +122,9 @@ impl From<StreamHandle> for crate::Handle {
 
 impl ToStream for StreamHandle {
     fn to_stream(&self) -> StreamHandle {
-        StreamHandle { handle: self.handle }
+        StreamHandle {
+            handle: self.handle,
+        }
     }
 }
 
@@ -133,11 +140,15 @@ pub trait StreamTrait: ToStream {
     /// shutdown is complete at which point the returned ShutdownReq is automatically destroy()'d.
     fn shutdown(
         &mut self,
-        cb: Option<impl FnMut(crate::ShutdownReq, i32) + 'static>,
+        cb: Option<impl FnMut(crate::ShutdownReq, crate::Result<i32>) + 'static>,
     ) -> crate::Result<crate::ShutdownReq> {
         let mut req = crate::ShutdownReq::new(cb)?;
         let result = crate::uvret(unsafe {
-            uv_shutdown(req.inner(), self.to_stream().inner(), Some(crate::uv_shutdown_cb))
+            uv_shutdown(
+                req.inner(),
+                self.to_stream().inner(),
+                Some(crate::uv_shutdown_cb),
+            )
         });
         if result.is_err() {
             req.destroy();
@@ -148,7 +159,7 @@ pub trait StreamTrait: ToStream {
     fn listen(
         &mut self,
         backlog: i32,
-        cb: Option<impl FnMut(StreamHandle, i32) + 'static>,
+        cb: Option<impl FnMut(StreamHandle, crate::Result<i32>) + 'static>,
     ) -> crate::Result<()> {
         // uv_cb is either Some(connection_cb) or None
         let uv_cb = cb.as_ref().map(|_| uv_connection_cb as _);
@@ -217,7 +228,7 @@ pub trait StreamTrait: ToStream {
     fn write(
         &mut self,
         bufs: &[impl crate::BufTrait],
-        cb: Option<impl FnMut(crate::WriteReq, i32) + 'static>,
+        cb: Option<impl FnMut(crate::WriteReq, crate::Result<i32>) + 'static>,
     ) -> crate::Result<crate::WriteReq> {
         let mut req = crate::WriteReq::new(bufs, cb)?;
         let result = crate::uvret(unsafe {
@@ -247,7 +258,7 @@ pub trait StreamTrait: ToStream {
         &mut self,
         send_handle: &StreamHandle,
         bufs: &[impl crate::BufTrait],
-        cb: Option<impl FnMut(crate::WriteReq, i32) + 'static>,
+        cb: Option<impl FnMut(crate::WriteReq, crate::Result<i32>) + 'static>,
     ) -> crate::Result<crate::WriteReq> {
         let mut req = crate::WriteReq::new(bufs, cb)?;
         let result = crate::uvret(unsafe {
@@ -304,7 +315,9 @@ pub trait StreamTrait: ToStream {
     /// write requests have already been submitted. Therefore it is recommended to set the blocking
     /// mode immediately after opening or creating the stream.
     fn set_blocking(&mut self, blocking: bool) -> crate::Result<()> {
-        crate::uvret(unsafe { uv_stream_set_blocking(self.to_stream().inner(), if blocking { 1 } else { 0 }) })
+        crate::uvret(unsafe {
+            uv_stream_set_blocking(self.to_stream().inner(), if blocking { 1 } else { 0 })
+        })
     }
 
     /// Returns the size of the write queue.

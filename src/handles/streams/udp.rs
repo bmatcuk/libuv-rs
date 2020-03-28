@@ -263,7 +263,7 @@ impl UdpHandle {
         &self,
         addr: Option<&SocketAddr>,
         bufs: &[impl crate::BufTrait],
-        cb: Option<impl FnMut(crate::UdpSendReq, i32) + 'static>,
+        cb: Option<impl FnMut(crate::UdpSendReq, crate::Result<i32>) + 'static>,
     ) -> crate::Result<crate::UdpSendReq> {
         let mut req = crate::UdpSendReq::new(bufs, cb)?;
         let mut sockaddr: uv::sockaddr = unsafe { std::mem::zeroed() };

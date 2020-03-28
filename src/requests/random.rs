@@ -3,7 +3,7 @@ use uv::{uv_random, uv_random_t};
 
 /// Additional data stored on the request
 pub(crate) struct RandomDataFields {
-    random_cb: Option<Box<dyn FnMut(RandomReq, i32, Vec<u8>)>>,
+    random_cb: Option<Box<dyn FnMut(RandomReq, crate::Result<i32>, Vec<u8>)>>,
 }
 
 /// Callback for uv_random
@@ -19,7 +19,12 @@ extern "C" fn uv_random_cb(
             if let super::RandomData(d) = &mut *dataptr {
                 if let Some(f) = d.random_cb.as_mut() {
                     let buf = Vec::from_raw_parts(buf as _, buflen, buflen);
-                    f(req.into_inner(), status as _, buf);
+                    let status = if status < 0 {
+                        Err(crate::Error::from_inner(status as uv::uv_errno_t))
+                    } else {
+                        Ok(status)
+                    };
+                    f(req.into_inner(), status, buf);
                 }
             }
         }
@@ -38,7 +43,7 @@ pub struct RandomReq {
 impl RandomReq {
     /// Create a new random request
     pub fn new(
-        cb: Option<impl FnMut(RandomReq, i32, Vec<u8>) + 'static>,
+        cb: Option<impl FnMut(RandomReq, crate::Result<i32>, Vec<u8>) + 'static>,
     ) -> crate::Result<RandomReq> {
         let layout = std::alloc::Layout::new::<uv_random_t>();
         let req = unsafe { std::alloc::alloc(layout) as *mut uv_random_t };
@@ -125,7 +130,7 @@ impl crate::Loop {
         &self,
         buflen: usize,
         flags: u32,
-        cb: impl FnMut(RandomReq, i32, Vec<u8>) + 'static,
+        cb: impl FnMut(RandomReq, crate::Result<i32>, Vec<u8>) + 'static,
     ) -> crate::Result<RandomReq> {
         let mut req = RandomReq::new(Some(cb))?;
         let mut buf = std::mem::ManuallyDrop::new(Vec::<u8>::with_capacity(buflen));

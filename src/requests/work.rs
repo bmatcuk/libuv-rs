@@ -4,7 +4,7 @@ use uv::{uv_queue_work, uv_work_t};
 /// Additional data stored on the request
 pub(crate) struct WorkDataFields {
     work_cb: Option<Box<dyn FnMut(WorkReq)>>,
-    after_work_cb: Option<Box<dyn FnMut(WorkReq, i32)>>,
+    after_work_cb: Option<Box<dyn FnMut(WorkReq, crate::Result<i32>)>>,
 }
 
 /// Callback for uv_queue_work
@@ -27,6 +27,11 @@ extern "C" fn uv_after_work_cb(req: *mut uv_work_t, status: i32) {
         unsafe {
             if let super::WorkData(d) = &mut *dataptr {
                 if let Some(f) = d.after_work_cb.as_mut() {
+                    let status = if status < 0 {
+                        Err(crate::Error::from_inner(status as uv::uv_errno_t))
+                    } else {
+                        Ok(status)
+                    };
                     f(req.into_inner(), status);
                 }
             }
@@ -47,7 +52,7 @@ impl WorkReq {
     /// Create a new work request
     pub fn new(
         work_cb: Option<impl FnMut(WorkReq) + 'static>,
-        after_work_cb: Option<impl FnMut(WorkReq, i32) + 'static>,
+        after_work_cb: Option<impl FnMut(WorkReq, crate::Result<i32>) + 'static>,
     ) -> crate::Result<WorkReq> {
         let layout = std::alloc::Layout::new::<uv_work_t>();
         let req = unsafe { std::alloc::alloc(layout) as *mut uv_work_t };
@@ -116,18 +121,13 @@ impl crate::Loop {
     pub fn queue_work(
         &self,
         work_cb: Option<impl FnMut(WorkReq) + 'static>,
-        after_work_cb: Option<impl FnMut(WorkReq, i32) + 'static>,
+        after_work_cb: Option<impl FnMut(WorkReq, crate::Result<i32>) + 'static>,
     ) -> crate::Result<WorkReq> {
         let uv_work_cb = work_cb.as_ref().map(|_| uv_work_cb as _);
         let mut req = WorkReq::new(work_cb, after_work_cb)?;
         let uv_after_work_cb = Some(uv_after_work_cb as _);
         let result = crate::uvret(unsafe {
-            uv_queue_work(
-                self.into_inner(),
-                req.inner(),
-                uv_work_cb,
-                uv_after_work_cb,
-            )
+            uv_queue_work(self.into_inner(), req.inner(), uv_work_cb, uv_after_work_cb)
         });
         if result.is_err() {
             req.destroy();

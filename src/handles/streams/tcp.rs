@@ -151,7 +151,7 @@ impl TcpHandle {
     pub fn connect(
         &mut self,
         addr: &SocketAddr,
-        cb: Option<impl FnMut(crate::ConnectReq, i32) + 'static>,
+        cb: Option<impl FnMut(crate::ConnectReq, crate::Result<i32>) + 'static>,
     ) -> crate::Result<crate::ConnectReq> {
         let mut req = crate::ConnectReq::new(cb)?;
         let mut sockaddr: uv::sockaddr = unsafe { std::mem::zeroed() };
