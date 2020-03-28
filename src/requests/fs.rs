@@ -53,6 +53,11 @@ impl FsReq {
         unsafe { uv_fs_get_type(self.req).into_inner() }
     }
 
+    /// The loop that ran this request
+    pub fn r#loop(&self) -> crate::Loop {
+        unsafe { (*self.req).loop_.into_inner() }
+    }
+
     /// Returns the result from the request
     pub fn result(&self) -> crate::Result<isize> {
         let result = unsafe { uv_fs_get_result(self.req) };

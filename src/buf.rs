@@ -64,11 +64,33 @@ pub struct Buf {
 }
 
 impl Buf {
+    fn alloc(size: usize) -> Result<*mut std::os::raw::c_char, Box<dyn std::error::Error>> {
+        // this assumes layout.size() <= layout.align() - this is loosely based on the
+        // experimental Rust features to create a Layout for an array
+        let layout = std::alloc::Layout::new::<std::os::raw::c_char>();
+        let alloc_size = layout.align().checked_mul(size).ok_or(crate::Error::ENOMEM)?;
+        let layout = std::alloc::Layout::from_size_align(alloc_size, layout.align())?;
+        Ok(unsafe { std::alloc::alloc(layout) as _ })
+    }
+
     /// Create a new Buf with the given string
-    pub fn new(s: &str) -> Result<Buf, NulError> {
-        let s = CString::new(s)?;
-        let len = s.as_bytes().len();
-        let buf = Box::new(unsafe { uv_buf_init(s.into_raw(), len as _) });
+    pub fn new(s: &str) -> Result<Buf, Box<dyn std::error::Error>> {
+        let bytes = s.as_bytes().len();
+        let len = bytes + 1;
+        let base = Buf::alloc(len)?;
+        unsafe {
+            base.copy_from_nonoverlapping(s.as_ptr() as _, bytes);
+            base.add(bytes).write(0);
+        }
+
+        let buf = Box::new(unsafe { uv_buf_init(base, len as _) });
+        Ok(Box::into_raw(buf).into_inner())
+    }
+
+    /// Create a Buf with the given capacity - the memory is not initialized
+    pub fn with_capacity(size: usize) -> Result<Buf, Box<dyn std::error::Error>> {
+        let base = Buf::alloc(size)?;
+        let buf = Box::new(unsafe { uv_buf_init(base, size as _) });
         Ok(Box::into_raw(buf).into_inner())
     }
 
