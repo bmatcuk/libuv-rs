@@ -8,8 +8,8 @@ mod inner;
 use inner::*;
 
 pub mod error;
-pub use error::*;
 pub use error::Error::*;
+pub use error::*;
 
 pub mod version;
 pub use version::*;
@@ -47,4 +47,11 @@ fn uvret(code: ::std::os::raw::c_int) -> Result<()> {
     } else {
         Ok(())
     }
+}
+
+/// Imports some things that most every program will need.
+pub mod prelude {
+    pub use super::{
+        BufTrait, Handle, HandleTrait, Loop, Req, ReqTrait, RunMode, StreamHandle, StreamTrait,
+    };
 }

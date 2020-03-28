@@ -1,8 +1,9 @@
 extern crate libuv;
-use libuv::{Loop, RunMode, IdleHandle, HandleTrait, Handle};
+use libuv::prelude::*;
+use libuv::IdleHandle;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut r#loop = Loop::new()?;
+    let mut r#loop = Loop::default()?;
 
     let mut count = 0u64;
     let mut idle = r#loop.idle()?;
@@ -11,10 +12,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         if count >= 10_000_000 {
             handle.stop().unwrap();
-
-            // Because Loop::drop() calls uv_loop_delete, we need to make sure our idle handle is
-            // closed, in addition to stopped, before main reaches the end.
-            handle.close(None::<fn(Handle)>);
         }
     }))?;
 
