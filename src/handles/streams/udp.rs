@@ -320,7 +320,7 @@ impl UdpHandle {
     /// bound to 0.0.0.0 (the “all interfaces” IPv4 address) and a random port number.
     pub fn recv_start(
         &mut self,
-        alloc_cb: Option<impl FnMut(crate::Handle, usize, crate::Buf) + 'static>,
+        alloc_cb: Option<impl FnMut(crate::Handle, usize) -> crate::Buf + 'static>,
         recv_cb: Option<
             impl FnMut(UdpHandle, isize, crate::ReadonlyBuf, SocketAddr, UdpBindFlags) + 'static,
         >,

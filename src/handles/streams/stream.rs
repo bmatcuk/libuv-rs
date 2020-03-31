@@ -7,7 +7,7 @@ use uv::{
 
 /// Additional data to store on the handle
 pub(crate) struct StreamDataFields {
-    pub(crate) alloc_cb: Option<Box<dyn FnMut(crate::Handle, usize, crate::Buf)>>,
+    pub(crate) alloc_cb: Option<Box<dyn FnMut(crate::Handle, usize) -> crate::Buf>>,
     connection_cb: Option<Box<dyn FnMut(StreamHandle, crate::Result<i32>)>>,
     read_cb: Option<Box<dyn FnMut(StreamHandle, isize, crate::ReadonlyBuf)>>,
     pub(crate) addl: super::AddlStreamData,
@@ -23,7 +23,8 @@ pub(crate) extern "C" fn uv_alloc_cb(
     if !dataptr.is_null() {
         unsafe {
             if let Some(f) = (*dataptr).alloc_cb.as_mut() {
-                f(handle.into_inner(), suggested_size, buf.into_inner());
+                let new_buf = f(handle.into_inner(), suggested_size);
+                buf = new_buf.inner();
             }
         }
     }
@@ -191,7 +192,7 @@ pub trait StreamTrait: ToStream {
     /// there is no more data to read or read_stop() is called.
     fn read_start(
         &mut self,
-        alloc_cb: Option<impl FnMut(crate::Handle, usize, crate::Buf) + 'static>,
+        alloc_cb: Option<impl FnMut(crate::Handle, usize) -> crate::Buf + 'static>,
         read_cb: Option<impl FnMut(StreamHandle, isize, crate::ReadonlyBuf) + 'static>,
     ) -> crate::Result<()> {
         // uv_alloc_cb is either Some(alloc_cb) or None

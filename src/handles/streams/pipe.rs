@@ -3,8 +3,8 @@ use std::ffi::CString;
 use std::net::SocketAddr;
 use uv::{
     uv_pipe_bind, uv_pipe_chmod, uv_pipe_connect, uv_pipe_getpeername, uv_pipe_getsockname,
-    uv_pipe_init, uv_pipe_pending_count, uv_pipe_pending_instances, uv_pipe_pending_type,
-    uv_pipe_t,
+    uv_pipe_init, uv_pipe_open, uv_pipe_pending_count, uv_pipe_pending_instances,
+    uv_pipe_pending_type, uv_pipe_t,
 };
 
 bitflags! {
@@ -42,6 +42,15 @@ impl PipeHandle {
         crate::StreamHandle::initialize_data(uv_handle!(handle), super::NoAddlStreamData);
 
         Ok(PipeHandle { handle })
+    }
+
+    /// Open an existing file descriptor or HANDLE as a pipe. The file descriptor is set to
+    /// non-blocking mode.
+    ///
+    /// Note: The passed file descriptor or HANDLE is not checked for its type, but it’s required
+    /// that it represents a valid pipe.
+    pub fn open(&mut self, file: crate::File) -> crate::Result<()> {
+        crate::uvret(unsafe { uv_pipe_open(self.handle, file) })
     }
 
     /// Bind the pipe to a file path (Unix) or a name (Windows).
