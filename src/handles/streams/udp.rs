@@ -37,7 +37,7 @@ pub enum Membership {
 /// Additional data to store on the stream
 #[derive(Default)]
 pub(crate) struct UdpDataFields {
-    recv_cb: Option<Box<dyn FnMut(UdpHandle, isize, crate::ReadonlyBuf, SocketAddr, UdpBindFlags)>>,
+    recv_cb: Option<Box<dyn FnMut(UdpHandle, crate::Result<isize>, crate::ReadonlyBuf, SocketAddr, UdpBindFlags)>>,
 }
 
 /// Callback for uv_udp_recv_start
@@ -54,6 +54,11 @@ extern "C" fn uv_udp_recv_cb(
             if let Some(f) = d.recv_cb.as_mut() {
                 let sockaddr = crate::build_socketaddr(addr);
                 if let Ok(sockaddr) = sockaddr {
+                    let nread = if nread < 0 {
+                        Err(crate::Error::from_inner(nread as uv::uv_errno_t))
+                    } else {
+                        Ok(nread)
+                    };
                     f(
                         handle.into_inner(),
                         nread,
@@ -322,7 +327,7 @@ impl UdpHandle {
         &mut self,
         alloc_cb: Option<impl FnMut(crate::Handle, usize) -> crate::Buf + 'static>,
         recv_cb: Option<
-            impl FnMut(UdpHandle, isize, crate::ReadonlyBuf, SocketAddr, UdpBindFlags) + 'static,
+            impl FnMut(UdpHandle, crate::Result<isize>, crate::ReadonlyBuf, SocketAddr, UdpBindFlags) + 'static,
         >,
     ) -> crate::Result<()> {
         // uv_alloc_cb is either Some(alloc_cb) or None

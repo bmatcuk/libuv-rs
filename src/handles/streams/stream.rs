@@ -9,7 +9,7 @@ use uv::{
 pub(crate) struct StreamDataFields {
     pub(crate) alloc_cb: Option<Box<dyn FnMut(crate::Handle, usize) -> crate::Buf>>,
     connection_cb: Option<Box<dyn FnMut(StreamHandle, crate::Result<i32>)>>,
-    read_cb: Option<Box<dyn FnMut(StreamHandle, isize, crate::ReadonlyBuf)>>,
+    read_cb: Option<Box<dyn FnMut(StreamHandle, crate::Result<isize>, crate::ReadonlyBuf)>>,
     pub(crate) addl: super::AddlStreamData,
 }
 
@@ -53,6 +53,11 @@ extern "C" fn uv_read_cb(stream: *mut uv_stream_t, nread: isize, buf: *const uv:
     if !dataptr.is_null() {
         unsafe {
             if let Some(f) = (*dataptr).read_cb.as_mut() {
+                let nread = if nread < 0 {
+                    Err(crate::Error::from_inner(nread as uv::uv_errno_t))
+                } else {
+                    Ok(nread)
+                };
                 f(stream.into_inner(), nread, buf.into_inner());
             }
         }
@@ -193,7 +198,7 @@ pub trait StreamTrait: ToStream {
     fn read_start(
         &mut self,
         alloc_cb: Option<impl FnMut(crate::Handle, usize) -> crate::Buf + 'static>,
-        read_cb: Option<impl FnMut(StreamHandle, isize, crate::ReadonlyBuf) + 'static>,
+        read_cb: Option<impl FnMut(StreamHandle, crate::Result<isize>, crate::ReadonlyBuf) + 'static>,
     ) -> crate::Result<()> {
         // uv_alloc_cb is either Some(alloc_cb) or None
         // uv_read_cb is either Some(read_cb) or None
