@@ -70,6 +70,9 @@ impl FsReq {
 
     /// Returns the file handle from the request
     pub fn file(&self) -> crate::File {
+        if self.request_type() == crate::FsType::OPEN {
+            return unsafe { uv_fs_get_result(self.req) as _ };
+        }
         unsafe { (*self.req).file }
     }
 

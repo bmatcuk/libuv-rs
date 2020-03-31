@@ -2,11 +2,13 @@ extern crate libuv;
 use libuv::prelude::*;
 use libuv::{Buf, FsReq, FsOpenFlags, FsModeFlags};
 
+const STDOUT: libuv::File = 1;
+
 fn on_write(req: FsReq, file: libuv::File, mut buf: Buf) {
     if let Err(e) = req.result() {
         eprintln!("Write error: {}", e);
         buf.destroy();
-    } else if let Err(e) = req.r#loop().fs_read(file, &[buf], 0, move |req| on_read(req. buf)) {
+    } else if let Err(e) = req.r#loop().fs_read(file, &[buf], -1, move |req| on_read(req, buf)) {
         eprintln!("error continuing read: {}", e);
     }
 }
@@ -27,7 +29,7 @@ fn on_read(req: FsReq, mut buf: Buf) {
         Ok(len) => {
             let file = req.file();
             buf.truncate(len as _);
-            if let Err(e) = req.r#loop().fs_write(1 as libuv::File, &[buf], 0, move |req| on_write(req, file, buf)) {
+            if let Err(e) = req.r#loop().fs_write(STDOUT, &[buf], -1, move |req| on_write(req, file, buf)) {
                 eprintln!("error starting write: {}", e);
                 buf.destroy();
             }
@@ -41,7 +43,7 @@ fn on_open(req: FsReq) {
         return;
     }
 
-    let buf = match Buf::with_capacity(1024) {
+    let mut buf = match Buf::with_capacity(1024) {
         Ok(buf) => buf,
         Err(e) => {
             eprintln!("error allocating a buffer: {}", e);
@@ -49,7 +51,7 @@ fn on_open(req: FsReq) {
         },
     };
 
-    if let Err(e) = req.r#loop().fs_read(req.file(), &[buf], 0, move |req| on_read(req, buf)) {
+    if let Err(e) = req.r#loop().fs_read(req.file(), &[buf], -1, move |req| on_read(req, buf)) {
         eprintln!("error starting read: {}", e);
         buf.destroy();
     }
