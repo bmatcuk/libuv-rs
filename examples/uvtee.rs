@@ -1,23 +1,26 @@
 extern crate libuv;
 use libuv::prelude::*;
-use libuv::{Buf, FsModeFlags, FsOpenFlags, FsReq, Pipe, ReadonlyBuf};
+use libuv::{Buf, FsModeFlags, FsOpenFlags, FsReq, PipeHandle, ReadonlyBuf};
 
 const STDIN: libuv::File = 0;
 const STDOUT: libuv::File = 1;
 
-fn alloc_buffer(handle: Handle, suggested_size: usize) -> buf: Buf {
-    Buf::with_capacity(suggested_size)
+fn alloc_buffer(buf: Buf, suggested_size: usize) -> Buf {
+    if let Err(e) = buf.resize(suggested_size) {
+        eprintln!("error resizing buf: {}", e);
+    }
+    buf
 }
 
 fn write_data(stream: StreamHandle, len: usize, buf: ReadonlyBuf) {
 }
 
-fn read_stdin(stdin_pipe: Pipe, stdout_pipe: Pipe, file_pipe: Pipe, nread: libuv::Result<isize>, buf: ReadonlyBuf) {
+fn read_stdin(stdin_pipe: PipeHandle, stdout_pipe: PipeHandle, file_pipe: PipeHandle, nread: libuv::Result<isize>, buf: ReadonlyBuf) {
     match nread {
-        Err(crate::Error::EOF) => {
-            stdin_pipe.close(None);
-            stdout_pipe.close(None);
-            file_pipe.close(None);
+        Err(libuv::Error::EOF) => {
+            stdin_pipe.close(None::<fn(Handle)>);
+            stdout_pipe.close(None::<fn(Handle)>);
+            file_pipe.close(None::<fn(Handle)>);
         },
         Ok(len) => {
             if len > 0 {
@@ -47,10 +50,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             | FsModeFlags::GROUP_READ
             | FsModeFlags::OTHERS_READ,
     )?;
-    let mut file_pipe = r#loop.pipe(false);
+    let mut file_pipe = r#loop.pipe(false)?;
     file_pipe.open(file)?;
 
-    stdin_pipe.read_start(Some(alloc_buffer), Some(|_, nread, buf| read_stdin(stdin_pipe, stdout_pipe, file_pipe, nread, buf)))?;
+    let buf = Buf::with_capacity(0)?;
+    stdin_pipe.read_start(Some(|_, ss| alloc_buffer(buf, ss)), Some(|_, nread, buf| read_stdin(stdin_pipe, stdout_pipe, file_pipe, nread, buf)))?;
 
     Ok(())
 }

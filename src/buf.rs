@@ -19,6 +19,24 @@ impl std::error::Error for EmptyBufError {
     }
 }
 
+/// Calculates how much space to allocate and the alignment
+fn calc_alloc_size_alignment(size: usize) -> crate::Result<(usize, usize)> {
+    // this assumes layout.size() <= layout.align() - this is loosely based on the
+    // experimental Rust features to create a Layout for an array
+    let layout = std::alloc::Layout::new::<std::os::raw::c_char>();
+    let alloc_size = layout
+        .align()
+        .checked_mul(size)
+        .ok_or(crate::Error::ENOMEM)?;
+    Ok((alloc_size, layout.align()))
+}
+
+/// Creates a Layout for the given size
+fn layout(size: usize) -> crate::Result<std::alloc::Layout> {
+    let (alloc_size, align) = calc_alloc_size_alignment(size)?;
+    std::alloc::Layout::from_size_align(alloc_size, align).or(Err(crate::Error::ENOMEM))
+}
+
 /// Readonly buffer data type.
 #[derive(Clone, Copy)]
 pub struct ReadonlyBuf {
@@ -26,6 +44,28 @@ pub struct ReadonlyBuf {
 }
 
 impl ReadonlyBuf {
+    /// Returns true if the internal buffer is initialized
+    pub fn is_allocated(&self) -> bool {
+        unsafe { !(*self.buf).base.is_null() }
+    }
+
+    /// Deallocate the internal buffer, but leave the Buf intact. Even though this is a "readonly"
+    /// Buf, the internal storage can still be deallocated. This oddity is an unfortunate
+    /// side-effect of the libuv API: for example, StreamHandle::read_start calls the allocate
+    /// callback to create a Buf, then passes that Buf to the read callback as a ReadonlyBuf. You
+    /// could run dealloc() in the read callback to deallocate the internal buffer, but then you're
+    /// still leaking the Buf itself. Perhaps your allocate callback reuses Bufs?
+    pub fn dealloc(&mut self) {
+        unsafe {
+            if self.is_allocated() {
+                let len = (*self.buf).len;
+                if let Ok(layout) = layout(len) {
+                    std::alloc::dealloc((*self.buf).base as _, layout);
+                }
+            }
+        }
+    }
+
     /// Convert the Buf to a CStr. Returns an error if the Buf is empty.
     pub fn as_c_str(&self) -> Result<&'_ CStr, EmptyBufError> {
         let ptr: *const uv_buf_t = self.inner();
@@ -64,16 +104,14 @@ pub struct Buf {
 }
 
 impl Buf {
-    fn alloc(size: usize) -> Result<*mut std::os::raw::c_char, Box<dyn std::error::Error>> {
-        // this assumes layout.size() <= layout.align() - this is loosely based on the
-        // experimental Rust features to create a Layout for an array
-        let layout = std::alloc::Layout::new::<std::os::raw::c_char>();
-        let alloc_size = layout
-            .align()
-            .checked_mul(size)
-            .ok_or(crate::Error::ENOMEM)?;
-        let layout = std::alloc::Layout::from_size_align(alloc_size, layout.align())?;
-        Ok(unsafe { std::alloc::alloc(layout) as _ })
+    fn alloc(size: usize) -> crate::Result<*mut std::os::raw::c_char> {
+        let layout = layout(size)?;
+        let ptr = unsafe { std::alloc::alloc(layout) as *mut std::os::raw::c_char };
+        if ptr.is_null() {
+            Err(crate::Error::ENOMEM)
+        } else {
+            Ok(ptr)
+        }
     }
 
     /// Create a new Buf with the given string
@@ -98,54 +136,40 @@ impl Buf {
     }
 
     /// Returns true if the internal buffer is initialized
-    fn is_allocated(&self) -> bool {
+    pub fn is_allocated(&self) -> bool {
         unsafe { !(*self.buf).base.is_null() }
     }
 
-    /// Resizes the internal buffer - if the new size is smaller, no allocation takes place.
-    /// Otherwise, a new buffer is initialized and the data from the old buffer is copied.
-    pub fn resize(&mut self, size: usize) -> Result<(), Box<dyn std::error::Error>> {
+    /// Resizes the internal buffer
+    pub fn resize(&mut self, size: usize) -> crate::Result<()> {
         let len = unsafe { (*self.buf).len };
-        if len > size {
-            self.truncate(size);
-        } else if len < size {
-            let base = Buf::alloc(size)?;
-            if self.is_allocated() {
-                unsafe { base.copy_from_nonoverlapping((*self.buf).base, len) };
+        if len != size {
+            let (alloc_size, _) = calc_alloc_size_alignment(size)?;
+            let layout = layout(len)?;
+            let ptr = unsafe { std::alloc::realloc((*self.buf).base as _, layout, alloc_size) };
+            if ptr.is_null() {
+                return Err(crate::Error::ENOMEM);
             }
-
-            let buf = Box::new(unsafe { uv_buf_init(base, size as _) });
-            self.destroy();
-            self.buf = Box::into_raw(buf);
+            unsafe { (*self.buf).base = ptr as _ };
         }
         Ok(())
     }
 
-    /// Truncate the length of the buffer
-    pub fn truncate(&mut self, size: usize) {
-        unsafe {
-            assert!(
-                size <= (*self.buf).len,
-                "new size ({}) must be <= current size ({})",
-                size,
-                (*self.buf).len
-            );
-            (*self.buf).len = size;
-        }
-    }
-
-    /// Deallocate the string inside the Buf, but leave the Buf intact.
-    fn dealloc(&mut self) {
+    /// Deallocate the internal buffer, but leave the Buf intact.
+    pub fn dealloc(&mut self) {
         unsafe {
             if self.is_allocated() {
-                std::mem::drop(CString::from_raw((*self.buf).base));
-                (*self.buf).base = std::ptr::null_mut();
-                (*self.buf).len = 0;
+                let len = (*self.buf).len;
+                if let Ok(layout) = layout(len) {
+                    std::alloc::dealloc((*self.buf).base as _, layout);
+                    (*self.buf).base = std::ptr::null_mut();
+                    (*self.buf).len = 0;
+                }
             }
         }
     }
 
-    /// Deallocates the Buf
+    /// Deallocates the internal buffer *and* the Buf
     pub fn destroy(&mut self) {
         self.dealloc();
         std::mem::drop(unsafe { Box::from_raw(self.buf) });
