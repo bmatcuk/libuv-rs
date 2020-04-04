@@ -37,7 +37,17 @@ pub enum Membership {
 /// Additional data to store on the stream
 #[derive(Default)]
 pub(crate) struct UdpDataFields {
-    recv_cb: Option<Box<dyn FnMut(UdpHandle, crate::Result<isize>, crate::ReadonlyBuf, SocketAddr, UdpBindFlags)>>,
+    recv_cb: Option<
+        Box<
+            dyn FnMut(
+                UdpHandle,
+                crate::Result<isize>,
+                crate::ReadonlyBuf,
+                SocketAddr,
+                UdpBindFlags,
+            ),
+        >,
+    >,
 }
 
 /// Callback for uv_udp_recv_start
@@ -325,9 +335,10 @@ impl UdpHandle {
     /// bound to 0.0.0.0 (the “all interfaces” IPv4 address) and a random port number.
     pub fn recv_start(
         &mut self,
-        alloc_cb: Option<impl FnMut(crate::Handle, usize) -> crate::Buf + 'static>,
+        alloc_cb: Option<impl FnMut(crate::Handle, usize) -> Option<crate::Buf> + 'static>,
         recv_cb: Option<
-            impl FnMut(UdpHandle, crate::Result<isize>, crate::ReadonlyBuf, SocketAddr, UdpBindFlags) + 'static,
+            impl FnMut(UdpHandle, crate::Result<isize>, crate::ReadonlyBuf, SocketAddr, UdpBindFlags)
+                + 'static,
         >,
     ) -> crate::Result<()> {
         // uv_alloc_cb is either Some(alloc_cb) or None

@@ -1,6 +1,6 @@
 use crate::{FromInner, Inner, IntoInner};
 use std::borrow::Cow;
-use std::ffi::{CStr, CString};
+use std::ffi::CStr;
 use uv::{uv_buf_init, uv_buf_t};
 
 /// When trying to convert an empty Buf to a string.
@@ -53,8 +53,8 @@ impl ReadonlyBuf {
     /// Buf, the internal storage can still be deallocated. This oddity is an unfortunate
     /// side-effect of the libuv API: for example, StreamHandle::read_start calls the allocate
     /// callback to create a Buf, then passes that Buf to the read callback as a ReadonlyBuf. You
-    /// could run dealloc() in the read callback to deallocate the internal buffer, but then you're
-    /// still leaking the Buf itself. Perhaps your allocate callback reuses Bufs?
+    /// could run dealloc() in the read callback to deallocate the internal buffer - the allocate
+    /// callback takes ownership of the actual Buf struct, so you don't need to worry about that.
     pub fn dealloc(&mut self) {
         unsafe {
             if self.is_allocated() {
@@ -129,10 +129,36 @@ impl Buf {
     }
 
     /// Create a Buf with the given capacity - the memory is not initialized
-    pub fn with_capacity(size: usize) -> Result<Buf, Box<dyn std::error::Error>> {
+    pub fn with_capacity(size: usize) -> crate::Result<Buf> {
         let base = Buf::alloc(size)?;
         let buf = Box::new(unsafe { uv_buf_init(base, size as _) });
         Ok(Box::into_raw(buf).into_inner())
+    }
+
+    /// Create a duplicate of this Buf - if the optional size parameter is None, the new Buf will
+    /// have the same size as the existing Buf. Otherwise, the new Buf will have the specified size
+    /// and data up to that size, or the size of the original buf, whichever is lower, will be
+    /// copied.
+    pub fn new_from(other: &impl BufTrait, size: Option<usize>) -> crate::Result<Self> {
+        let other = other.readonly();
+        if !other.is_allocated() {
+            if let Some(s) = size {
+                return Buf::with_capacity(s);
+            }
+            return Ok(Buf {
+                buf: std::ptr::null_mut(),
+            });
+        }
+
+        let len = if let Some(s) = size {
+            s
+        } else {
+            unsafe { (*other.buf).len }
+        };
+
+        let mut buf = Buf::with_capacity(len)?;
+        buf.copy_from(&other)?;
+        Ok(buf)
     }
 
     /// Returns true if the internal buffer is initialized
@@ -142,16 +168,50 @@ impl Buf {
 
     /// Resizes the internal buffer
     pub fn resize(&mut self, size: usize) -> crate::Result<()> {
-        let len = unsafe { (*self.buf).len };
-        if len != size {
-            let (alloc_size, _) = calc_alloc_size_alignment(size)?;
-            let layout = layout(len)?;
-            let ptr = unsafe { std::alloc::realloc((*self.buf).base as _, layout, alloc_size) };
-            if ptr.is_null() {
-                return Err(crate::Error::ENOMEM);
+        if self.is_allocated() {
+            let len = unsafe { (*self.buf).len };
+            if len != size {
+                let (alloc_size, _) = calc_alloc_size_alignment(size)?;
+                let layout = layout(len)?;
+                let ptr = unsafe { std::alloc::realloc((*self.buf).base as _, layout, alloc_size) };
+                if ptr.is_null() {
+                    return Err(crate::Error::ENOMEM);
+                }
+                unsafe {
+                    (*self.buf).base = ptr as _;
+                    (*self.buf).len = alloc_size;
+                }
             }
-            unsafe { (*self.buf).base = ptr as _ };
+        } else {
+            let base = Buf::alloc(size)?;
+            unsafe {
+                (*self.buf).base = base as _;
+                (*self.buf).len = size;
+            }
         }
+        Ok(())
+    }
+
+    /// Copies the data from a Buf to this one.
+    pub fn copy_from(&mut self, other: &impl BufTrait) -> crate::Result<()> {
+        let other = other.readonly();
+        if !other.is_allocated() {
+            return Ok(());
+        }
+
+        let other_len = unsafe { (*other.buf).len };
+        if !self.is_allocated() {
+            self.resize(other_len)?;
+        }
+
+        let my_len = unsafe { (*self.buf).len };
+        let len = my_len.min(other_len);
+        unsafe {
+            (*self.buf)
+                .base
+                .copy_from_nonoverlapping((*other.buf).base, len)
+        };
+
         Ok(())
     }
 
@@ -169,10 +229,15 @@ impl Buf {
         }
     }
 
+    /// Deallocates the Buf struct, leaving the internal buffer alone. This is used by alloc_cb.
+    pub(crate) fn destroy_container(&mut self) {
+        std::mem::drop(unsafe { Box::from_raw(self.buf) });
+    }
+
     /// Deallocates the internal buffer *and* the Buf
     pub fn destroy(&mut self) {
         self.dealloc();
-        std::mem::drop(unsafe { Box::from_raw(self.buf) });
+        self.destroy_container();
     }
 }
 

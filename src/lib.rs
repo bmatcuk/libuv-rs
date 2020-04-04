@@ -53,5 +53,6 @@ fn uvret(code: ::std::os::raw::c_int) -> Result<()> {
 pub mod prelude {
     pub use super::{
         BufTrait, Handle, HandleTrait, Loop, Req, ReqTrait, RunMode, StreamHandle, StreamTrait,
+        ToStream,
     };
 }
