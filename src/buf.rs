@@ -298,10 +298,10 @@ where
         // functions like uv_write, uv_udf_send, etc expect an array of uv_buf_t objects, *not* an
         // array of pointers. So, we need to create a Vec of copies of the data from the
         // dereferenced pointers.
-        let mut bufs: Vec<uv::uv_buf_t> = bufs
+        let mut bufs: std::mem::ManuallyDrop<Vec<uv::uv_buf_t>> = std::mem::ManuallyDrop::new(bufs
             .iter()
             .map(|b| unsafe { *b.readonly().inner() }.clone())
-            .collect();
+            .collect());
         let bufs_ptr = bufs.as_mut_ptr();
         let bufs_len = bufs.len();
         let bufs_capacity = bufs.capacity();

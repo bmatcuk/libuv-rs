@@ -17,6 +17,7 @@ bitflags! {
 
 /// Pipe handles provide an abstraction over streaming files on Unix (including local domain
 /// sockets, pipes, and FIFOs) and named pipes on Windows.
+#[derive(Clone, Copy)]
 pub struct PipeHandle {
     handle: *mut uv_pipe_t,
 }

@@ -41,9 +41,16 @@ fn read_stdin(
             if e != libuv::Error::EOF {
                 eprintln!("error reading stdin: {}", e);
             }
-            stdin_pipe.close(None::<fn(Handle)>);
-            stdout_pipe.close(None::<fn(Handle)>);
-            file_pipe.close(None::<fn(Handle)>);
+
+            // The original example closed all of the pipe here. However, since the writes are
+            // asynchronous, the close could potentially happen before the write callback is fired.
+            // If this happens, the callback will report that the write has been ECANCELED even
+            // though it succeeded. The better way to handle this is to stop the read here, which
+            // will cause the loop to exit after all of the writes have finished. *Then* we can
+            // close the pipes.
+            if let Err(e) = stdin_pipe.read_stop() {
+                eprintln!("error stopping the read: {}", e);
+            }
         }
         Ok(len) => {
             if len > 0 {
@@ -91,6 +98,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }),
     )?;
 
+    r#loop.run(RunMode::Default)?;
+
+    // We need to close the pipes...
+    stdin_pipe.close(None::<fn(Handle)>);
+    stdout_pipe.close(None::<fn(Handle)>);
+    file_pipe.close(None::<fn(Handle)>);
+
+    // Restart the loop just to close the pipes... this should return fairly quickly.
     r#loop.run(RunMode::Default)?;
 
     Ok(())

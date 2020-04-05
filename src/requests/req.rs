@@ -31,8 +31,7 @@ pub struct Req {
 impl Req {
     /// Initialize the request's data.
     pub(crate) fn initialize_data(req: *mut uv_req_t, data: super::ReqData) {
-        let data = Box::new(data);
-        let ptr = Box::into_raw(data);
+        let ptr = Box::into_raw(Box::new(data));
         unsafe { uv_req_set_data(req, ptr as _) }
     }
 
