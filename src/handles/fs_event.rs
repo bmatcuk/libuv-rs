@@ -31,10 +31,22 @@ bitflags! {
     }
 }
 
+bitflags! {
+    /// Event that caused the FsEventHandle callback to be called.
+    pub struct FsEvent: u32 {
+        /// File has been renamed
+        const RENAME = uv::uv_fs_event_UV_RENAME;
+
+        /// File has changed
+        const CHANGE = uv::uv_fs_event_UV_CHANGE;
+    }
+}
+
 /// Additional data stored on the handle
 #[derive(Default)]
 pub(crate) struct FsEventDataFields {
-    fs_event_cb: Option<Box<dyn FnMut(FsEventHandle, Cow<str>, i32, crate::Result<i32>)>>,
+    fs_event_cb:
+        Option<Box<dyn FnMut(FsEventHandle, Option<Cow<str>>, FsEvent, crate::Result<i32>)>>,
 }
 
 /// Callback for uv_fs_event_start
@@ -49,13 +61,19 @@ extern "C" fn uv_fs_event_cb(
         unsafe {
             if let super::FsEventData(d) = &mut (*dataptr).addl {
                 if let Some(f) = d.fs_event_cb.as_mut() {
-                    let filename = CStr::from_ptr(filename).to_string_lossy();
+                    let filename = if filename.is_null() {
+                        None
+                    } else {
+                        Some(CStr::from_ptr(filename).to_string_lossy())
+                    };
+
                     let status = if status < 0 {
                         Err(crate::Error::from_inner(status as uv::uv_errno_t))
                     } else {
                         Ok(status)
                     };
-                    f(handle.into_inner(), filename, events as _, status);
+
+                    f(handle.into_inner(), filename, FsEvent::from_bits_truncate(events as _), status);
                 }
             }
         }
@@ -109,7 +127,9 @@ impl FsEventHandle {
         &mut self,
         path: &str,
         flags: FsEventFlags,
-        cb: Option<impl FnMut(FsEventHandle, Cow<str>, i32, crate::Result<i32>) + 'static>,
+        cb: Option<
+            impl FnMut(FsEventHandle, Option<Cow<str>>, FsEvent, crate::Result<i32>) + 'static,
+        >,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let path = CString::new(path)?;
 
