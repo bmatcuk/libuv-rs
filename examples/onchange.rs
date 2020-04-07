@@ -2,7 +2,6 @@ extern crate libuv;
 use libuv::prelude::*;
 use libuv::{FsEvent, FsEventFlags, FsEventHandle};
 use std::borrow::Cow;
-use std::process::Command;
 
 fn events_to_str(events: FsEvent) -> &'static str {
     if events.contains(FsEvent::RENAME | FsEvent::CHANGE) {
@@ -40,21 +39,20 @@ fn run_command(
         events_to_str(events),
         filename.unwrap_or_default()
     );
-
-    Command::new("/bin/sh -c 'echo hello, world'").spawn().unwrap();
 }
 
+/// The original implementation runs an arbitrary command when a file changes, but I didn't feel
+/// like implementing that...
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = std::env::args().collect();
     if args.len() <= 2 {
-        eprintln!("Usage: {} <command> <file1> [file2 ...]", args[0]);
+        eprintln!("Usage: {} <file1> [file2 ...]", args[0]);
         return Ok(());
     }
 
-    // let command = args[1];
     let mut r#loop = Loop::default()?;
 
-    for file in args[2..].iter() {
+    for file in args[1..].iter() {
         println!("Adding watch on {}", file);
 
         let mut handle = r#loop.fs_event()?;
