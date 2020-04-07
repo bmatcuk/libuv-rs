@@ -101,12 +101,14 @@ where
 
 /// Fill a uv::sockaddr from a SocketAddr
 pub(crate) fn fill_sockaddr(sockaddr: *mut uv::sockaddr, addr: &SocketAddr) {
+    // sockaddr_in/sockaddr_in6 port and addr must be in network byte order, which is big endian.
+    // addr.ip().octets() returns the bytes in big endian already so we're good there.
     match addr {
         SocketAddr::V4(addr) => {
             let sockaddr_in: *mut uv::sockaddr_in = sockaddr as _;
             unsafe {
                 (*sockaddr_in).sin_family = AF_INET as _;
-                (*sockaddr_in).sin_port = addr.port();
+                (*sockaddr_in).sin_port = addr.port().to_be();
                 (*sockaddr_in).sin_addr.s_addr = u32::from_ne_bytes(addr.ip().octets());
             }
         }
@@ -114,7 +116,7 @@ pub(crate) fn fill_sockaddr(sockaddr: *mut uv::sockaddr, addr: &SocketAddr) {
             let sockaddr_in6: *mut uv::sockaddr_in6 = sockaddr as _;
             unsafe {
                 (*sockaddr_in6).sin6_family = AF_INET6 as _;
-                (*sockaddr_in6).sin6_port = addr.port();
+                (*sockaddr_in6).sin6_port = addr.port().to_be();
                 (*sockaddr_in6).sin6_addr.__u6_addr.__u6_addr8 = addr.ip().octets();
             }
         }
@@ -123,13 +125,15 @@ pub(crate) fn fill_sockaddr(sockaddr: *mut uv::sockaddr, addr: &SocketAddr) {
 
 /// Create a SocketAddr from a uv::sockaddr_storage
 pub(crate) fn build_socketaddr(sockaddr: *const uv::sockaddr) -> crate::Result<SocketAddr> {
+    // sockaddr_in/sockaddr_in6 port and addr are in network byte order, which is big endian. So,
+    // we need to make sure to convert to "native endianness" (ne).
     match unsafe { (*sockaddr).sa_family as _ } {
         AF_INET => {
             let sockaddr_in: *const uv::sockaddr_in = sockaddr as _;
             unsafe {
                 Ok((
                     (*sockaddr_in).sin_addr.s_addr.to_ne_bytes(),
-                    (*sockaddr_in).sin_port,
+                    u16::from_be((*sockaddr_in).sin_port),
                 )
                     .into())
             }
@@ -139,7 +143,7 @@ pub(crate) fn build_socketaddr(sockaddr: *const uv::sockaddr) -> crate::Result<S
             unsafe {
                 Ok((
                     (*sockaddr_in6).sin6_addr.__u6_addr.__u6_addr8,
-                    (*sockaddr_in6).sin6_port,
+                    u16::from_be((*sockaddr_in6).sin6_port),
                 )
                     .into())
             }

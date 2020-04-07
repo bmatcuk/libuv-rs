@@ -1,6 +1,6 @@
 extern crate libuv;
 use libuv::prelude::*;
-use libuv::{Buf, TcpBindFlags, ReadonlyBuf};
+use libuv::{Buf, ReadonlyBuf, TcpBindFlags};
 use std::net::Ipv4Addr;
 
 const DEFAULT_PORT: u16 = 7000;
@@ -25,7 +25,7 @@ fn echo_read(mut client: StreamHandle, nread: libuv::Result<isize>, buf: Readonl
                     eprintln!("Error echoing to socket: {}", e);
                 }
             }
-        },
+        }
         Err(e) => {
             if e != libuv::Error::EOF {
                 eprintln!("Read error {}", e);
@@ -41,16 +41,17 @@ fn on_new_connection(mut server: StreamHandle, status: libuv::Result<i32>) {
         return;
     }
 
-    println!("New connection!");
     if let Ok(client) = server.get_loop().tcp().as_mut() {
         match server.accept(&mut client.to_stream()) {
-            Ok(_) => if let Err(e) = client.read_start(Some(alloc_buffer), Some(echo_read)) {
-                eprintln!("Error starting read on client: {}", e);
-            },
+            Ok(_) => {
+                if let Err(e) = client.read_start(Some(alloc_buffer), Some(echo_read)) {
+                    eprintln!("Error starting read on client: {}", e);
+                }
+            }
             Err(e) => {
                 eprintln!("Error accepting connection: {}", e);
                 client.close(None::<fn(Handle)>)
-            },
+            }
         }
     }
 }
@@ -59,7 +60,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut r#loop = Loop::default()?;
 
     let mut server = r#loop.tcp()?;
-    let addr = (Ipv4Addr::LOCALHOST, DEFAULT_PORT).into();
+    let addr = (Ipv4Addr::UNSPECIFIED, DEFAULT_PORT).into();
     server.bind(&addr, TcpBindFlags::empty())?;
     server.listen(DEFAULT_BACKLOG, Some(on_new_connection))?;
 
