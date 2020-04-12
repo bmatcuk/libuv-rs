@@ -1,6 +1,10 @@
 use crate::{FromInner, Inner, IntoInner};
 use std::borrow::Cow;
 use std::ffi::CStr;
+use std::ops::{
+    Bound, Index, Range, RangeBounds, RangeFrom, RangeFull, RangeInclusive, RangeTo,
+    RangeToInclusive,
+};
 use uv::{uv_buf_init, uv_buf_t};
 
 /// When trying to convert an empty Buf to a string.
@@ -97,6 +101,105 @@ impl Inner<*const uv_buf_t> for ReadonlyBuf {
     }
 }
 
+impl Index<usize> for ReadonlyBuf {
+    type Output = u8;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        let len = if self.is_allocated() {
+            unsafe { (*self.buf).len }
+        } else {
+            0
+        };
+        if len <= index {
+            panic!("index {} out of range for Buf of length {}", index, len);
+        }
+        unsafe { &*((*self.buf).base.add(index) as *const u8) }
+    }
+}
+
+/// Utility function to implement all of the Index<RangeX> traits. Unfortunately, I cannot just
+/// impl Index<I: RangeBounds<usize>> for ReadonlyBuf because that precludes an implementation for
+/// usize alone.
+fn range_from_readonlybuf<I>(buf: &ReadonlyBuf, index: I) -> &[u8]
+where
+    I: RangeBounds<usize>,
+{
+    let len = if buf.is_allocated() {
+        unsafe { (*buf.buf).len }
+    } else {
+        0
+    };
+
+    let start = match index.start_bound() {
+        Bound::Included(i) => *i,
+        Bound::Excluded(i) => *i + 1,
+        Bound::Unbounded => 0,
+    };
+    let end = match index.end_bound() {
+        Bound::Included(i) => *i + 1,
+        Bound::Excluded(i) => *i,
+        Bound::Unbounded => len,
+    };
+
+    if start > end {
+        panic!("Buf index starts at {} but ends at {}", start, end);
+    }
+
+    if len <= end {
+        panic!("index {} out of range for Buf of length {}", end, len);
+    }
+
+    unsafe { std::slice::from_raw_parts((*buf.buf).base.add(start) as *const u8, end - start) }
+}
+
+impl Index<Range<usize>> for ReadonlyBuf {
+    type Output = [u8];
+
+    fn index(&self, index: Range<usize>) -> &Self::Output {
+        range_from_readonlybuf(self, index)
+    }
+}
+
+impl Index<RangeFrom<usize>> for ReadonlyBuf {
+    type Output = [u8];
+
+    fn index(&self, index: RangeFrom<usize>) -> &Self::Output {
+        range_from_readonlybuf(self, index)
+    }
+}
+
+impl Index<RangeFull> for ReadonlyBuf {
+    type Output = [u8];
+
+    fn index(&self, index: RangeFull) -> &Self::Output {
+        range_from_readonlybuf(self, index)
+    }
+}
+
+impl Index<RangeInclusive<usize>> for ReadonlyBuf {
+    type Output = [u8];
+
+    fn index(&self, index: RangeInclusive<usize>) -> &Self::Output {
+        range_from_readonlybuf(self, index)
+    }
+}
+
+impl Index<RangeTo<usize>> for ReadonlyBuf {
+    type Output = [u8];
+
+    fn index(&self, index: RangeTo<usize>) -> &Self::Output {
+        range_from_readonlybuf(self, index)
+    }
+}
+
+impl Index<RangeToInclusive<usize>> for ReadonlyBuf {
+    type Output = [u8];
+
+    fn index(&self, index: RangeToInclusive<usize>) -> &Self::Output {
+        range_from_readonlybuf(self, index)
+    }
+}
+
 /// Buffer data type.
 #[derive(Clone, Copy)]
 pub struct Buf {
@@ -116,15 +219,20 @@ impl Buf {
 
     /// Create a new Buf with the given string
     pub fn new(s: &str) -> Result<Buf, Box<dyn std::error::Error>> {
-        let bytes = s.as_bytes().len();
-        let len = bytes + 1;
-        let base = Buf::alloc(len)?;
+        Buf::new_from_bytes(s.as_bytes())
+    }
+
+    /// Create a new Buf from the given byte slice
+    pub fn new_from_bytes(bytes: &[u8]) -> Result<Buf, Box<dyn std::error::Error>> {
+        let len = bytes.len();
+        let buflen = len + 1;
+        let base = Buf::alloc(buflen)?;
         unsafe {
-            base.copy_from_nonoverlapping(s.as_ptr() as _, bytes);
-            base.add(bytes).write(0);
+            base.copy_from_nonoverlapping(bytes.as_ptr() as _, len);
+            base.add(len).write(0);
         }
 
-        let buf = Box::new(unsafe { uv_buf_init(base, len as _) });
+        let buf = Box::new(unsafe { uv_buf_init(base, buflen as _) });
         Ok(Box::into_raw(buf).into_inner())
     }
 
@@ -298,10 +406,11 @@ where
         // functions like uv_write, uv_udf_send, etc expect an array of uv_buf_t objects, *not* an
         // array of pointers. So, we need to create a Vec of copies of the data from the
         // dereferenced pointers.
-        let mut bufs: std::mem::ManuallyDrop<Vec<uv::uv_buf_t>> = std::mem::ManuallyDrop::new(bufs
-            .iter()
-            .map(|b| unsafe { *b.readonly().inner() }.clone())
-            .collect());
+        let mut bufs: std::mem::ManuallyDrop<Vec<uv::uv_buf_t>> = std::mem::ManuallyDrop::new(
+            bufs.iter()
+                .map(|b| unsafe { *b.readonly().inner() }.clone())
+                .collect(),
+        );
         let bufs_ptr = bufs.as_mut_ptr();
         let bufs_len = bufs.len();
         let bufs_capacity = bufs.capacity();
