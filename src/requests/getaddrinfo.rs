@@ -4,7 +4,7 @@ use uv::{addrinfo, uv_freeaddrinfo, uv_getaddrinfo, uv_getaddrinfo_t};
 
 /// Additional data stored on the request
 pub(crate) struct GetAddrInfoDataFields {
-    cb: Option<Box<dyn FnMut(GetAddrInfoReq, crate::Result<i32>, crate::AddrInfo)>>,
+    cb: Option<Box<dyn FnMut(GetAddrInfoReq, crate::Result<i32>, Vec<crate::AddrInfo>)>>,
 }
 
 /// Callback for uv_getaddrinfo
@@ -19,7 +19,8 @@ extern "C" fn uv_getaddrinfo_cb(req: *mut uv_getaddrinfo_t, status: i32, res: *m
                     } else {
                         Ok(status)
                     };
-                    f(req.into_inner(), status, res.into_inner());
+                    let res = res.into_inner();
+                    f(req.into_inner(), status, res);
                 }
             }
         }
@@ -28,6 +29,8 @@ extern "C" fn uv_getaddrinfo_cb(req: *mut uv_getaddrinfo_t, status: i32, res: *m
     // free memory
     let mut req = GetAddrInfoReq::from_inner(req);
     req.destroy();
+
+    unsafe { uv_freeaddrinfo(res) };
 }
 
 /// GetAddrInfo request type
@@ -38,7 +41,7 @@ pub struct GetAddrInfoReq {
 impl GetAddrInfoReq {
     /// Create a new GetAddrInfo request
     pub fn new(
-        cb: Option<impl FnMut(GetAddrInfoReq, crate::Result<i32>, crate::AddrInfo) + 'static>,
+        cb: Option<impl FnMut(GetAddrInfoReq, crate::Result<i32>, Vec<crate::AddrInfo>) + 'static>,
     ) -> crate::Result<GetAddrInfoReq> {
         let layout = std::alloc::Layout::new::<uv_getaddrinfo_t>();
         let req = unsafe { std::alloc::alloc(layout) as *mut uv_getaddrinfo_t };
@@ -58,7 +61,8 @@ impl GetAddrInfoReq {
     /// Frees memory associated with this request
     pub fn destroy(&mut self) {
         if !self.req.is_null() {
-            unsafe { uv_freeaddrinfo((*self.req).addrinfo) };
+            // do I need this?
+            // unsafe { uv_freeaddrinfo((*self.req).addrinfo) };
             crate::Req::free_data(uv_handle!(self.req));
 
             let layout = std::alloc::Layout::new::<uv_getaddrinfo_t>();
@@ -68,9 +72,14 @@ impl GetAddrInfoReq {
     }
 
     /// Retrieve an iterator of AddrInfo responses
-    pub fn addrinfos(self) -> AddrInfoIter {
+    pub fn addrinfos(self) -> Vec<crate::AddrInfo> {
         let ai = unsafe { (*self.req).addrinfo };
-        AddrInfoIter { req: self, ai }
+        ai.into_inner()
+    }
+
+    /// The loop
+    pub fn r#loop(&self) -> crate::Loop {
+        unsafe { (*self.req).loop_.into_inner() }
     }
 }
 
@@ -106,33 +115,6 @@ impl crate::ToReq for GetAddrInfoReq {
 
 impl crate::ReqTrait for GetAddrInfoReq {}
 
-pub struct AddrInfoIter {
-    req: GetAddrInfoReq,
-    ai: *mut addrinfo,
-}
-
-impl Iterator for AddrInfoIter {
-    type Item = crate::AddrInfo;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.ai.is_null() {
-            return None;
-        }
-
-        let ai = self.ai.into_inner();
-        self.ai = unsafe { (*self.ai).ai_next };
-        Some(ai)
-    }
-}
-
-impl std::iter::FusedIterator for AddrInfoIter {}
-
-impl Drop for AddrInfoIter {
-    fn drop(&mut self) {
-        self.req.destroy();
-    }
-}
-
 impl crate::Loop {
     /// Private implementation for getaddrinfo()
     fn _getaddrinfo(
@@ -140,7 +122,7 @@ impl crate::Loop {
         node: Option<&str>,
         service: Option<&str>,
         hints: Option<crate::AddrInfo>,
-        cb: Option<impl FnMut(GetAddrInfoReq, crate::Result<i32>, crate::AddrInfo) + 'static>,
+        cb: Option<impl FnMut(GetAddrInfoReq, crate::Result<i32>, Vec<crate::AddrInfo>) + 'static>,
     ) -> Result<GetAddrInfoReq, Box<dyn std::error::Error>> {
         let uv_cb = cb.as_ref().map(|_| uv_getaddrinfo_cb as _);
         let node = node.map(CString::new).transpose()?;
@@ -187,7 +169,7 @@ impl crate::Loop {
         node: Option<&str>,
         service: Option<&str>,
         hints: Option<crate::AddrInfo>,
-        cb: impl FnMut(GetAddrInfoReq, crate::Result<i32>, crate::AddrInfo) + 'static,
+        cb: impl FnMut(GetAddrInfoReq, crate::Result<i32>, Vec<crate::AddrInfo>) + 'static,
     ) -> Result<GetAddrInfoReq, Box<dyn std::error::Error>> {
         self._getaddrinfo(node, service, hints, Some(cb))
     }
@@ -205,7 +187,7 @@ impl crate::Loop {
         node: Option<&str>,
         service: Option<&str>,
         hints: Option<crate::AddrInfo>,
-    ) -> Result<AddrInfoIter, Box<dyn std::error::Error>> {
+    ) -> Result<Vec<crate::AddrInfo>, Box<dyn std::error::Error>> {
         self._getaddrinfo(node, service, hints, None::<fn(_, _, _)>)
             .map(|req| req.addrinfos())
     }

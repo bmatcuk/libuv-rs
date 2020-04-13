@@ -1,4 +1,5 @@
 use crate::{FromInner, IntoInner};
+use std::net::SocketAddr;
 use uv::addrinfo;
 
 pub struct AddrInfo {
@@ -16,7 +17,9 @@ pub struct AddrInfo {
 
     /// The canonical name of the host
     pub canonical_name: Option<String>,
-    // pub addr: SocketAddr,
+
+    /// The address info, filled in by getaddrinfo()
+    pub addr: Option<SocketAddr>,
 }
 
 impl FromInner<*mut addrinfo> for AddrInfo {
@@ -31,12 +34,18 @@ impl FromInner<*mut addrinfo> for AddrInfo {
                         .into_owned(),
                 )
             };
+            let addr = if (*info).ai_addr.is_null() {
+                None
+            } else {
+                crate::build_socketaddr((*info).ai_addr).ok()
+            };
             AddrInfo {
                 flags: (*info).ai_flags as _,
                 family: (*info).ai_family as _,
                 socktype: (*info).ai_socktype as _,
                 protocol: (*info).ai_protocol as _,
                 canonical_name,
+                addr,
             }
         }
     }
@@ -50,5 +59,17 @@ impl IntoInner<addrinfo> for AddrInfo {
         ai.ai_socktype = self.socktype as _;
         ai.ai_protocol = self.protocol as _;
         ai
+    }
+}
+
+impl FromInner<*mut addrinfo> for Vec<AddrInfo> {
+    fn from_inner(info: *mut addrinfo) -> Vec<AddrInfo> {
+        let mut v = Vec::new();
+        let mut current = info;
+        while !current.is_null() {
+            v.push(current.into_inner());
+            unsafe { current = (*current).ai_next };
+        }
+        return v
     }
 }
