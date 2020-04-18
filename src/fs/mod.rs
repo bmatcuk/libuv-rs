@@ -40,8 +40,8 @@ pub use timespec::*;
 
 type FsReqResult = crate::Result<FsReq>;
 type FsReqErrResult = Result<FsReq, Box<dyn std::error::Error>>;
-type SyncResult = crate::Result<isize>;
-type SyncErrResult = Result<isize, Box<dyn std::error::Error>>;
+type SyncResult = crate::Result<usize>;
+type SyncErrResult = Result<usize, Box<dyn std::error::Error>>;
 
 /// Cross platform representation of a file handle.
 pub type File = i32;

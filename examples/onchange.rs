@@ -19,7 +19,7 @@ fn run_command(
     handle: FsEventHandle,
     filename: Option<Cow<str>>,
     events: FsEvent,
-    status: libuv::Result<i32>,
+    status: libuv::Result<u32>,
 ) {
     if let Err(e) = status {
         eprintln!(

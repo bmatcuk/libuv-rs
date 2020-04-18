@@ -6,7 +6,7 @@ pub(crate) struct WriteDataFields {
     bufs_ptr: *mut uv::uv_buf_t,
     bufs_len: usize,
     bufs_capacity: usize,
-    write_cb: Option<Box<dyn FnMut(WriteReq, crate::Result<i32>)>>,
+    write_cb: Option<Box<dyn FnMut(WriteReq, crate::Result<u32>)>>,
 }
 
 /// Callback for uv_write/uv_write2
@@ -19,7 +19,7 @@ pub(crate) extern "C" fn uv_write_cb(req: *mut uv_write_t, status: std::os::raw:
                     let status = if status < 0 {
                         Err(crate::Error::from_inner(status as uv::uv_errno_t))
                     } else {
-                        Ok(status)
+                        Ok(status as _)
                     };
                     f(req.into_inner(), status);
                 }
@@ -48,7 +48,7 @@ impl WriteReq {
     /// Create a new write request
     pub fn new(
         bufs: &[impl crate::BufTrait],
-        cb: Option<impl FnMut(WriteReq, crate::Result<i32>) + 'static>,
+        cb: Option<impl FnMut(WriteReq, crate::Result<u32>) + 'static>,
     ) -> crate::Result<WriteReq> {
         let layout = std::alloc::Layout::new::<uv_write_t>();
         let req = unsafe { std::alloc::alloc(layout) as *mut uv_write_t };
@@ -69,6 +69,16 @@ impl WriteReq {
         );
 
         Ok(WriteReq { req, bufs_ptr })
+    }
+
+    /// The stream where this connection request is running
+    pub fn handle(&self) -> crate::StreamHandle {
+        unsafe { (*self.req).handle }.into_inner()
+    }
+
+    /// The stream being sent using this write request
+    pub fn send_handle(&self) -> crate::StreamHandle {
+        unsafe { (*self.req).send_handle }.into_inner()
     }
 
     /// Deallocate the WriteReq - this is done automatically in the write callback.

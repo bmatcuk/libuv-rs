@@ -119,6 +119,11 @@ impl SignalHandle {
     pub fn stop(&mut self) -> crate::Result<()> {
         crate::uvret(unsafe { uv_signal_stop(self.handle) })
     }
+
+    /// Signal being monitored by this handle.
+    pub fn signum(&self) -> i32 {
+        unsafe { (*self.handle).signum }
+    }
 }
 
 impl FromInner<*mut uv_signal_t> for SignalHandle {

@@ -8,8 +8,8 @@ use uv::{
 /// Additional data to store on the handle
 pub(crate) struct StreamDataFields {
     pub(crate) alloc_cb: Option<Box<dyn FnMut(crate::Handle, usize) -> Option<crate::Buf>>>,
-    connection_cb: Option<Box<dyn FnMut(StreamHandle, crate::Result<i32>)>>,
-    read_cb: Option<Box<dyn FnMut(StreamHandle, crate::Result<isize>, crate::ReadonlyBuf)>>,
+    connection_cb: Option<Box<dyn FnMut(StreamHandle, crate::Result<u32>)>>,
+    read_cb: Option<Box<dyn FnMut(StreamHandle, crate::Result<usize>, crate::ReadonlyBuf)>>,
     pub(crate) addl: super::AddlStreamData,
 }
 
@@ -48,7 +48,7 @@ extern "C" fn uv_connection_cb(stream: *mut uv_stream_t, status: std::os::raw::c
                 let status = if status < 0 {
                     Err(crate::Error::from_inner(status as uv::uv_errno_t))
                 } else {
-                    Ok(status)
+                    Ok(status as _)
                 };
                 f(stream.into_inner(), status);
             }
@@ -65,7 +65,7 @@ extern "C" fn uv_read_cb(stream: *mut uv_stream_t, nread: isize, buf: *const uv:
                 let nread = if nread < 0 {
                     Err(crate::Error::from_inner(nread as uv::uv_errno_t))
                 } else {
-                    Ok(nread)
+                    Ok(nread as _)
                 };
                 f(stream.into_inner(), nread, buf.into_inner());
             }
@@ -155,7 +155,7 @@ pub trait StreamTrait: ToStream {
     /// shutdown is complete at which point the returned ShutdownReq is automatically destroy()'d.
     fn shutdown(
         &mut self,
-        cb: Option<impl FnMut(crate::ShutdownReq, crate::Result<i32>) + 'static>,
+        cb: Option<impl FnMut(crate::ShutdownReq, crate::Result<u32>) + 'static>,
     ) -> crate::Result<crate::ShutdownReq> {
         let mut req = crate::ShutdownReq::new(cb)?;
         let result = crate::uvret(unsafe {
@@ -174,7 +174,7 @@ pub trait StreamTrait: ToStream {
     fn listen(
         &mut self,
         backlog: i32,
-        cb: Option<impl FnMut(StreamHandle, crate::Result<i32>) + 'static>,
+        cb: Option<impl FnMut(StreamHandle, crate::Result<u32>) + 'static>,
     ) -> crate::Result<()> {
         // uv_cb is either Some(connection_cb) or None
         let uv_cb = cb.as_ref().map(|_| uv_connection_cb as _);
@@ -208,7 +208,7 @@ pub trait StreamTrait: ToStream {
         &mut self,
         alloc_cb: Option<impl FnMut(crate::Handle, usize) -> Option<crate::Buf> + 'static>,
         read_cb: Option<
-            impl FnMut(StreamHandle, crate::Result<isize>, crate::ReadonlyBuf) + 'static,
+            impl FnMut(StreamHandle, crate::Result<usize>, crate::ReadonlyBuf) + 'static,
         >,
     ) -> crate::Result<()> {
         // uv_alloc_cb is either Some(alloc_cb) or None
@@ -245,7 +245,7 @@ pub trait StreamTrait: ToStream {
     fn write(
         &mut self,
         bufs: &[impl crate::BufTrait],
-        cb: Option<impl FnMut(crate::WriteReq, crate::Result<i32>) + 'static>,
+        cb: Option<impl FnMut(crate::WriteReq, crate::Result<u32>) + 'static>,
     ) -> crate::Result<crate::WriteReq> {
         let mut req = crate::WriteReq::new(bufs, cb)?;
         let result = crate::uvret(unsafe {
@@ -275,7 +275,7 @@ pub trait StreamTrait: ToStream {
         &mut self,
         send_handle: &StreamHandle,
         bufs: &[impl crate::BufTrait],
-        cb: Option<impl FnMut(crate::WriteReq, crate::Result<i32>) + 'static>,
+        cb: Option<impl FnMut(crate::WriteReq, crate::Result<u32>) + 'static>,
     ) -> crate::Result<crate::WriteReq> {
         let mut req = crate::WriteReq::new(bufs, cb)?;
         let result = crate::uvret(unsafe {

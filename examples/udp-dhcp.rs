@@ -10,7 +10,7 @@ fn alloc_buffer(_: Handle, suggested_size: usize) -> Option<Buf> {
 
 fn on_read(
     mut handle: UdpHandle,
-    nread: libuv::Result<isize>,
+    nread: libuv::Result<usize>,
     mut buf: ReadonlyBuf,
     addr: SocketAddr,
     _flags: UdpBindFlags,

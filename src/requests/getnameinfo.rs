@@ -5,7 +5,7 @@ use uv::{uv_getnameinfo, uv_getnameinfo_t};
 
 /// Additional data stored on the request
 pub(crate) struct GetNameInfoDataFields {
-    cb: Option<Box<dyn FnMut(GetNameInfoReq, crate::Result<i32>, String, String)>>,
+    cb: Option<Box<dyn FnMut(GetNameInfoReq, crate::Result<u32>, String, String)>>,
 }
 
 /// Callback for uv_getnameinfo
@@ -25,7 +25,7 @@ extern "C" fn uv_getnameinfo_cb(
                     let status = if status < 0 {
                         Err(crate::Error::from_inner(status as uv::uv_errno_t))
                     } else {
-                        Ok(status)
+                        Ok(status as _)
                     };
                     f(req.into_inner(), status, hostname, service);
                 }
@@ -46,7 +46,7 @@ pub struct GetNameInfoReq {
 impl GetNameInfoReq {
     /// Create a new GetNameInfo request
     pub fn new(
-        cb: Option<impl FnMut(GetNameInfoReq, crate::Result<i32>, String, String) + 'static>,
+        cb: Option<impl FnMut(GetNameInfoReq, crate::Result<u32>, String, String) + 'static>,
     ) -> crate::Result<GetNameInfoReq> {
         let layout = std::alloc::Layout::new::<uv_getnameinfo_t>();
         let req = unsafe { std::alloc::alloc(layout) as *mut uv_getnameinfo_t };
@@ -61,6 +61,11 @@ impl GetNameInfoReq {
         );
 
         Ok(GetNameInfoReq { req })
+    }
+
+    /// Loop that started this getnameinfo request and where completion will be reported.
+    pub fn r#loop(&self) -> crate::Loop {
+        unsafe { (*self.req).loop_ }.into_inner()
     }
 
     /// Returns the host result
@@ -134,7 +139,7 @@ impl crate::Loop {
         &self,
         addr: &SocketAddr,
         flags: u32,
-        cb: Option<impl FnMut(GetNameInfoReq, crate::Result<i32>, String, String) + 'static>,
+        cb: Option<impl FnMut(GetNameInfoReq, crate::Result<u32>, String, String) + 'static>,
     ) -> crate::Result<GetNameInfoReq> {
         let mut sockaddr: uv::sockaddr = unsafe { std::mem::zeroed() };
         crate::fill_sockaddr(&mut sockaddr, addr);
@@ -166,7 +171,7 @@ impl crate::Loop {
         &self,
         addr: &SocketAddr,
         flags: u32,
-        cb: impl FnMut(GetNameInfoReq, crate::Result<i32>, String, String) + 'static,
+        cb: impl FnMut(GetNameInfoReq, crate::Result<u32>, String, String) + 'static,
     ) -> crate::Result<GetNameInfoReq> {
         self._getnameinfo(addr, flags, Some(cb))
     }

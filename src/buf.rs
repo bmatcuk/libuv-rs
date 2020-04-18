@@ -70,7 +70,8 @@ impl ReadonlyBuf {
         }
     }
 
-    /// Convert the Buf to a CStr. Returns an error if the Buf is empty.
+    /// Convert the Buf to a CStr. Returns an error if the Buf is empty. Data contained within the
+    /// ReadonlyBuf must be null-terminated or this will fail!
     pub fn as_c_str(&self) -> Result<&'_ CStr, EmptyBufError> {
         let ptr: *const uv_buf_t = self.inner();
         unsafe {
@@ -82,10 +83,25 @@ impl ReadonlyBuf {
         }
     }
 
-    /// Convert the Buf to a string. Returns an error if the Buf is empty.
+    /// Convert the Buf to a string. Returns an error if the Buf is empty. Data contained within
+    /// the ReadonlyBuf must be null-terminated or this will fail!
     pub fn to_string_lossy(&self) -> Result<Cow<'_, str>, EmptyBufError> {
         let cstr: &CStr = self.as_c_str()?;
         Ok(cstr.to_string_lossy())
+    }
+
+    /// Convert data in the Buf to a &str. Returns an error if the Buf is empty or the data is not
+    /// valid utf8. Data does _not_ need to be null-terminated because only the first `len` bytes
+    /// will be used to create the string.
+    pub fn to_str(&self, len: usize) -> Result<&str, Box<dyn std::error::Error>> {
+        let ptr: *const uv_buf_t = self.inner();
+        unsafe {
+            if (*ptr).base.is_null() {
+                Err(Box::new(EmptyBufError))
+            } else {
+                Ok(std::str::from_utf8(std::slice::from_raw_parts((*ptr).base as _, len))?)
+            }
+        }
     }
 }
 

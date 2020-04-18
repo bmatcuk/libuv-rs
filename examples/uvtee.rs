@@ -33,7 +33,7 @@ fn read_stdin(
     mut stdin_pipe: StreamHandle,
     stdout_pipe: &mut PipeHandle,
     file_pipe: &mut PipeHandle,
-    nread: libuv::Result<isize>,
+    nread: libuv::Result<usize>,
     mut buf: ReadonlyBuf,
 ) {
     match nread {

@@ -41,7 +41,7 @@ pub(crate) struct UdpDataFields {
         Box<
             dyn FnMut(
                 UdpHandle,
-                crate::Result<isize>,
+                crate::Result<usize>,
                 crate::ReadonlyBuf,
                 SocketAddr,
                 UdpBindFlags,
@@ -67,7 +67,7 @@ extern "C" fn uv_udp_recv_cb(
                     let nread = if nread < 0 {
                         Err(crate::Error::from_inner(nread as uv::uv_errno_t))
                     } else {
-                        Ok(nread)
+                        Ok(nread as _)
                     };
                     f(
                         handle.into_inner(),
@@ -278,7 +278,7 @@ impl UdpHandle {
         &self,
         addr: Option<&SocketAddr>,
         bufs: &[impl crate::BufTrait],
-        cb: Option<impl FnMut(crate::UdpSendReq, crate::Result<i32>) + 'static>,
+        cb: Option<impl FnMut(crate::UdpSendReq, crate::Result<u32>) + 'static>,
     ) -> crate::Result<crate::UdpSendReq> {
         let mut req = crate::UdpSendReq::new(bufs, cb)?;
         let mut sockaddr: uv::sockaddr = unsafe { std::mem::zeroed() };
@@ -337,7 +337,7 @@ impl UdpHandle {
         &mut self,
         alloc_cb: Option<impl FnMut(crate::Handle, usize) -> Option<crate::Buf> + 'static>,
         recv_cb: Option<
-            impl FnMut(UdpHandle, crate::Result<isize>, crate::ReadonlyBuf, SocketAddr, UdpBindFlags)
+            impl FnMut(UdpHandle, crate::Result<usize>, crate::ReadonlyBuf, SocketAddr, UdpBindFlags)
                 + 'static,
         >,
     ) -> crate::Result<()> {

@@ -6,7 +6,7 @@ pub(crate) struct UdpSendDataFields {
     bufs_ptr: *mut uv::uv_buf_t,
     bufs_len: usize,
     bufs_capacity: usize,
-    udp_send_cb: Option<Box<dyn FnMut(UdpSendReq, crate::Result<i32>)>>,
+    udp_send_cb: Option<Box<dyn FnMut(UdpSendReq, crate::Result<u32>)>>,
 }
 
 /// Callback for uv_udp_send
@@ -19,7 +19,7 @@ pub(crate) extern "C" fn uv_udp_send_cb(req: *mut uv_udp_send_t, status: std::os
                     let status = if status < 0 {
                         Err(crate::Error::from_inner(status as uv::uv_errno_t))
                     } else {
-                        Ok(status)
+                        Ok(status as _)
                     };
                     f(req.into_inner(), status);
                 }
@@ -44,7 +44,7 @@ impl UdpSendReq {
     /// Create a new udp send request
     pub fn new(
         bufs: &[impl crate::BufTrait],
-        cb: Option<impl FnMut(UdpSendReq, crate::Result<i32>) + 'static>,
+        cb: Option<impl FnMut(UdpSendReq, crate::Result<u32>) + 'static>,
     ) -> crate::Result<UdpSendReq> {
         let layout = std::alloc::Layout::new::<uv_udp_send_t>();
         let req = unsafe { std::alloc::alloc(layout) as *mut uv_udp_send_t };
@@ -65,6 +65,11 @@ impl UdpSendReq {
         );
 
         Ok(UdpSendReq { req, bufs_ptr })
+    }
+
+    /// UDP handle where this send request is taking place.
+    pub fn handle(&self) -> crate::UdpHandle {
+        unsafe { (*self.req).handle }.into_inner()
     }
 
     pub fn destroy(&mut self) {

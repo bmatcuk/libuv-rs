@@ -4,7 +4,7 @@ use uv::{uv_queue_work, uv_work_t};
 /// Additional data stored on the request
 pub(crate) struct WorkDataFields {
     work_cb: Option<Box<dyn FnMut(WorkReq)>>,
-    after_work_cb: Option<Box<dyn FnMut(WorkReq, crate::Result<i32>)>>,
+    after_work_cb: Option<Box<dyn FnMut(WorkReq, crate::Result<u32>)>>,
 }
 
 /// Callback for uv_queue_work
@@ -30,7 +30,7 @@ extern "C" fn uv_after_work_cb(req: *mut uv_work_t, status: i32) {
                     let status = if status < 0 {
                         Err(crate::Error::from_inner(status as uv::uv_errno_t))
                     } else {
-                        Ok(status)
+                        Ok(status as _)
                     };
                     f(req.into_inner(), status);
                 }
@@ -52,7 +52,7 @@ impl WorkReq {
     /// Create a new work request
     pub fn new(
         work_cb: Option<impl FnMut(WorkReq) + 'static>,
-        after_work_cb: Option<impl FnMut(WorkReq, crate::Result<i32>) + 'static>,
+        after_work_cb: Option<impl FnMut(WorkReq, crate::Result<u32>) + 'static>,
     ) -> crate::Result<WorkReq> {
         let layout = std::alloc::Layout::new::<uv_work_t>();
         let req = unsafe { std::alloc::alloc(layout) as *mut uv_work_t };
@@ -71,6 +71,11 @@ impl WorkReq {
         );
 
         Ok(WorkReq { req })
+    }
+
+    /// Loop that started this request and where completion will be reported
+    pub fn r#loop(&self) -> crate::Loop {
+        unsafe { (*self.req).loop_ }.into_inner()
     }
 
     pub fn destroy(&mut self) {
@@ -121,7 +126,7 @@ impl crate::Loop {
     pub fn queue_work(
         &self,
         work_cb: Option<impl FnMut(WorkReq) + 'static>,
-        after_work_cb: Option<impl FnMut(WorkReq, crate::Result<i32>) + 'static>,
+        after_work_cb: Option<impl FnMut(WorkReq, crate::Result<u32>) + 'static>,
     ) -> crate::Result<WorkReq> {
         let uv_work_cb = work_cb.as_ref().map(|_| uv_work_cb as _);
         let mut req = WorkReq::new(work_cb, after_work_cb)?;

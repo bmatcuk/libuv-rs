@@ -10,14 +10,14 @@ fn alloc_buffer(_: Handle, suggested_size: usize) -> Option<Buf> {
     Buf::with_capacity(suggested_size).ok()
 }
 
-fn echo_write(mut buf: ReadonlyBuf, status: libuv::Result<i32>) {
+fn echo_write(mut buf: ReadonlyBuf, status: libuv::Result<u32>) {
     if let Err(e) = status {
         eprintln!("Write error {}", e);
     }
     buf.dealloc();
 }
 
-fn echo_read(mut client: StreamHandle, nread: libuv::Result<isize>, buf: ReadonlyBuf) {
+fn echo_read(mut client: StreamHandle, nread: libuv::Result<usize>, buf: ReadonlyBuf) {
     match nread {
         Ok(len) => {
             if len > 0 {

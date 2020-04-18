@@ -59,12 +59,12 @@ impl FsReq {
     }
 
     /// Returns the result from the request
-    pub fn result(&self) -> crate::Result<isize> {
+    pub fn result(&self) -> crate::Result<usize> {
         let result = unsafe { uv_fs_get_result(self.req) };
         if result < 0 {
             Err(crate::Error::from_inner(result as uv::uv_errno_t))
         } else {
-            Ok(result)
+            Ok(result as _)
         }
     }
 

@@ -1,9 +1,47 @@
 extern crate libuv;
 use libuv::prelude::*;
-use libuv::{AddrInfo, GetAddrInfoReq};
+use libuv::{AddrInfo, Buf, ConnectReq, GetAddrInfoReq, ReadonlyBuf};
 use libuv_sys2::{AF_INET, SOCK_STREAM, IPPROTO_TCP};
 
-fn on_resolved(req: GetAddrInfoReq, status: libuv::Result<i32>, res: Vec<AddrInfo>) {
+fn alloc_buffer(_: Handle, suggested_size: usize) -> Option<Buf> {
+    Buf::with_capacity(suggested_size).ok()
+}
+
+fn on_read(mut client: StreamHandle, nread: libuv::Result<usize>, mut buf: ReadonlyBuf) {
+    match nread {
+        Ok(len) => {
+            if let Err(e) = client.read_stop() {
+                eprintln!("cannot stop read {}", e);
+            }
+
+            match buf.to_str(len) {
+                Ok(s) => println!("{}", s),
+                Err(e) => eprintln!("couldn't convert to string {}", e)
+            }
+        },
+        Err(e) => {
+            if e != libuv::Error::EOF {
+                eprintln!("Read error {}", e);
+            }
+            client.close(None::<fn(_)>);
+        }
+    }
+
+    buf.dealloc();
+}
+
+fn on_connect(req: ConnectReq, status: libuv::Result<u32>) {
+    match status {
+        Ok(_) => {
+            if let Err(e) = req.handle().read_start(Some(alloc_buffer), Some(on_read)) {
+                eprintln!("error starting read {}", e)
+            }
+        },
+        Err(e) => eprintln!("connect failed error {}", e)
+    }
+}
+
+fn on_resolved(req: GetAddrInfoReq, status: libuv::Result<u32>, res: Vec<AddrInfo>) {
     if let Err(e) = status {
         eprintln!("getaddrinfo callback error {}", e);
         return;
@@ -13,9 +51,9 @@ fn on_resolved(req: GetAddrInfoReq, status: libuv::Result<i32>, res: Vec<AddrInf
         if let Some(addr) = info.addr {
             println!("{}", addr);
 
-            let mut socket = req.r#loop().tcp();
+            let socket = req.r#loop().tcp();
             match socket {
-                Ok(socket) => {
+                Ok(mut socket) => {
                     if let Err(e) = socket.connect(&addr, Some(on_connect)) {
                         eprintln!("error connecting socket: {}", e);
                     }

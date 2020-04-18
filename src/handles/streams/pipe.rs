@@ -71,7 +71,7 @@ impl PipeHandle {
     pub fn connect(
         &mut self,
         name: &str,
-        cb: Option<impl FnMut(crate::ConnectReq, crate::Result<i32>) + 'static>,
+        cb: Option<impl FnMut(crate::ConnectReq, crate::Result<u32>) + 'static>,
     ) -> Result<crate::ConnectReq, Box<dyn std::error::Error>> {
         let req = crate::ConnectReq::new(cb)?;
         let name = CString::new(name)?;
@@ -143,6 +143,13 @@ impl PipeHandle {
     /// WRITABLE | READABLE. This function is blocking.
     pub fn chmod(&mut self, flags: ChmodFlags) -> crate::Result<()> {
         crate::uvret(unsafe { uv_pipe_chmod(self.handle, flags.bits()) })
+    }
+
+    /// Whether this pipe is suitable for handle passing between processes. Only a connected pipe
+    /// that will be passing the handles should have this flag set, not the listening pipe that
+    /// accept() is called on
+    pub fn ipc(&self) -> bool {
+        unsafe { (*self.handle).ipc != 0 }
     }
 }
 

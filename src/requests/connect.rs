@@ -3,7 +3,7 @@ use uv::uv_connect_t;
 
 /// Additional data stored on the request
 pub(crate) struct ConnectDataFields {
-    connect_cb: Option<Box<dyn FnMut(ConnectReq, crate::Result<i32>)>>,
+    connect_cb: Option<Box<dyn FnMut(ConnectReq, crate::Result<u32>)>>,
 }
 
 /// Callback for uv_tcp_connect
@@ -16,7 +16,7 @@ pub(crate) extern "C" fn uv_connect_cb(req: *mut uv_connect_t, status: std::os::
                     let status = if status < 0 {
                         Err(crate::Error::from_inner(status as uv::uv_errno_t))
                     } else {
-                        Ok(status)
+                        Ok(status as _)
                     };
                     f(req.into_inner(), status);
                 }
@@ -37,7 +37,7 @@ pub struct ConnectReq {
 impl ConnectReq {
     /// Create a new connect request
     pub fn new(
-        cb: Option<impl FnMut(ConnectReq, crate::Result<i32>) + 'static>,
+        cb: Option<impl FnMut(ConnectReq, crate::Result<u32>) + 'static>,
     ) -> crate::Result<ConnectReq> {
         let layout = std::alloc::Layout::new::<uv_connect_t>();
         let req = unsafe { std::alloc::alloc(layout) as *mut uv_connect_t };
@@ -52,6 +52,11 @@ impl ConnectReq {
         );
 
         Ok(ConnectReq { req })
+    }
+
+    /// The stream where this connection request is running
+    pub fn handle(&self) -> crate::StreamHandle {
+        unsafe { (*self.req).handle }.into_inner()
     }
 
     pub fn destroy(&mut self) {
