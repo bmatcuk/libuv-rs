@@ -78,6 +78,7 @@ pub(crate) extern "C" fn uv_close_cb(handle: *mut uv_handle_t) {
 }
 
 /// Handle is the base type for all libuv handle types.
+#[derive(Clone, Copy)]
 pub struct Handle {
     handle: *mut uv_handle_t,
 }

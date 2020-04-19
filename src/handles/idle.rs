@@ -29,6 +29,7 @@ extern "C" fn uv_idle_cb(handle: *mut uv_idle_t) {
 ///
 /// Warning: Despite the name, idle handles will get their callbacks called on every loop
 /// iteration, not when the loop is actually “idle”.
+#[derive(Clone, Copy)]
 pub struct IdleHandle {
     handle: *mut uv_idle_t,
 }

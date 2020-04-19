@@ -36,6 +36,7 @@ pub(crate) extern "C" fn uv_write_cb(req: *mut uv_write_t, status: std::os::raw:
 /// stream is in non-blocking mode, write requests sent with StreamHandle::write will be queued.
 /// Reusing objects at this point is undefined behaviour. It is safe to reuse the WriteReq object
 /// only after the callback passed to StreamHandle::write is fired.
+#[derive(Clone, Copy)]
 pub struct WriteReq {
     req: *mut uv_write_t,
 

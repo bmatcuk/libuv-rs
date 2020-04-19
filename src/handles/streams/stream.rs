@@ -76,6 +76,7 @@ extern "C" fn uv_read_cb(stream: *mut uv_stream_t, nread: isize, buf: *const uv:
 /// Stream handles provide an abstraction of a duplex communication channel. StreamHandle is an
 /// abstract type, libuv provides 3 stream implementations in the form of TcpHandle, PipeHandle and
 /// TtyHandle.
+#[derive(Clone, Copy)]
 pub struct StreamHandle {
     handle: *mut uv_stream_t,
 }

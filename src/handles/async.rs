@@ -23,6 +23,7 @@ extern "C" fn uv_async_cb(handle: *mut uv_async_t) {
 
 /// Async handles allow the user to “wakeup” the event loop and get a callback called from another
 /// thread.
+#[derive(Clone, Copy)]
 pub struct AsyncHandle {
     handle: *mut uv_async_t,
 }

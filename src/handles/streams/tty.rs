@@ -25,6 +25,7 @@ pub enum VTermState {
 }
 
 /// TTY handles represent a stream for the console.
+#[derive(Clone, Copy)]
 pub struct TtyHandle {
     handle: *mut uv_tty_t,
 }

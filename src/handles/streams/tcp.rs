@@ -24,6 +24,7 @@ bitflags! {
 }
 
 /// TCP handles are used to represent both TCP streams and servers.
+#[derive(Clone, Copy)]
 pub struct TcpHandle {
     handle: *mut uv_tcp_t,
 }

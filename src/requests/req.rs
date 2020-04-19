@@ -24,6 +24,7 @@ impl std::fmt::Display for ReqType {
 }
 
 /// Req is the base type for all libuv requests
+#[derive(Clone, Copy)]
 pub struct Req {
     req: *mut uv_req_t,
 }

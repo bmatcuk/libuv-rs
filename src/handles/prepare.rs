@@ -23,6 +23,7 @@ extern "C" fn uv_prepare_cb(handle: *mut uv_prepare_t) {
 
 /// Prepare handles will run the given callback once per loop iteration, right before polling for
 /// i/o.
+#[derive(Clone, Copy)]
 pub struct PrepareHandle {
     handle: *mut uv_prepare_t,
 }

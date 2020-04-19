@@ -44,6 +44,7 @@ extern "C" fn uv_after_work_cb(req: *mut uv_work_t, status: i32) {
 }
 
 /// Work request type.
+#[derive(Clone, Copy)]
 pub struct WorkReq {
     req: *mut uv_work_t,
 }

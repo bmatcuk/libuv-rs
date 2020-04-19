@@ -25,6 +25,7 @@ extern "C" fn uv_timer_cb(handle: *mut uv_timer_t) {
 }
 
 /// Timer handles are used to schedule callbacks to be called in the future.
+#[derive(Clone, Copy)]
 pub struct TimerHandle {
     handle: *mut uv_timer_t,
 }

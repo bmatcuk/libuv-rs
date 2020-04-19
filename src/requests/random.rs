@@ -36,6 +36,7 @@ extern "C" fn uv_random_cb(
 }
 
 /// Random data request type.
+#[derive(Clone, Copy)]
 pub struct RandomReq {
     req: *mut uv_random_t,
 }

@@ -32,6 +32,8 @@ pub(crate) extern "C" fn uv_udp_send_cb(req: *mut uv_udp_send_t, status: std::os
     req.destroy();
 }
 
+/// UDP Send request type
+#[derive(Clone, Copy)]
 pub struct UdpSendReq {
     req: *mut uv_udp_send_t,
 

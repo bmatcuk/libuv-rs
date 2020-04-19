@@ -34,6 +34,7 @@ extern "C" fn uv_getaddrinfo_cb(req: *mut uv_getaddrinfo_t, status: i32, res: *m
 }
 
 /// GetAddrInfo request type
+#[derive(Clone, Copy)]
 pub struct GetAddrInfoReq {
     req: *mut uv_getaddrinfo_t,
 }

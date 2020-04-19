@@ -29,6 +29,7 @@ pub(crate) extern "C" fn uv_fs_cb(req: *mut uv_fs_t) {
 }
 
 /// File system request type.
+#[derive(Clone, Copy)]
 pub struct FsReq {
     req: *mut uv_fs_t,
 }

@@ -83,6 +83,7 @@ extern "C" fn uv_udp_recv_cb(
 }
 
 /// UDP handles encapsulate UDP communication for both clients and servers.
+#[derive(Clone, Copy)]
 pub struct UdpHandle {
     handle: *mut uv_udp_t,
 }

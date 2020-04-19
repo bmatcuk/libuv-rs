@@ -30,6 +30,7 @@ pub(crate) extern "C" fn uv_shutdown_cb(req: *mut uv_shutdown_t, status: std::os
 }
 
 /// Shutdown request type.
+#[derive(Clone, Copy)]
 pub struct ShutdownReq {
     req: *mut uv_shutdown_t,
 }

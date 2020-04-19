@@ -101,6 +101,7 @@ extern "C" fn uv_fs_event_cb(
 ///
 /// The z/OS file system events monitoring infrastructure does not notify of file creation/deletion
 /// within a directory that is being monitored. See the IBM Knowledge centre for more details.
+#[derive(Clone, Copy)]
 pub struct FsEventHandle {
     handle: *mut uv_fs_event_t,
 }

@@ -40,6 +40,7 @@ extern "C" fn uv_fs_poll_cb(
 /// FS Poll handles allow the user to monitor a given path for changes. Unlike FsEventHandle, fs
 /// poll handles use stat to detect when a file has changed so they can work on file systems where
 /// fs event handles can’t.
+#[derive(Clone, Copy)]
 pub struct FsPollHandle {
     handle: *mut uv_fs_poll_t,
 }

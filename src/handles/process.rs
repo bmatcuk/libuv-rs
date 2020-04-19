@@ -149,6 +149,7 @@ pub struct ProcessOptions<'a> {
 
 /// Process handles will spawn a new process and allow the user to control it and establish
 /// communication channels with it using streams.
+#[derive(Clone, Copy)]
 pub struct ProcessHandle {
     handle: *mut uv_process_t,
 }

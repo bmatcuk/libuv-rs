@@ -30,6 +30,7 @@ pub(crate) extern "C" fn uv_connect_cb(req: *mut uv_connect_t, status: std::os::
 }
 
 /// Connect request type
+#[derive(Clone, Copy)]
 pub struct ConnectReq {
     req: *mut uv_connect_t,
 }

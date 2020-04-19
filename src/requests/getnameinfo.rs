@@ -39,6 +39,7 @@ extern "C" fn uv_getnameinfo_cb(
 }
 
 /// GetNameInfo request type
+#[derive(Clone, Copy)]
 pub struct GetNameInfoReq {
     req: *mut uv_getnameinfo_t,
 }

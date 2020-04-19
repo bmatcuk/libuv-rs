@@ -48,6 +48,7 @@ extern "C" fn uv_signal_cb(handle: *mut uv_signal_t, signum: std::os::raw::c_int
 ///   * On Linux SIGRT0 and SIGRT1 (signals 32 and 33) are used by the NPTL pthreads library to
 ///     manage threads. Installing watchers for those signals will lead to unpredictable behavior
 ///     and is strongly discouraged. Future versions of libuv may simply reject them.
+#[derive(Clone, Copy)]
 pub struct SignalHandle {
     handle: *mut uv_signal_t,
 }

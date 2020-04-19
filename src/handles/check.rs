@@ -22,6 +22,7 @@ extern "C" fn uv_check_cb(handle: *mut uv_check_t) {
 }
 
 /// Check handles will run the given callback once per loop iteration, right after polling for i/o.
+#[derive(Clone, Copy)]
 pub struct CheckHandle {
     handle: *mut uv_check_t,
 }
