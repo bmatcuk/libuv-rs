@@ -1,12 +1,16 @@
 use crate::{FromInner, Inner, IntoInner};
 use uv::uv_udp_send_t;
 
+callbacks! {
+    pub UdpSendCB(req: UdpSendReq, status: crate::Result<u32>);
+}
+
 /// Additional data stored on the request
-pub(crate) struct UdpSendDataFields {
+pub(crate) struct UdpSendDataFields<'a> {
     bufs_ptr: *mut uv::uv_buf_t,
     bufs_len: usize,
     bufs_capacity: usize,
-    udp_send_cb: Option<Box<dyn FnMut(UdpSendReq, crate::Result<u32>)>>,
+    udp_send_cb: UdpSendCB<'a>,
 }
 
 /// Callback for uv_udp_send
@@ -15,14 +19,12 @@ pub(crate) extern "C" fn uv_udp_send_cb(req: *mut uv_udp_send_t, status: std::os
     if !dataptr.is_null() {
         unsafe {
             if let super::UdpSendData(d) = &mut *dataptr {
-                if let Some(f) = d.udp_send_cb.as_mut() {
-                    let status = if status < 0 {
-                        Err(crate::Error::from_inner(status as uv::uv_errno_t))
-                    } else {
-                        Ok(status as _)
-                    };
-                    f(req.into_inner(), status);
-                }
+                let status = if status < 0 {
+                    Err(crate::Error::from_inner(status as uv::uv_errno_t))
+                } else {
+                    Ok(status as _)
+                };
+                d.udp_send_cb.call(req.into_inner(), status);
             }
         }
     }
@@ -44,9 +46,9 @@ pub struct UdpSendReq {
 
 impl UdpSendReq {
     /// Create a new udp send request
-    pub fn new(
+    pub fn new<CB: Into<UdpSendCB<'static>>>(
         bufs: &[impl crate::BufTrait],
-        cb: Option<impl FnMut(UdpSendReq, crate::Result<u32>) + 'static>,
+        cb: CB,
     ) -> crate::Result<UdpSendReq> {
         let layout = std::alloc::Layout::new::<uv_udp_send_t>();
         let req = unsafe { std::alloc::alloc(layout) as *mut uv_udp_send_t };
@@ -55,7 +57,7 @@ impl UdpSendReq {
         }
 
         let (bufs_ptr, bufs_len, bufs_capacity) = bufs.into_inner();
-        let udp_send_cb = cb.map(|f| Box::new(f) as _);
+        let udp_send_cb = cb.into();
         crate::Req::initialize_data(
             uv_handle!(req),
             super::UdpSendData(UdpSendDataFields {

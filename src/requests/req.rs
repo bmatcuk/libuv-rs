@@ -37,7 +37,7 @@ impl Req {
     }
 
     /// Retrieve the request's data.
-    pub(crate) fn get_data(req: *mut uv_req_t) -> *mut super::ReqData {
+    pub(crate) fn get_data<'a>(req: *mut uv_req_t) -> *mut super::ReqData<'a> {
         unsafe { uv_req_get_data(req) as _ }
     }
 

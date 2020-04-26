@@ -1,12 +1,16 @@
 use crate::{FromInner, Inner, IntoInner};
 use uv::uv_write_t;
 
+callbacks! {
+    pub WriteCB(req: WriteReq, status: crate::Result<u32>);
+}
+
 // Additional data stored on the request
-pub(crate) struct WriteDataFields {
+pub(crate) struct WriteDataFields<'a> {
     bufs_ptr: *mut uv::uv_buf_t,
     bufs_len: usize,
     bufs_capacity: usize,
-    write_cb: Option<Box<dyn FnMut(WriteReq, crate::Result<u32>)>>,
+    write_cb: WriteCB<'a>,
 }
 
 /// Callback for uv_write/uv_write2
@@ -15,14 +19,12 @@ pub(crate) extern "C" fn uv_write_cb(req: *mut uv_write_t, status: std::os::raw:
     if !dataptr.is_null() {
         unsafe {
             if let super::WriteData(d) = &mut *dataptr {
-                if let Some(f) = d.write_cb.as_mut() {
-                    let status = if status < 0 {
-                        Err(crate::Error::from_inner(status as uv::uv_errno_t))
-                    } else {
-                        Ok(status as _)
-                    };
-                    f(req.into_inner(), status);
-                }
+                let status = if status < 0 {
+                    Err(crate::Error::from_inner(status as uv::uv_errno_t))
+                } else {
+                    Ok(status as _)
+                };
+                d.write_cb.call(req.into_inner(), status);
             }
         }
     }
@@ -47,9 +49,9 @@ pub struct WriteReq {
 
 impl WriteReq {
     /// Create a new write request
-    pub fn new(
+    pub fn new<CB: Into<WriteCB<'static>>>(
         bufs: &[impl crate::BufTrait],
-        cb: Option<impl FnMut(WriteReq, crate::Result<u32>) + 'static>,
+        cb: CB,
     ) -> crate::Result<WriteReq> {
         let layout = std::alloc::Layout::new::<uv_write_t>();
         let req = unsafe { std::alloc::alloc(layout) as *mut uv_write_t };
@@ -58,7 +60,7 @@ impl WriteReq {
         }
 
         let (bufs_ptr, bufs_len, bufs_capacity) = bufs.into_inner();
-        let write_cb = cb.map(|f| Box::new(f) as _);
+        let write_cb = cb.into();
         crate::Req::initialize_data(
             uv_handle!(req),
             super::WriteData(WriteDataFields {

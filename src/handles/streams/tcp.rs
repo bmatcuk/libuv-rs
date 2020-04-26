@@ -149,10 +149,10 @@ impl TcpHandle {
     ///
     /// The callback is made when the connection has been established or when a connection error
     /// happened.
-    pub fn connect(
+    pub fn connect<CB: Into<crate::ConnectCB<'static>>>(
         &mut self,
         addr: &SocketAddr,
-        cb: Option<impl FnMut(crate::ConnectReq, crate::Result<u32>) + 'static>,
+        cb: CB,
     ) -> crate::Result<crate::ConnectReq> {
         let mut req = crate::ConnectReq::new(cb)?;
         let mut sockaddr: uv::sockaddr = unsafe { std::mem::zeroed() };
@@ -175,11 +175,11 @@ impl TcpHandle {
     /// Resets a TCP connection by sending a RST packet. This is accomplished by setting the
     /// SO_LINGER socket option with a linger interval of zero and then calling close(). Due to
     /// some platform inconsistencies, mixing of shutdown() and close_reset() calls is not allowed.
-    pub fn close_reset(
+    pub fn close_reset<CB: Into<crate::CloseCB<'static>>>(
         &mut self,
-        cb: Option<impl FnMut(crate::Handle) + 'static>,
+        cb: CB,
     ) -> crate::Result<()> {
-        let cb = cb.map(|f| Box::new(f) as _);
+        let cb = cb.into();
         let dataptr = crate::Handle::get_data(uv_handle!(self.handle));
         if !dataptr.is_null() {
             unsafe { (*dataptr).close_cb = cb };

@@ -2,10 +2,19 @@ use crate::{FromInner, Inner, IntoInner};
 use std::ffi::{CStr, CString};
 use uv::{uv_fs_poll_getpath, uv_fs_poll_init, uv_fs_poll_start, uv_fs_poll_stop, uv_fs_poll_t};
 
+callbacks! {
+    pub FsPollCB(
+        handle: FsPollHandle,
+        status: crate::Result<u32>,
+        prev: crate::Stat,
+        curr: crate::Stat
+    );
+}
+
 /// Additional data stored on the handle
 #[derive(Default)]
-pub(crate) struct FsPollDataFields {
-    fs_poll_cb: Option<Box<dyn FnMut(FsPollHandle, crate::Result<u32>, crate::Stat, crate::Stat)>>,
+pub(crate) struct FsPollDataFields<'a> {
+    fs_poll_cb: FsPollCB<'a>,
 }
 
 /// Callback for uv_fs_poll_start
@@ -19,19 +28,18 @@ extern "C" fn uv_fs_poll_cb(
     if !dataptr.is_null() {
         unsafe {
             if let super::FsPollData(d) = &mut (*dataptr).addl {
-                if let Some(f) = d.fs_poll_cb.as_mut() {
-                    let status = if status < 0 {
-                        Err(crate::Error::from_inner(status as uv::uv_errno_t))
-                    } else {
-                        Ok(status as _)
-                    };
-                    f(
-                        handle.into_inner(),
-                        status,
-                        prev.into_inner(),
-                        curr.into_inner(),
-                    )
-                }
+                let status = if status < 0 {
+                    Err(crate::Error::from_inner(status as uv::uv_errno_t))
+                } else {
+                    Ok(status as _)
+                };
+
+                d.fs_poll_cb.call(
+                    handle.into_inner(),
+                    status,
+                    prev.into_inner(),
+                    curr.into_inner(),
+                )
             }
         }
     }
@@ -69,21 +77,19 @@ impl FsPollHandle {
     ///
     /// Note: For maximum portability, use multi-second intervals. Sub-second intervals will not
     /// detect all changes on many file systems.
-    pub fn start(
+    pub fn start<CB: Into<FsPollCB<'static>>>(
         &mut self,
         path: &str,
         interval: u32,
-        cb: Option<
-            impl FnMut(FsPollHandle, crate::Result<u32>, crate::Stat, crate::Stat) + 'static,
-        >,
+        cb: CB,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let path = CString::new(path)?;
 
         // uv_cb is either Some(fs_poll_cb) or None
-        let uv_cb = cb.as_ref().map(|_| uv_fs_poll_cb as _);
+        let cb = cb.into();
+        let uv_cb = use_c_callback!(uv_fs_poll_cb, cb);
 
         // cb is either Some(closure) or None - it is saved into data
-        let cb = cb.map(|f| Box::new(f) as _);
         let dataptr = crate::Handle::get_data(uv_handle!(self.handle));
         if !dataptr.is_null() {
             if let super::FsPollData(d) = unsafe { &mut (*dataptr).addl } {

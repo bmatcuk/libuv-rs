@@ -2,9 +2,17 @@ use crate::{FromInner, Inner, IntoInner};
 use std::ffi::CString;
 use uv::{addrinfo, uv_freeaddrinfo, uv_getaddrinfo, uv_getaddrinfo_t};
 
+callbacks! {
+    pub GetAddrInfoCB(
+        req: GetAddrInfoReq,
+        status: crate::Result<u32>,
+        res: Vec<crate::AddrInfo>
+    );
+}
+
 /// Additional data stored on the request
-pub(crate) struct GetAddrInfoDataFields {
-    cb: Option<Box<dyn FnMut(GetAddrInfoReq, crate::Result<u32>, Vec<crate::AddrInfo>)>>,
+pub(crate) struct GetAddrInfoDataFields<'a> {
+    cb: GetAddrInfoCB<'a>,
 }
 
 /// Callback for uv_getaddrinfo
@@ -13,15 +21,13 @@ extern "C" fn uv_getaddrinfo_cb(req: *mut uv_getaddrinfo_t, status: i32, res: *m
     if !dataptr.is_null() {
         unsafe {
             if let super::GetAddrInfoData(d) = &mut *dataptr {
-                if let Some(f) = d.cb.as_mut() {
-                    let status = if status < 0 {
-                        Err(crate::Error::from_inner(status as uv::uv_errno_t))
-                    } else {
-                        Ok(status as _)
-                    };
-                    let res = res.into_inner();
-                    f(req.into_inner(), status, res);
-                }
+                let status = if status < 0 {
+                    Err(crate::Error::from_inner(status as uv::uv_errno_t))
+                } else {
+                    Ok(status as _)
+                };
+                let res = res.into_inner();
+                d.cb.call(req.into_inner(), status, res);
             }
         }
     }
@@ -41,8 +47,8 @@ pub struct GetAddrInfoReq {
 
 impl GetAddrInfoReq {
     /// Create a new GetAddrInfo request
-    pub fn new(
-        cb: Option<impl FnMut(GetAddrInfoReq, crate::Result<u32>, Vec<crate::AddrInfo>) + 'static>,
+    pub fn new<CB: Into<GetAddrInfoCB<'static>>>(
+        cb: CB,
     ) -> crate::Result<GetAddrInfoReq> {
         let layout = std::alloc::Layout::new::<uv_getaddrinfo_t>();
         let req = unsafe { std::alloc::alloc(layout) as *mut uv_getaddrinfo_t };
@@ -50,7 +56,7 @@ impl GetAddrInfoReq {
             return Err(crate::Error::ENOMEM);
         }
 
-        let cb = cb.map(|f| Box::new(f) as _);
+        let cb = cb.into();
         crate::Req::initialize_data(
             uv_handle!(req),
             super::GetAddrInfoData(GetAddrInfoDataFields { cb }),
@@ -118,14 +124,15 @@ impl crate::ReqTrait for GetAddrInfoReq {}
 
 impl crate::Loop {
     /// Private implementation for getaddrinfo()
-    fn _getaddrinfo(
+    fn _getaddrinfo<CB: Into<GetAddrInfoCB<'static>>>(
         &self,
         node: Option<&str>,
         service: Option<&str>,
         hints: Option<crate::AddrInfo>,
-        cb: Option<impl FnMut(GetAddrInfoReq, crate::Result<u32>, Vec<crate::AddrInfo>) + 'static>,
+        cb: CB,
     ) -> Result<GetAddrInfoReq, Box<dyn std::error::Error>> {
-        let uv_cb = cb.as_ref().map(|_| uv_getaddrinfo_cb as _);
+        let cb = cb.into();
+        let uv_cb = use_c_callback!(uv_getaddrinfo_cb, cb);
         let node = node.map(CString::new).transpose()?;
         let service = service.map(CString::new).transpose()?;
         let mut req = GetAddrInfoReq::new(cb)?;
@@ -165,14 +172,14 @@ impl crate::Loop {
     ///
     /// hints is a AddrInfo with additional address type constraints, or None. Consult man -s 3
     /// getaddrinfo for more details.
-    pub fn getaddrinfo(
+    pub fn getaddrinfo<CB: Into<GetAddrInfoCB<'static>>>(
         &self,
         node: Option<&str>,
         service: Option<&str>,
         hints: Option<crate::AddrInfo>,
-        cb: impl FnMut(GetAddrInfoReq, crate::Result<u32>, Vec<crate::AddrInfo>) + 'static,
+        cb: CB,
     ) -> Result<GetAddrInfoReq, Box<dyn std::error::Error>> {
-        self._getaddrinfo(node, service, hints, Some(cb))
+        self._getaddrinfo(node, service, hints, cb)
     }
 
     /// Synchronous getaddrinfo(3).
@@ -189,7 +196,7 @@ impl crate::Loop {
         service: Option<&str>,
         hints: Option<crate::AddrInfo>,
     ) -> Result<Vec<crate::AddrInfo>, Box<dyn std::error::Error>> {
-        self._getaddrinfo(node, service, hints, None::<fn(_, _, _)>)
+        self._getaddrinfo(node, service, hints, ())
             .map(|req| req.addrinfos())
     }
 }

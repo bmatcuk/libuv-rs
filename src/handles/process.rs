@@ -6,10 +6,14 @@ use uv::{
     uv_process_options_t, uv_process_t, uv_spawn, uv_stdio_container_t,
 };
 
+callbacks! {
+    pub ExitCB(handle: ProcessHandle, exit_status: i64, term_signal: i32);
+}
+
 /// Additional data stored on the handle
 #[derive(Default)]
-pub(crate) struct ProcessDataFields {
-    exit_cb: Option<Box<dyn FnMut(ProcessHandle, i64, i32)>>,
+pub(crate) struct ProcessDataFields<'a> {
+    exit_cb: ExitCB<'a>,
 }
 
 /// Callback for uv_process_options_t.exit_cb
@@ -22,9 +26,7 @@ extern "C" fn uv_exit_cb(
     if !dataptr.is_null() {
         unsafe {
             if let super::ProcessData(d) = &mut (*dataptr).addl {
-                if let Some(f) = d.exit_cb.as_mut() {
-                    f(handle.into_inner(), exit_status, term_signal as _);
-                }
+                d.exit_cb.call(handle.into_inner(), exit_status, term_signal as _);
             }
         }
     }
@@ -107,7 +109,7 @@ pub struct StdioContainer {
 /// Options for spawning the process (passed to spawn()).
 pub struct ProcessOptions<'a> {
     /// Called after the process exits.
-    exit_cb: Option<Box<dyn FnMut(ProcessHandle, i64, i32)>>,
+    exit_cb: ExitCB<'static>,
 
     /// Path to program to execute.
     file: &'a str,
@@ -192,7 +194,7 @@ impl ProcessHandle {
         r#loop: &crate::Loop,
         options: ProcessOptions,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let exit_cb_uv = options.exit_cb.as_ref().map(|_| uv_exit_cb as _);
+        let exit_cb_uv = use_c_callback!(uv_exit_cb, options.exit_cb);
         let dataptr = crate::Handle::get_data(uv_handle!(self.handle));
         if !dataptr.is_null() {
             if let super::ProcessData(d) = unsafe { &mut (*dataptr).addl } {

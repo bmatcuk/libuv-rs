@@ -3,9 +3,18 @@ use std::ffi::CStr;
 use std::net::SocketAddr;
 use uv::{uv_getnameinfo, uv_getnameinfo_t};
 
+callbacks! {
+    pub GetNameInfoCB(
+        req: GetNameInfoReq,
+        status: crate::Result<u32>,
+        hostname: String,
+        service: String
+    );
+}
+
 /// Additional data stored on the request
-pub(crate) struct GetNameInfoDataFields {
-    cb: Option<Box<dyn FnMut(GetNameInfoReq, crate::Result<u32>, String, String)>>,
+pub(crate) struct GetNameInfoDataFields<'a> {
+    cb: GetNameInfoCB<'a>,
 }
 
 /// Callback for uv_getnameinfo
@@ -19,16 +28,14 @@ extern "C" fn uv_getnameinfo_cb(
     if !dataptr.is_null() {
         unsafe {
             if let super::GetNameInfoData(d) = &mut *dataptr {
-                if let Some(f) = d.cb.as_mut() {
-                    let hostname = CStr::from_ptr(hostname).to_string_lossy().into_owned();
-                    let service = CStr::from_ptr(service).to_string_lossy().into_owned();
-                    let status = if status < 0 {
-                        Err(crate::Error::from_inner(status as uv::uv_errno_t))
-                    } else {
-                        Ok(status as _)
-                    };
-                    f(req.into_inner(), status, hostname, service);
-                }
+                let hostname = CStr::from_ptr(hostname).to_string_lossy().into_owned();
+                let service = CStr::from_ptr(service).to_string_lossy().into_owned();
+                let status = if status < 0 {
+                    Err(crate::Error::from_inner(status as uv::uv_errno_t))
+                } else {
+                    Ok(status as _)
+                };
+                d.cb.call(req.into_inner(), status, hostname, service);
             }
         }
     }
@@ -46,8 +53,8 @@ pub struct GetNameInfoReq {
 
 impl GetNameInfoReq {
     /// Create a new GetNameInfo request
-    pub fn new(
-        cb: Option<impl FnMut(GetNameInfoReq, crate::Result<u32>, String, String) + 'static>,
+    pub fn new<CB: Into<GetNameInfoCB<'static>>>(
+        cb: CB,
     ) -> crate::Result<GetNameInfoReq> {
         let layout = std::alloc::Layout::new::<uv_getnameinfo_t>();
         let req = unsafe { std::alloc::alloc(layout) as *mut uv_getnameinfo_t };
@@ -55,7 +62,7 @@ impl GetNameInfoReq {
             return Err(crate::Error::ENOMEM);
         }
 
-        let cb = cb.map(|f| Box::new(f) as _);
+        let cb = cb.into();
         crate::Req::initialize_data(
             uv_handle!(req),
             super::GetNameInfoData(GetNameInfoDataFields { cb }),
@@ -136,16 +143,17 @@ impl crate::ReqTrait for GetNameInfoReq {}
 
 impl crate::Loop {
     /// Private implementation for getnameinfo()
-    fn _getnameinfo(
+    fn _getnameinfo<CB: Into<GetNameInfoCB<'static>>>(
         &self,
         addr: &SocketAddr,
         flags: u32,
-        cb: Option<impl FnMut(GetNameInfoReq, crate::Result<u32>, String, String) + 'static>,
+        cb: CB,
     ) -> crate::Result<GetNameInfoReq> {
         let mut sockaddr: uv::sockaddr = unsafe { std::mem::zeroed() };
         crate::fill_sockaddr(&mut sockaddr, addr);
 
-        let uv_cb = cb.as_ref().map(|_| uv_getnameinfo_cb as _);
+        let cb = cb.into();
+        let uv_cb = use_c_callback!(uv_getnameinfo_cb, cb);
         let mut req = GetNameInfoReq::new(cb)?;
         let result = crate::uvret(unsafe {
             uv_getnameinfo(
@@ -168,13 +176,13 @@ impl crate::Loop {
     /// Consult man -s 3 getnameinfo for more details.
     ///
     /// flags is the bitwise OR of NI_* constants
-    pub fn getnameinfo(
+    pub fn getnameinfo<CB: Into<GetNameInfoCB<'static>>>(
         &self,
         addr: &SocketAddr,
         flags: u32,
-        cb: impl FnMut(GetNameInfoReq, crate::Result<u32>, String, String) + 'static,
+        cb: CB,
     ) -> crate::Result<GetNameInfoReq> {
-        self._getnameinfo(addr, flags, Some(cb))
+        self._getnameinfo(addr, flags, cb)
     }
 
     /// Synchronous getnameinfo(3).
@@ -187,7 +195,7 @@ impl crate::Loop {
         addr: &SocketAddr,
         flags: u32,
     ) -> crate::Result<(String, String)> {
-        self._getnameinfo(addr, flags, None::<fn(_, _, _, _)>)
+        self._getnameinfo(addr, flags, ())
             .map(|mut req| {
                 let res = (req.host(), req.service());
                 req.destroy();

@@ -247,6 +247,15 @@ impl Loop {
     }
 }
 
+impl Clone for Loop {
+    fn clone(&self) -> Self {
+        Loop {
+            handle: self.handle,
+            should_drop: false,
+        }
+    }
+}
+
 impl FromInner<*mut uv_loop_t> for Loop {
     fn from_inner(handle: *mut uv_loop_t) -> Loop {
         Loop {

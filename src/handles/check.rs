@@ -1,10 +1,14 @@
 use crate::{FromInner, Inner, IntoInner};
 use uv::{uv_check_init, uv_check_start, uv_check_stop, uv_check_t};
 
+callbacks! {
+    pub CheckCB(handle: CheckHandle);
+}
+
 /// Additional data stored on the handle
 #[derive(Default)]
-pub(crate) struct CheckDataFields {
-    check_cb: Option<Box<dyn FnMut(CheckHandle)>>,
+pub(crate) struct CheckDataFields<'a> {
+    check_cb: CheckCB<'a>,
 }
 
 /// Callback for uv_check_start
@@ -13,9 +17,7 @@ extern "C" fn uv_check_cb(handle: *mut uv_check_t) {
     if !dataptr.is_null() {
         unsafe {
             if let super::CheckData(d) = &mut (*dataptr).addl {
-                if let Some(f) = d.check_cb.as_mut() {
-                    f(handle.into_inner());
-                }
+                d.check_cb.call(handle.into_inner());
             }
         }
     }
@@ -48,12 +50,12 @@ impl CheckHandle {
     }
 
     /// Start the handle with the given callback.
-    pub fn start(&mut self, cb: Option<impl FnMut(CheckHandle) + 'static>) -> crate::Result<()> {
+    pub fn start<CB: Into<CheckCB<'static>>>(&mut self, cb: CB) -> crate::Result<()> {
         // uv_cb is either Some(uv_check_cb) or None
-        let uv_cb = cb.as_ref().map(|_| uv_check_cb as _);
+        let cb = cb.into();
+        let uv_cb = use_c_callback!(uv_check_cb, cb);
 
         // cb is either Some(closure) or None - it is saved into data
-        let cb = cb.map(|f| Box::new(f) as _);
         let dataptr = crate::Handle::get_data(uv_handle!(self.handle));
         if !dataptr.is_null() {
             if let super::CheckData(d) = unsafe { &mut (*dataptr).addl } {

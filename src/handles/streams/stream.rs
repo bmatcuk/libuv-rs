@@ -5,12 +5,18 @@ use uv::{
     uv_write2,
 };
 
+callbacks! {
+    pub AllocCB(handle: crate::Handle, suggested_size: usize) -> Option<crate::Buf>;
+    pub ConnectionCB(stream: StreamHandle, status: crate::Result<u32>);
+    pub ReadCB(stream: StreamHandle, nread: crate::Result<usize>, buf: crate::ReadonlyBuf);
+}
+
 /// Additional data to store on the handle
-pub(crate) struct StreamDataFields {
-    pub(crate) alloc_cb: Option<Box<dyn FnMut(crate::Handle, usize) -> Option<crate::Buf>>>,
-    connection_cb: Option<Box<dyn FnMut(StreamHandle, crate::Result<u32>)>>,
-    read_cb: Option<Box<dyn FnMut(StreamHandle, crate::Result<usize>, crate::ReadonlyBuf)>>,
-    pub(crate) addl: super::AddlStreamData,
+pub(crate) struct StreamDataFields<'a> {
+    pub(crate) alloc_cb: AllocCB<'a>,
+    connection_cb: ConnectionCB<'a>,
+    read_cb: ReadCB<'a>,
+    pub(crate) addl: super::AddlStreamData<'a>,
 }
 
 /// Callback for uv_recv_start, uv_udp_recv_start
@@ -22,17 +28,15 @@ pub(crate) extern "C" fn uv_alloc_cb(
     let dataptr = StreamHandle::get_data(uv_handle!(handle));
     if !dataptr.is_null() {
         unsafe {
-            if let Some(f) = (*dataptr).alloc_cb.as_mut() {
-                let mut new_buf = f(handle.into_inner(), suggested_size);
-                match new_buf.as_mut() {
-                    Some(new_buf) => {
-                        buf.copy_from_nonoverlapping(new_buf.inner(), 1);
-                        new_buf.destroy_container();
-                    }
-                    None => {
-                        (*buf).base = std::ptr::null_mut();
-                        (*buf).len = 0;
-                    }
+            let mut new_buf = (*dataptr).alloc_cb.call(handle.into_inner(), suggested_size);
+            match new_buf.as_mut() {
+                Some(new_buf) => {
+                    buf.copy_from_nonoverlapping(new_buf.inner(), 1);
+                    new_buf.destroy_container();
+                }
+                None => {
+                    (*buf).base = std::ptr::null_mut();
+                    (*buf).len = 0;
                 }
             }
         }
@@ -44,14 +48,12 @@ extern "C" fn uv_connection_cb(stream: *mut uv_stream_t, status: std::os::raw::c
     let dataptr = StreamHandle::get_data(stream);
     if !dataptr.is_null() {
         unsafe {
-            if let Some(f) = (*dataptr).connection_cb.as_mut() {
-                let status = if status < 0 {
-                    Err(crate::Error::from_inner(status as uv::uv_errno_t))
-                } else {
-                    Ok(status as _)
-                };
-                f(stream.into_inner(), status);
-            }
+            let status = if status < 0 {
+                Err(crate::Error::from_inner(status as uv::uv_errno_t))
+            } else {
+                Ok(status as _)
+            };
+            (*dataptr).connection_cb.call(stream.into_inner(), status);
         }
     }
 }
@@ -61,14 +63,12 @@ extern "C" fn uv_read_cb(stream: *mut uv_stream_t, nread: isize, buf: *const uv:
     let dataptr = StreamHandle::get_data(stream);
     if !dataptr.is_null() {
         unsafe {
-            if let Some(f) = (*dataptr).read_cb.as_mut() {
-                let nread = if nread < 0 {
-                    Err(crate::Error::from_inner(nread as uv::uv_errno_t))
-                } else {
-                    Ok(nread as _)
-                };
-                f(stream.into_inner(), nread, buf.into_inner());
-            }
+            let nread = if nread < 0 {
+                Err(crate::Error::from_inner(nread as uv::uv_errno_t))
+            } else {
+                Ok(nread as _)
+            };
+            (*dataptr).read_cb.call(stream.into_inner(), nread, buf.into_inner());
         }
     }
 }
@@ -84,15 +84,15 @@ pub struct StreamHandle {
 impl StreamHandle {
     pub(crate) fn initialize_data(stream: *mut uv_stream_t, addl: super::AddlStreamData) {
         let data = super::super::StreamData(StreamDataFields {
-            alloc_cb: None,
-            connection_cb: None,
-            read_cb: None,
+            alloc_cb: ().into(),
+            connection_cb: ().into(),
+            read_cb: ().into(),
             addl,
         });
         crate::Handle::initialize_data(uv_handle!(stream), data);
     }
 
-    pub(crate) fn get_data(stream: *mut uv_stream_t) -> *mut StreamDataFields {
+    pub(crate) fn get_data<'a>(stream: *mut uv_stream_t) -> *mut StreamDataFields<'a> {
         if let super::super::StreamData(ref mut d) =
             unsafe { &mut (*crate::Handle::get_data(uv_handle!(stream))).addl }
         {
@@ -172,16 +172,16 @@ pub trait StreamTrait: ToStream {
         result.map(|_| req)
     }
 
-    fn listen(
+    fn listen<CB: Into<ConnectionCB<'static>>>(
         &mut self,
         backlog: i32,
-        cb: Option<impl FnMut(StreamHandle, crate::Result<u32>) + 'static>,
+        cb: CB,
     ) -> crate::Result<()> {
         // uv_cb is either Some(connection_cb) or None
-        let uv_cb = cb.as_ref().map(|_| uv_connection_cb as _);
+        let cb = cb.into();
+        let uv_cb = use_c_callback!(uv_connection_cb, cb);
 
         // cb is either Some(closure) or None
-        let cb = cb.map(|f| Box::new(f) as _);
         let dataptr = StreamHandle::get_data(self.to_stream().inner());
         if !dataptr.is_null() {
             unsafe { (*dataptr).connection_cb = cb };
@@ -205,22 +205,20 @@ pub trait StreamTrait: ToStream {
 
     /// Read data from an incoming stream. The read_cb callback will be made several times until
     /// there is no more data to read or read_stop() is called.
-    fn read_start(
+    fn read_start<ACB: Into<AllocCB<'static>>, RCB: Into<ReadCB<'static>>>(
         &mut self,
-        alloc_cb: Option<impl FnMut(crate::Handle, usize) -> Option<crate::Buf> + 'static>,
-        read_cb: Option<
-            impl FnMut(StreamHandle, crate::Result<usize>, crate::ReadonlyBuf) + 'static,
-        >,
+        alloc_cb: ACB,
+        read_cb: RCB,
     ) -> crate::Result<()> {
         // uv_alloc_cb is either Some(alloc_cb) or None
         // uv_read_cb is either Some(read_cb) or None
-        let uv_alloc_cb = alloc_cb.as_ref().map(|_| uv_alloc_cb as _);
-        let uv_read_cb = read_cb.as_ref().map(|_| uv_read_cb as _);
+        let alloc_cb = alloc_cb.into();
+        let read_cb = read_cb.into();
+        let uv_alloc_cb = use_c_callback!(uv_alloc_cb, alloc_cb);
+        let uv_read_cb = use_c_callback!(uv_read_cb, read_cb);
 
         // alloc_cb is either Some(closure) or None
         // read_cb is either Some(closure) or None
-        let alloc_cb = alloc_cb.map(|f| Box::new(f) as _);
-        let read_cb = read_cb.map(|f| Box::new(f) as _);
         let dataptr = StreamHandle::get_data(self.to_stream().inner());
         if !dataptr.is_null() {
             unsafe {
@@ -243,10 +241,10 @@ pub trait StreamTrait: ToStream {
     ///
     /// Note: The memory pointed to by the buffers must remain valid until the callback gets
     /// called.
-    fn write(
+    fn write<CB: Into<crate::WriteCB<'static>>>(
         &mut self,
         bufs: &[impl crate::BufTrait],
-        cb: Option<impl FnMut(crate::WriteReq, crate::Result<u32>) + 'static>,
+        cb: CB,
     ) -> crate::Result<crate::WriteReq> {
         let mut req = crate::WriteReq::new(bufs, cb)?;
         let result = crate::uvret(unsafe {
@@ -272,11 +270,11 @@ pub trait StreamTrait: ToStream {
     ///
     /// Note: The memory pointed to by the buffers must remain valid until the callback gets
     /// called.
-    fn write2(
+    fn write2<CB: Into<crate::WriteCB<'static>>>(
         &mut self,
         send_handle: &StreamHandle,
         bufs: &[impl crate::BufTrait],
-        cb: Option<impl FnMut(crate::WriteReq, crate::Result<u32>) + 'static>,
+        cb: CB,
     ) -> crate::Result<crate::WriteReq> {
         let mut req = crate::WriteReq::new(bufs, cb)?;
         let result = crate::uvret(unsafe {

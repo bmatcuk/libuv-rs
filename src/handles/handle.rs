@@ -50,10 +50,14 @@ impl IntoInner<Option<Layout>> for HandleType {
     }
 }
 
+callbacks! {
+    pub(crate) CloseCB(handle: crate::Handle);
+}
+
 /// Data that we need to track with the handle.
-pub(crate) struct HandleData {
-    pub(crate) close_cb: Option<Box<dyn FnMut(crate::Handle)>>,
-    pub(crate) addl: super::AddlHandleData,
+pub(crate) struct HandleData<'a> {
+    pub(crate) close_cb: CloseCB<'a>,
+    pub(crate) addl: super::AddlHandleData<'a>,
 }
 
 /// Callback for uv_close
@@ -61,9 +65,7 @@ pub(crate) extern "C" fn uv_close_cb(handle: *mut uv_handle_t) {
     let dataptr = Handle::get_data(handle);
     if !dataptr.is_null() {
         unsafe {
-            if let Some(f) = (*dataptr).close_cb.as_mut() {
-                f(handle.into_inner());
-            }
+            (*dataptr).close_cb.call(handle.into_inner());
         }
     }
 
@@ -87,7 +89,7 @@ impl Handle {
     /// Initialize the handle's data.
     pub(crate) fn initialize_data(handle: *mut uv_handle_t, addl: super::AddlHandleData) {
         let data: Box<HandleData> = Box::new(HandleData {
-            close_cb: None,
+            close_cb: ().into(),
             addl,
         });
         let ptr = Box::into_raw(data);
@@ -95,7 +97,7 @@ impl Handle {
     }
 
     /// Retrieve the handle's data.
-    pub(crate) fn get_data(handle: *mut uv_handle_t) -> *mut HandleData {
+    pub(crate) fn get_data<'a>(handle: *mut uv_handle_t) -> *mut HandleData<'a> {
         unsafe { uv_handle_get_data(handle) as _ }
     }
 
@@ -166,11 +168,11 @@ pub trait HandleTrait: ToHandle {
     ///
     /// In-progress requests, like ConnectRequest or WriteRequest, are cancelled and have their
     /// callbacks called asynchronously with status=UV_ECANCELED.
-    fn close(&mut self, cb: Option<(impl FnMut(Handle) + 'static)>) {
+    fn close<CB: Into<CloseCB<'static>>>(&mut self, cb: CB) {
         let handle = self.to_handle().inner();
 
         // cb is either Some(closure) or None - it is saved into data
-        let cb = cb.map(|f| Box::new(f) as _);
+        let cb = cb.into();
         let dataptr = Handle::get_data(handle);
         if !dataptr.is_null() {
             unsafe { (*dataptr).close_cb = cb };

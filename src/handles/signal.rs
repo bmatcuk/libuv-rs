@@ -1,10 +1,14 @@
 use crate::{FromInner, Inner, IntoInner};
 use uv::{uv_signal_init, uv_signal_start, uv_signal_start_oneshot, uv_signal_stop, uv_signal_t};
 
+callbacks! {
+    pub SignalCB(handle: SignalHandle, signum: i32);
+}
+
 /// Additional data stored on the handle
 #[derive(Default)]
-pub(crate) struct SignalDataFields {
-    signal_cb: Option<Box<dyn FnMut(SignalHandle, i32)>>,
+pub(crate) struct SignalDataFields<'a> {
+    signal_cb: SignalCB<'a>,
 }
 
 /// Callback for uv_signal_start
@@ -13,9 +17,7 @@ extern "C" fn uv_signal_cb(handle: *mut uv_signal_t, signum: std::os::raw::c_int
     if !dataptr.is_null() {
         unsafe {
             if let super::SignalData(d) = &mut (*dataptr).addl {
-                if let Some(f) = d.signal_cb.as_mut() {
-                    f(handle.into_inner(), signum as _);
-                }
+                d.signal_cb.call(handle.into_inner(), signum as _);
             }
         }
     }
@@ -74,16 +76,16 @@ impl SignalHandle {
     }
 
     /// Start the handle with the given callback, watching for the given signal.
-    pub fn start(
+    pub fn start<CB: Into<SignalCB<'static>>>(
         &mut self,
-        cb: Option<impl FnMut(SignalHandle, i32) + 'static>,
+        cb: CB,
         signum: i32,
     ) -> crate::Result<()> {
         // uv_cb is either Some(uv_signal_cb) or None
-        let uv_cb = cb.as_ref().map(|_| uv_signal_cb as _);
+        let cb = cb.into();
+        let uv_cb = use_c_callback!(uv_signal_cb, cb);
 
         // cb is either Some(closure) or None - it is saved into data
-        let cb = cb.map(|f| Box::new(f) as _);
         let dataptr = crate::Handle::get_data(uv_handle!(self.handle));
         if !dataptr.is_null() {
             if let super::SignalData(d) = unsafe { &mut (*dataptr).addl } {
@@ -96,16 +98,16 @@ impl SignalHandle {
 
     /// Same functionality as start() but the signal handler is reset the moment the signal is
     /// received.
-    pub fn start_oneshot(
+    pub fn start_oneshot<CB: Into<SignalCB<'static>>>(
         &mut self,
-        cb: Option<impl FnMut(SignalHandle, i32) + 'static>,
+        cb: CB,
         signum: i32,
     ) -> crate::Result<()> {
         // uv_cb is either Some(uv_signal_cb) or None
-        let uv_cb = cb.as_ref().map(|_| uv_signal_cb as _);
+        let cb = cb.into();
+        let uv_cb = use_c_callback!(uv_signal_cb, cb);
 
         // cb is either Some(closure) or None - it is saved into data
-        let cb = cb.map(|f| Box::new(f) as _);
         let dataptr = crate::Handle::get_data(uv_handle!(self.handle));
         if !dataptr.is_null() {
             if let super::SignalData(d) = unsafe { &mut (*dataptr).addl } {

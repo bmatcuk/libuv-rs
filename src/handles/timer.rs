@@ -4,10 +4,14 @@ use uv::{
     uv_timer_stop, uv_timer_t,
 };
 
+callbacks! {
+    pub TimerCB(handel: TimerHandle);
+}
+
 /// Additional data stored on the handle
 #[derive(Default)]
-pub(crate) struct TimerDataFields {
-    timer_cb: Option<Box<dyn FnMut(TimerHandle)>>,
+pub(crate) struct TimerDataFields<'a> {
+    timer_cb: TimerCB<'a>,
 }
 
 /// Callback for uv_timer_start
@@ -16,9 +20,7 @@ extern "C" fn uv_timer_cb(handle: *mut uv_timer_t) {
     if !dataptr.is_null() {
         unsafe {
             if let super::TimerData(d) = &mut (*dataptr).addl {
-                if let Some(f) = d.timer_cb.as_mut() {
-                    f(handle.into_inner());
-                }
+                d.timer_cb.call(handle.into_inner());
             }
         }
     }
@@ -60,17 +62,17 @@ impl TimerHandle {
     /// information.
     ///
     /// If the timer is already active, it is simply updated.
-    pub fn start(
+    pub fn start<CB: Into<TimerCB<'static>>>(
         &mut self,
-        cb: Option<impl FnMut(TimerHandle) + 'static>,
+        cb: CB,
         timeout: u64,
         repeat: u64,
     ) -> crate::Result<()> {
         // uv_cb is either Some(uv_timer_cb) or None
-        let uv_cb = cb.as_ref().map(|_| uv_timer_cb as _);
+        let cb = cb.into();
+        let uv_cb = use_c_callback!(uv_timer_cb, cb);
 
         // cb is either Some(closure) or None - it is saved into data
-        let cb = cb.map(|f| Box::new(f) as _);
         let dataptr = crate::Handle::get_data(uv_handle!(self.handle));
         if !dataptr.is_null() {
             if let super::TimerData(d) = unsafe { &mut (*dataptr).addl } {

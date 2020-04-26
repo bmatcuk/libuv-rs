@@ -1,9 +1,13 @@
 use crate::{FromInner, Inner, IntoInner};
 use uv::uv_shutdown_t;
 
+callbacks! {
+    pub ShutdownCB(req: ShutdownReq, status: crate::Result<u32>);
+}
+
 /// Additional data stored on the request
-pub(crate) struct ShutdownDataFields {
-    shutdown_cb: Option<Box<dyn FnMut(ShutdownReq, crate::Result<u32>)>>,
+pub(crate) struct ShutdownDataFields<'a> {
+    shutdown_cb: ShutdownCB<'a>,
 }
 
 /// Callback for uv_shutdown
@@ -12,14 +16,12 @@ pub(crate) extern "C" fn uv_shutdown_cb(req: *mut uv_shutdown_t, status: std::os
     if !dataptr.is_null() {
         unsafe {
             if let super::ShutdownData(d) = &mut *dataptr {
-                if let Some(f) = d.shutdown_cb.as_mut() {
-                    let status = if status < 0 {
-                        Err(crate::Error::from_inner(status as uv::uv_errno_t))
-                    } else {
-                        Ok(status as _)
-                    };
-                    f(req.into_inner(), status);
-                }
+                let status = if status < 0 {
+                    Err(crate::Error::from_inner(status as uv::uv_errno_t))
+                } else {
+                    Ok(status as _)
+                };
+                d.shutdown_cb.call(req.into_inner(), status);
             }
         }
     }
@@ -37,8 +39,8 @@ pub struct ShutdownReq {
 
 impl ShutdownReq {
     /// Create a new shutdown request
-    pub fn new(
-        cb: Option<impl FnMut(ShutdownReq, crate::Result<u32>) + 'static>,
+    pub fn new<CB: Into<ShutdownCB<'static>>>(
+        cb: CB,
     ) -> crate::Result<ShutdownReq> {
         let layout = std::alloc::Layout::new::<uv_shutdown_t>();
         let req = unsafe { std::alloc::alloc(layout) as *mut uv_shutdown_t };
@@ -46,7 +48,7 @@ impl ShutdownReq {
             return Err(crate::Error::ENOMEM);
         }
 
-        let shutdown_cb = cb.map(|f| Box::new(f) as _);
+        let shutdown_cb = cb.into();
         crate::Req::initialize_data(
             uv_handle!(req),
             super::ShutdownData(ShutdownDataFields { shutdown_cb }),

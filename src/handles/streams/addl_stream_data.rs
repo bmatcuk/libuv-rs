@@ -1,4 +1,4 @@
-pub(crate) enum AddlStreamData {
+pub(crate) enum AddlStreamData<'a> {
     NoAddlStreamData,
-    UdpData(crate::UdpDataFields),
+    UdpData(crate::UdpDataFields<'a>),
 }

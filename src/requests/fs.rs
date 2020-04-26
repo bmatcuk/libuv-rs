@@ -5,9 +5,13 @@ use uv::{
     uv_fs_req_cleanup, uv_fs_t,
 };
 
+callbacks! {
+    pub FsCB(req: FsReq);
+}
+
 /// Additional data stored on the request
-pub(crate) struct FsDataFields {
-    fs_cb: Option<Box<dyn FnMut(FsReq)>>,
+pub(crate) struct FsDataFields<'a> {
+    fs_cb: FsCB<'a>,
 }
 
 /// Callback for various fs functions
@@ -16,9 +20,7 @@ pub(crate) extern "C" fn uv_fs_cb(req: *mut uv_fs_t) {
     if !dataptr.is_null() {
         unsafe {
             if let super::FsData(d) = &mut *dataptr {
-                if let Some(f) = d.fs_cb.as_mut() {
-                    f(req.into_inner());
-                }
+                d.fs_cb.call(req.into_inner());
             }
         }
     }
@@ -36,14 +38,14 @@ pub struct FsReq {
 
 impl FsReq {
     /// Create a new fs request
-    pub fn new(cb: Option<impl FnMut(FsReq) + 'static>) -> crate::Result<FsReq> {
+    pub fn new<CB: Into<FsCB<'static>>>(cb: CB) -> crate::Result<FsReq> {
         let layout = std::alloc::Layout::new::<uv_fs_t>();
         let req = unsafe { std::alloc::alloc(layout) as *mut uv_fs_t };
         if req.is_null() {
             return Err(crate::Error::ENOMEM);
         }
 
-        let fs_cb = cb.map(|f| Box::new(f) as _);
+        let fs_cb = cb.into();
         crate::Req::initialize_data(uv_handle!(req), super::FsData(FsDataFields { fs_cb }));
 
         Ok(FsReq { req })

@@ -1,10 +1,14 @@
 use crate::{FromInner, Inner, IntoInner};
 use uv::{uv_prepare_init, uv_prepare_start, uv_prepare_stop, uv_prepare_t};
 
+callbacks! {
+    pub PrepareCB(handle: PrepareHandle);
+}
+
 /// Additional data stored on the handle
 #[derive(Default)]
-pub(crate) struct PrepareDataFields {
-    prepare_cb: Option<Box<dyn FnMut(PrepareHandle)>>,
+pub(crate) struct PrepareDataFields<'a> {
+    prepare_cb: PrepareCB<'a>,
 }
 
 /// Callback for uv_prepare_start
@@ -13,9 +17,7 @@ extern "C" fn uv_prepare_cb(handle: *mut uv_prepare_t) {
     if !dataptr.is_null() {
         unsafe {
             if let super::PrepareData(d) = &mut (*dataptr).addl {
-                if let Some(f) = d.prepare_cb.as_mut() {
-                    f(handle.into_inner());
-                }
+                d.prepare_cb.call(handle.into_inner());
             }
         }
     }
@@ -49,12 +51,12 @@ impl PrepareHandle {
     }
 
     /// Start the handle with the given callback.
-    pub fn start(&mut self, cb: Option<impl FnMut(PrepareHandle) + 'static>) -> crate::Result<()> {
+    pub fn start<CB: Into<PrepareCB<'static>>>(&mut self, cb: CB) -> crate::Result<()> {
         // uv_cb is either Some(uv_prepare_cb) or None
-        let uv_cb = cb.as_ref().map(|_| uv_prepare_cb as _);
+        let cb = cb.into();
+        let uv_cb = use_c_callback!(uv_prepare_cb, cb);
 
         // cb is either Some(closure) or None - it is saved into data
-        let cb = cb.map(|f| Box::new(f) as _);
         let dataptr = crate::Handle::get_data(uv_handle!(self.handle));
         if !dataptr.is_null() {
             if let super::PrepareData(d) = unsafe { &mut (*dataptr).addl } {

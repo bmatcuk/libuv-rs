@@ -1,9 +1,17 @@
 use crate::{FromInner, Inner, IntoInner};
 use uv::{uv_random, uv_random_t};
 
+callbacks! {
+    pub RandomCB(
+        req: RandomReq,
+        status: crate::Result<u32>,
+        buf: Vec<u8>
+    );
+}
+
 /// Additional data stored on the request
-pub(crate) struct RandomDataFields {
-    random_cb: Option<Box<dyn FnMut(RandomReq, crate::Result<u32>, Vec<u8>)>>,
+pub(crate) struct RandomDataFields<'a> {
+    random_cb: RandomCB<'a>,
 }
 
 /// Callback for uv_random
@@ -17,15 +25,13 @@ extern "C" fn uv_random_cb(
     if !dataptr.is_null() {
         unsafe {
             if let super::RandomData(d) = &mut *dataptr {
-                if let Some(f) = d.random_cb.as_mut() {
-                    let buf = Vec::from_raw_parts(buf as _, buflen, buflen);
-                    let status = if status < 0 {
-                        Err(crate::Error::from_inner(status as uv::uv_errno_t))
-                    } else {
-                        Ok(status as _)
-                    };
-                    f(req.into_inner(), status, buf);
-                }
+                let buf = Vec::from_raw_parts(buf as _, buflen, buflen);
+                let status = if status < 0 {
+                    Err(crate::Error::from_inner(status as uv::uv_errno_t))
+                } else {
+                    Ok(status as _)
+                };
+                d.random_cb.call(req.into_inner(), status, buf);
             }
         }
     }
@@ -43,8 +49,8 @@ pub struct RandomReq {
 
 impl RandomReq {
     /// Create a new random request
-    pub fn new(
-        cb: Option<impl FnMut(RandomReq, crate::Result<u32>, Vec<u8>) + 'static>,
+    pub fn new<CB: Into<RandomCB<'static>>>(
+        cb: CB,
     ) -> crate::Result<RandomReq> {
         let layout = std::alloc::Layout::new::<uv_random_t>();
         let req = unsafe { std::alloc::alloc(layout) as *mut uv_random_t };
@@ -52,7 +58,7 @@ impl RandomReq {
             return Err(crate::Error::ENOMEM);
         }
 
-        let random_cb = cb.map(|f| Box::new(f) as _);
+        let random_cb = cb.into();
         crate::Req::initialize_data(
             uv_handle!(req),
             super::RandomData(RandomDataFields { random_cb }),
@@ -127,13 +133,13 @@ impl crate::Loop {
     ///   * AIX: /dev/random.
     ///   * IBM i: /dev/urandom.
     ///   * Other UNIX: /dev/urandom after reading from /dev/random once.
-    pub fn random(
+    pub fn random<CB: Into<RandomCB<'static>>>(
         &self,
         buflen: usize,
         flags: u32,
-        cb: impl FnMut(RandomReq, crate::Result<u32>, Vec<u8>) + 'static,
+        cb: CB,
     ) -> crate::Result<RandomReq> {
-        let mut req = RandomReq::new(Some(cb))?;
+        let mut req = RandomReq::new(cb)?;
         let mut buf = std::mem::ManuallyDrop::new(Vec::<u8>::with_capacity(buflen));
         let result = crate::uvret(unsafe {
             uv_random(

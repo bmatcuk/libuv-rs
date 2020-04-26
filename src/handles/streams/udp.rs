@@ -34,20 +34,20 @@ pub enum Membership {
     Join = uv::uv_membership_UV_JOIN_GROUP,
 }
 
+callbacks! {
+    pub RecvCB(
+        handle: UdpHandle,
+        nread: crate::Result<usize>,
+        buf: crate::ReadonlyBuf,
+        addr: SocketAddr,
+        flags: UdpBindFlags
+    );
+}
+
 /// Additional data to store on the stream
 #[derive(Default)]
-pub(crate) struct UdpDataFields {
-    recv_cb: Option<
-        Box<
-            dyn FnMut(
-                UdpHandle,
-                crate::Result<usize>,
-                crate::ReadonlyBuf,
-                SocketAddr,
-                UdpBindFlags,
-            ),
-        >,
-    >,
+pub(crate) struct UdpDataFields<'a> {
+    recv_cb: RecvCB<'a>,
 }
 
 /// Callback for uv_udp_recv_start
@@ -61,22 +61,20 @@ extern "C" fn uv_udp_recv_cb(
     let dataptr = crate::StreamHandle::get_data(uv_handle!(handle));
     if !dataptr.is_null() {
         if let super::UdpData(d) = unsafe { &mut (*dataptr).addl } {
-            if let Some(f) = d.recv_cb.as_mut() {
-                let sockaddr = crate::build_socketaddr(addr);
-                if let Ok(sockaddr) = sockaddr {
-                    let nread = if nread < 0 {
-                        Err(crate::Error::from_inner(nread as uv::uv_errno_t))
-                    } else {
-                        Ok(nread as _)
-                    };
-                    f(
-                        handle.into_inner(),
-                        nread,
-                        buf.into_inner(),
-                        sockaddr,
-                        UdpBindFlags::from_bits_truncate(flags),
-                    );
-                }
+            let sockaddr = crate::build_socketaddr(addr);
+            if let Ok(sockaddr) = sockaddr {
+                let nread = if nread < 0 {
+                    Err(crate::Error::from_inner(nread as uv::uv_errno_t))
+                } else {
+                    Ok(nread as _)
+                };
+                d.recv_cb.call(
+                    handle.into_inner(),
+                    nread,
+                    buf.into_inner(),
+                    sockaddr,
+                    UdpBindFlags::from_bits_truncate(flags),
+                );
             }
         }
     }
@@ -275,11 +273,11 @@ impl UdpHandle {
     ///
     /// For connectionless UDP handles, addr cannot be None, otherwise it will return EDESTADDRREQ
     /// error.
-    pub fn send(
+    pub fn send<CB: Into<crate::UdpSendCB<'static>>>(
         &self,
         addr: Option<&SocketAddr>,
         bufs: &[impl crate::BufTrait],
-        cb: Option<impl FnMut(crate::UdpSendReq, crate::Result<u32>) + 'static>,
+        cb: CB,
     ) -> crate::Result<crate::UdpSendReq> {
         let mut req = crate::UdpSendReq::new(bufs, cb)?;
         let mut sockaddr: uv::sockaddr = unsafe { std::mem::zeroed() };
@@ -334,31 +332,28 @@ impl UdpHandle {
 
     /// Prepare for receiving data. If the socket has not previously been bound with bind() it is
     /// bound to 0.0.0.0 (the “all interfaces” IPv4 address) and a random port number.
-    pub fn recv_start(
+    pub fn recv_start<ACB: Into<crate::AllocCB<'static>>, CB: Into<RecvCB<'static>>>(
         &mut self,
-        alloc_cb: Option<impl FnMut(crate::Handle, usize) -> Option<crate::Buf> + 'static>,
-        recv_cb: Option<
-            impl FnMut(UdpHandle, crate::Result<usize>, crate::ReadonlyBuf, SocketAddr, UdpBindFlags)
-                + 'static,
-        >,
+        alloc_cb: ACB,
+        recv_cb: RecvCB,
     ) -> crate::Result<()> {
         // uv_alloc_cb is either Some(alloc_cb) or None
         // uv_recv_cb is either Some(udp_recv_cb) or None
-        let uv_alloc_cb = alloc_cb.as_ref().map(|_| crate::uv_alloc_cb as _);
-        let uv_recv_cb = recv_cb.as_ref().map(|_| uv_udp_recv_cb as _);
+        let alloc_cb = alloc_cb.into();
+        let recv_cb = recv_cb.into();
 
         // alloc_cb is either Some(closure) or None
         // recv_cb is either Some(closure) or None
-        let alloc_cb = alloc_cb.map(|f| Box::new(f) as _);
-        let recv_cb = recv_cb.map(|f| Box::new(f) as _);
         let dataptr = crate::StreamHandle::get_data(uv_handle!(self.handle));
         if !dataptr.is_null() {
             unsafe { (*dataptr).alloc_cb = alloc_cb };
-            if let super::UdpData(d) = unsafe { &mut (*dataptr).addl } {
+            if let super::UdpData::<'static>(d) = unsafe { &mut (*dataptr).addl } {
                 d.recv_cb = recv_cb;
             }
         }
 
+        let uv_alloc_cb = use_c_callback!(crate::uv_alloc_cb, alloc_cb);
+        let uv_recv_cb = use_c_callback!(uv_udp_recv_cb, recv_cb);
         crate::uvret(unsafe { uv_udp_recv_start(self.handle, uv_alloc_cb, uv_recv_cb) })
     }
 

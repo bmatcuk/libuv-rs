@@ -42,11 +42,19 @@ bitflags! {
     }
 }
 
+callbacks! {
+    pub FsEventCB(
+        handle: FsEventHandle,
+        filename: Option<Cow<str>>,
+        events: FsEvent,
+        status: crate::Result<u32>
+    );
+}
+
 /// Additional data stored on the handle
 #[derive(Default)]
-pub(crate) struct FsEventDataFields {
-    fs_event_cb:
-        Option<Box<dyn FnMut(FsEventHandle, Option<Cow<str>>, FsEvent, crate::Result<u32>)>>,
+pub(crate) struct FsEventDataFields<'a> {
+    fs_event_cb: FsEventCB<'a>,
 }
 
 /// Callback for uv_fs_event_start
@@ -60,26 +68,24 @@ extern "C" fn uv_fs_event_cb(
     if !dataptr.is_null() {
         unsafe {
             if let super::FsEventData(d) = &mut (*dataptr).addl {
-                if let Some(f) = d.fs_event_cb.as_mut() {
-                    let filename = if filename.is_null() {
-                        None
-                    } else {
-                        Some(CStr::from_ptr(filename).to_string_lossy())
-                    };
+                let filename = if filename.is_null() {
+                    None
+                } else {
+                    Some(CStr::from_ptr(filename).to_string_lossy())
+                };
 
-                    let status = if status < 0 {
-                        Err(crate::Error::from_inner(status as uv::uv_errno_t))
-                    } else {
-                        Ok(status as _)
-                    };
+                let status = if status < 0 {
+                    Err(crate::Error::from_inner(status as uv::uv_errno_t))
+                } else {
+                    Ok(status as _)
+                };
 
-                    f(
-                        handle.into_inner(),
-                        filename,
-                        FsEvent::from_bits_truncate(events as _),
-                        status,
-                    );
-                }
+                d.fs_event_cb.call(
+                    handle.into_inner(),
+                    filename,
+                    FsEvent::from_bits_truncate(events as _),
+                    status,
+                );
             }
         }
     }
@@ -129,21 +135,19 @@ impl FsEventHandle {
     /// Start the handle with the given callback, which will watch the specified path for changes.
     ///
     /// Note: Currently the only supported flag is RECURSIVE and only on OSX and Windows.
-    pub fn start(
+    pub fn start<CB: Into<FsEventCB<'static>>>(
         &mut self,
         path: &str,
         flags: FsEventFlags,
-        cb: Option<
-            impl FnMut(FsEventHandle, Option<Cow<str>>, FsEvent, crate::Result<u32>) + 'static,
-        >,
+        cb: CB,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let path = CString::new(path)?;
 
         // uv_cb is either Some(fs_event_cb) or None
-        let uv_cb = cb.as_ref().map(|_| uv_fs_event_cb as _);
+        let cb = cb.into();
+        let uv_cb = use_c_callback!(uv_fs_event_cb, cb);
 
         // cb is either Some(closure) or None - it is saved into data
-        let cb = cb.map(|f| Box::new(f) as _);
         let dataptr = crate::Handle::get_data(uv_handle!(self.handle));
         if !dataptr.is_null() {
             if let super::FsEventData(d) = unsafe { &mut (*dataptr).addl } {

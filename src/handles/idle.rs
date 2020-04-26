@@ -1,10 +1,14 @@
 use crate::{FromInner, Inner, IntoInner};
 use uv::{uv_idle_init, uv_idle_start, uv_idle_stop, uv_idle_t};
 
+callbacks! {
+    pub IdleCB(handle: IdleHandle);
+}
+
 /// Additional data stored on the handle
 #[derive(Default)]
-pub(crate) struct IdleDataFields {
-    idle_cb: Option<Box<dyn FnMut(IdleHandle)>>,
+pub(crate) struct IdleDataFields<'a> {
+    idle_cb: IdleCB<'a>,
 }
 
 /// Callback for uv_idle_start
@@ -13,9 +17,7 @@ extern "C" fn uv_idle_cb(handle: *mut uv_idle_t) {
     if !dataptr.is_null() {
         unsafe {
             if let super::IdleData(d) = &mut (*dataptr).addl {
-                if let Some(f) = d.idle_cb.as_mut() {
-                    f(handle.into_inner())
-                }
+                d.idle_cb.call(handle.into_inner());
             }
         }
     }
@@ -55,12 +57,12 @@ impl IdleHandle {
     }
 
     /// Start the handle with the given callback.
-    pub fn start(&mut self, cb: Option<impl FnMut(IdleHandle) + 'static>) -> crate::Result<()> {
+    pub fn start<CB: Into<IdleCB<'static>>>(&mut self, cb: CB) -> crate::Result<()> {
         // uv_cb is either Some(uv_idle_cb) or None
-        let uv_cb = cb.as_ref().map(|_| uv_idle_cb as _);
+        let cb = cb.into();
+        let uv_cb = use_c_callback!(uv_idle_cb, cb);
 
         // cb is either Some(closure) or None - it is saved into data
-        let cb = cb.map(|f| Box::new(f) as _);
         let dataptr = crate::Handle::get_data(uv_handle!(self.handle));
         if !dataptr.is_null() {
             if let super::IdleData(d) = unsafe { &mut (*dataptr).addl } {

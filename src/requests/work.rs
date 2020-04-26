@@ -1,10 +1,15 @@
 use crate::{FromInner, Inner, IntoInner};
 use uv::{uv_queue_work, uv_work_t};
 
+callbacks! {
+    pub WorkCB(req: WorkReq);
+    pub AfterWorkCB(req: WorkReq, status: crate::Result<u32>);
+}
+
 /// Additional data stored on the request
-pub(crate) struct WorkDataFields {
-    work_cb: Option<Box<dyn FnMut(WorkReq)>>,
-    after_work_cb: Option<Box<dyn FnMut(WorkReq, crate::Result<u32>)>>,
+pub(crate) struct WorkDataFields<'a> {
+    work_cb: WorkCB<'a>,
+    after_work_cb: AfterWorkCB<'a>,
 }
 
 /// Callback for uv_queue_work
@@ -13,9 +18,7 @@ extern "C" fn uv_work_cb(req: *mut uv_work_t) {
     if !dataptr.is_null() {
         unsafe {
             if let super::WorkData(d) = &mut *dataptr {
-                if let Some(f) = d.work_cb.as_mut() {
-                    f(req.into_inner());
-                }
+                d.work_cb.call(req.into_inner());
             }
         }
     }
@@ -26,14 +29,12 @@ extern "C" fn uv_after_work_cb(req: *mut uv_work_t, status: i32) {
     if !dataptr.is_null() {
         unsafe {
             if let super::WorkData(d) = &mut *dataptr {
-                if let Some(f) = d.after_work_cb.as_mut() {
-                    let status = if status < 0 {
-                        Err(crate::Error::from_inner(status as uv::uv_errno_t))
-                    } else {
-                        Ok(status as _)
-                    };
-                    f(req.into_inner(), status);
-                }
+                let status = if status < 0 {
+                    Err(crate::Error::from_inner(status as uv::uv_errno_t))
+                } else {
+                    Ok(status as _)
+                };
+                d.after_work_cb.call(req.into_inner(), status);
             }
         }
     }
@@ -51,9 +52,9 @@ pub struct WorkReq {
 
 impl WorkReq {
     /// Create a new work request
-    pub fn new(
-        work_cb: Option<impl FnMut(WorkReq) + 'static>,
-        after_work_cb: Option<impl FnMut(WorkReq, crate::Result<u32>) + 'static>,
+    pub fn new<CB: Into<WorkCB<'static>>, ACB: Into<AfterWorkCB<'static>>>(
+        work_cb: CB,
+        after_work_cb: ACB,
     ) -> crate::Result<WorkReq> {
         let layout = std::alloc::Layout::new::<uv_work_t>();
         let req = unsafe { std::alloc::alloc(layout) as *mut uv_work_t };
@@ -61,8 +62,8 @@ impl WorkReq {
             return Err(crate::Error::ENOMEM);
         }
 
-        let work_cb = work_cb.map(|f| Box::new(f) as _);
-        let after_work_cb = after_work_cb.map(|f| Box::new(f) as _);
+        let work_cb = work_cb.into();
+        let after_work_cb = after_work_cb.into();
         crate::Req::initialize_data(
             uv_handle!(req),
             super::WorkData(WorkDataFields {
@@ -124,12 +125,13 @@ impl crate::Loop {
     /// threadpool. Once work_cb is completed, after_work_cb will be called on the loop thread.
     ///
     /// This request can be cancelled with Req::cancel().
-    pub fn queue_work(
+    pub fn queue_work<CB: Into<WorkCB<'static>>, ACB: Into<AfterWorkCB<'static>>>(
         &self,
-        work_cb: Option<impl FnMut(WorkReq) + 'static>,
-        after_work_cb: Option<impl FnMut(WorkReq, crate::Result<u32>) + 'static>,
+        work_cb: CB,
+        after_work_cb: ACB,
     ) -> crate::Result<WorkReq> {
-        let uv_work_cb = work_cb.as_ref().map(|_| uv_work_cb as _);
+        let work_cb = work_cb.into();
+        let uv_work_cb = use_c_callback!(uv_work_cb, work_cb);
         let mut req = WorkReq::new(work_cb, after_work_cb)?;
         let uv_after_work_cb = Some(uv_after_work_cb as _);
         let result = crate::uvret(unsafe {

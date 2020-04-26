@@ -1,10 +1,14 @@
 use crate::{FromInner, Inner, IntoInner};
 use uv::{uv_async_init, uv_async_send, uv_async_t};
 
+callbacks! {
+    pub AsyncCB(handle: AsyncHandle);
+}
+
 /// Additional data stored on the handle
 #[derive(Default)]
-pub(crate) struct AsyncDataFields {
-    async_cb: Option<Box<dyn FnMut(AsyncHandle)>>,
+pub(crate) struct AsyncDataFields<'a> {
+    async_cb: AsyncCB<'a>,
 }
 
 /// Callback for uv_async_init
@@ -13,9 +17,7 @@ extern "C" fn uv_async_cb(handle: *mut uv_async_t) {
     if !dataptr.is_null() {
         unsafe {
             if let super::AsyncData(d) = &mut (*dataptr).addl {
-                if let Some(f) = d.async_cb.as_mut() {
-                    f(handle.into_inner());
-                }
+                d.async_cb.call(handle.into_inner());
             }
         }
     }
@@ -30,9 +32,9 @@ pub struct AsyncHandle {
 
 impl AsyncHandle {
     /// Create and initialize a new async handle
-    pub fn new(
+    pub fn new<CB: Into<AsyncCB<'static>>>(
         r#loop: &crate::Loop,
-        cb: Option<impl FnMut(AsyncHandle) + 'static>,
+        cb: CB,
     ) -> crate::Result<AsyncHandle> {
         let layout = std::alloc::Layout::new::<uv_async_t>();
         let handle = unsafe { std::alloc::alloc(layout) as *mut uv_async_t };
@@ -41,10 +43,9 @@ impl AsyncHandle {
         }
 
         // uv_cb is either Some(uv_async_cb) or None
-        let uv_cb = cb.as_ref().map(|_| uv_async_cb as _);
+        let async_cb = cb.into();
+        let uv_cb = use_c_callback!(uv_async_cb, async_cb);
 
-        // async_cb is either Some(closure) or None - it is saved into data
-        let async_cb = cb.map(|f| Box::new(f) as _);
         let data = AsyncDataFields { async_cb };
         crate::Handle::initialize_data(uv_handle!(handle), super::AsyncData(data));
 
@@ -103,10 +104,7 @@ impl crate::HandleTrait for AsyncHandle {}
 
 impl crate::Loop {
     /// Create and initialize a new async handle
-    pub fn r#async(
-        &self,
-        cb: Option<impl FnMut(AsyncHandle) + 'static>,
-    ) -> crate::Result<AsyncHandle> {
+    pub fn r#async<CB: Into<AsyncCB<'static>>>(&self, cb: CB) -> crate::Result<AsyncHandle> {
         AsyncHandle::new(self, cb)
     }
 }
