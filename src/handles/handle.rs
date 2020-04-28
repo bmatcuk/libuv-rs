@@ -51,7 +51,7 @@ impl IntoInner<Option<Layout>> for HandleType {
 }
 
 callbacks! {
-    pub(crate) CloseCB(handle: crate::Handle);
+    pub CloseCB(handle: crate::Handle);
 }
 
 /// Data that we need to track with the handle.

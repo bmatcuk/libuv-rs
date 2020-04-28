@@ -335,25 +335,25 @@ impl UdpHandle {
     pub fn recv_start<ACB: Into<crate::AllocCB<'static>>, CB: Into<RecvCB<'static>>>(
         &mut self,
         alloc_cb: ACB,
-        recv_cb: RecvCB,
+        recv_cb: CB,
     ) -> crate::Result<()> {
         // uv_alloc_cb is either Some(alloc_cb) or None
         // uv_recv_cb is either Some(udp_recv_cb) or None
         let alloc_cb = alloc_cb.into();
         let recv_cb = recv_cb.into();
+        let uv_alloc_cb = use_c_callback!(crate::uv_alloc_cb, alloc_cb);
+        let uv_recv_cb = use_c_callback!(uv_udp_recv_cb, recv_cb);
 
         // alloc_cb is either Some(closure) or None
         // recv_cb is either Some(closure) or None
         let dataptr = crate::StreamHandle::get_data(uv_handle!(self.handle));
         if !dataptr.is_null() {
             unsafe { (*dataptr).alloc_cb = alloc_cb };
-            if let super::UdpData::<'static>(d) = unsafe { &mut (*dataptr).addl } {
+            if let super::UdpData(d) = unsafe { &mut (*dataptr).addl } {
                 d.recv_cb = recv_cb;
             }
         }
 
-        let uv_alloc_cb = use_c_callback!(crate::uv_alloc_cb, alloc_cb);
-        let uv_recv_cb = use_c_callback!(uv_udp_recv_cb, recv_cb);
         crate::uvret(unsafe { uv_udp_recv_start(self.handle, uv_alloc_cb, uv_recv_cb) })
     }
 

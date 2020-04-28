@@ -45,7 +45,7 @@ fn run_command(
 /// like implementing that...
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = std::env::args().collect();
-    if args.len() <= 2 {
+    if args.len() <= 1 {
         eprintln!("Usage: {} <file1> [file2 ...]", args[0]);
         return Ok(());
     }
@@ -56,7 +56,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("Adding watch on {}", file);
 
         let mut handle = r#loop.fs_event()?;
-        handle.start(file, FsEventFlags::RECURSIVE, Some(run_command))?;
+        handle.start(file, FsEventFlags::RECURSIVE, run_command)?;
     }
 
     r#loop.run(RunMode::Default)?;

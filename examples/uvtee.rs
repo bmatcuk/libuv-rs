@@ -19,12 +19,12 @@ fn write_data(mut stream: StreamHandle, len: usize, buf: &ReadonlyBuf) -> libuv:
     let mut buf = Buf::new_from(buf, Some(len))?;
     stream.write(
         &[buf],
-        Some(move |_, status| {
+        move |_, status| {
             if let Err(e) = status {
                 eprintln!("error writing data: {}", e);
             }
             buf.destroy();
-        }),
+        },
     )?;
     Ok(())
 }
@@ -92,18 +92,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     file_pipe.open(file)?;
 
     stdin_pipe.read_start(
-        Some(alloc_buffer),
-        Some(move |stream, nread, buf| {
+        alloc_buffer,
+        move |stream, nread, buf| {
             read_stdin(stream, &mut stdout_pipe, &mut file_pipe, nread, buf)
-        }),
+        },
     )?;
 
     r#loop.run(RunMode::Default)?;
 
     // We need to close the pipes...
-    stdin_pipe.close(None::<fn(Handle)>);
-    stdout_pipe.close(None::<fn(Handle)>);
-    file_pipe.close(None::<fn(Handle)>);
+    stdin_pipe.close(());
+    stdout_pipe.close(());
+    file_pipe.close(());
 
     // Restart the loop just to close the pipes... this should return fairly quickly.
     r#loop.run(RunMode::Default)?;

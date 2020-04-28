@@ -95,7 +95,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut recv_socket = r#loop.udp()?;
     let recv_addr = (Ipv4Addr::UNSPECIFIED, 68).into();
     recv_socket.bind(&recv_addr, UdpBindFlags::REUSEADDR)?;
-    recv_socket.recv_start(Some(alloc_buffer), Some(on_read))?;
+    recv_socket.recv_start(alloc_buffer, on_read)?;
 
     let mut send_socket = r#loop.udp()?;
     let broadcast_addr = (Ipv4Addr::UNSPECIFIED, 0).into();
@@ -107,18 +107,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     send_socket.send(
         Some(&send_addr),
         &[discover_msg],
-        Some(move |_, status| {
+        move |_, status| {
             if let Err(e) = status {
                 eprintln!("Send error {}", e);
             }
             discover_msg.destroy();
-        }),
+        },
     )?;
 
     r#loop.run(RunMode::Default)?;
 
-    recv_socket.close(None::<fn(Handle)>);
-    send_socket.close(None::<fn(Handle)>);
+    recv_socket.close(());
+    send_socket.close(());
 
     Ok(())
 }

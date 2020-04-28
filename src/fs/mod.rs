@@ -590,8 +590,9 @@ impl crate::Loop {
     }
 
     /// Private implementation for fs_stat()
-    fn _fs_stat(&self, path: &str, cb: Option<impl FnMut(FsReq) + 'static>) -> FsReqErrResult {
-        let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+    fn _fs_stat<CB: Into<crate::FsCB<'static>>>(&self, path: &str, cb: CB) -> FsReqErrResult {
+        let cb = cb.into();
+        let uv_cb = use_c_callback!(crate::uv_fs_cb, cb);
         let path = CString::new(path)?;
         let mut req = FsReq::new(cb)?;
         let result = crate::uvret(unsafe {
@@ -605,13 +606,13 @@ impl crate::Loop {
     }
 
     /// Equivalent to stat(2).
-    pub fn fs_stat(&self, path: &str, cb: impl FnMut(FsReq) + 'static) -> FsReqErrResult {
-        self._fs_stat(path, Some(cb))
+    pub fn fs_stat<CB: Into<crate::FsCB<'static>>>(&self, path: &str, cb: CB) -> FsReqErrResult {
+        self._fs_stat(path, cb)
     }
 
     /// Equivalent to stat(2).
     pub fn fs_stat_sync(&self, path: &str) -> Result<Stat, Box<dyn std::error::Error>> {
-        self._fs_stat(path, None::<fn(_)>).map(|mut req| {
+        self._fs_stat(path, ()).map(|mut req| {
             let stat = req.stat();
             req.destroy();
             return stat;
@@ -619,8 +620,9 @@ impl crate::Loop {
     }
 
     /// Private implementation for fs_fstat()
-    fn _fs_fstat(&self, file: File, cb: Option<impl FnMut(FsReq) + 'static>) -> FsReqResult {
-        let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+    fn _fs_fstat<CB: Into<crate::FsCB<'static>>>(&self, file: File, cb: CB) -> FsReqResult {
+        let cb = cb.into();
+        let uv_cb = use_c_callback!(crate::uv_fs_cb, cb);
         let mut req = FsReq::new(cb)?;
         let result =
             crate::uvret(unsafe { uv_fs_fstat(self.into_inner(), req.inner(), file as _, uv_cb) });
@@ -631,13 +633,13 @@ impl crate::Loop {
     }
 
     /// Equivalent to fstat(2).
-    pub fn fs_fstat(&self, file: File, cb: impl FnMut(FsReq) + 'static) -> FsReqResult {
-        self._fs_fstat(file, Some(cb))
+    pub fn fs_fstat<CB: Into<crate::FsCB<'static>>>(&self, file: File, cb: CB) -> FsReqResult {
+        self._fs_fstat(file, cb)
     }
 
     /// Equivalent to fstat(2).
     pub fn fs_fstat_sync(&self, file: File) -> crate::Result<Stat> {
-        self._fs_fstat(file, None::<fn(_)>).map(|mut req| {
+        self._fs_fstat(file, ()).map(|mut req| {
             let stat = req.stat();
             req.destroy();
             return stat;
@@ -645,8 +647,9 @@ impl crate::Loop {
     }
 
     /// Private implementation for fs_lstat
-    fn _fs_lstat(&self, path: &str, cb: Option<impl FnMut(FsReq) + 'static>) -> FsReqErrResult {
-        let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+    fn _fs_lstat<CB: Into<crate::FsCB<'static>>>(&self, path: &str, cb: CB) -> FsReqErrResult {
+        let cb = cb.into();
+        let uv_cb = use_c_callback!(crate::uv_fs_cb, cb);
         let path = CString::new(path)?;
         let mut req = FsReq::new(cb)?;
         let result = crate::uvret(unsafe {
@@ -660,13 +663,13 @@ impl crate::Loop {
     }
 
     /// Equivalent to lstat(2).
-    pub fn fs_lstat(&self, path: &str, cb: impl FnMut(FsReq) + 'static) -> FsReqErrResult {
-        self._fs_lstat(path, Some(cb))
+    pub fn fs_lstat<CB: Into<crate::FsCB<'static>>>(&self, path: &str, cb: CB) -> FsReqErrResult {
+        self._fs_lstat(path, cb)
     }
 
     /// Equivalent to lstat(2).
     pub fn fs_lstat_sync(&self, path: &str) -> Result<Stat, Box<dyn std::error::Error>> {
-        self._fs_lstat(path, None::<fn(_)>).map(|mut req| {
+        self._fs_lstat(path, ()).map(|mut req| {
             let stat = req.stat();
             req.destroy();
             return stat;
@@ -674,8 +677,9 @@ impl crate::Loop {
     }
 
     /// Private implementation for fs_statfs()
-    fn _fs_statfs(&self, path: &str, cb: Option<impl FnMut(FsReq) + 'static>) -> FsReqErrResult {
-        let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+    fn _fs_statfs<CB: Into<crate::FsCB<'static>>>(&self, path: &str, cb: CB) -> FsReqErrResult {
+        let cb = cb.into();
+        let uv_cb = use_c_callback!(crate::uv_fs_cb, cb);
         let path = CString::new(path)?;
         let mut req = FsReq::new(cb)?;
         let result = crate::uvret(unsafe {
@@ -692,8 +696,8 @@ impl crate::Loop {
     ///
     /// Note: Any fields in the resulting StatFs that are not supported by the underlying operating
     /// system are set to zero.
-    pub fn fs_statfs(&self, path: &str, cb: impl FnMut(FsReq) + 'static) -> FsReqErrResult {
-        self._fs_statfs(path, Some(cb))
+    pub fn fs_statfs<CB: Into<crate::FsCB<'static>>>(&self, path: &str, cb: CB) -> FsReqErrResult {
+        self._fs_statfs(path, cb)
     }
 
     /// Equivalent to statfs(2). On success, FsReq::statfs() will return a StatFs
@@ -701,7 +705,7 @@ impl crate::Loop {
     /// Note: Any fields in the resulting StatFs that are not supported by the underlying operating
     /// system are set to zero.
     pub fn fs_statfs_sync(&self, path: &str) -> Result<StatFs, Box<dyn std::error::Error>> {
-        self._fs_statfs(path, None::<fn(_)>).and_then(|mut req| {
+        self._fs_statfs(path, ()).and_then(|mut req| {
             let statfs = req.statfs();
             req.destroy();
             statfs.ok_or_else(|| Box::new(crate::Error::EINVAL) as _)
@@ -709,13 +713,14 @@ impl crate::Loop {
     }
 
     /// Private implementation for fs_rename()
-    fn _fs_rename(
+    fn _fs_rename<CB: Into<crate::FsCB<'static>>>(
         &self,
         path: &str,
         new_path: &str,
-        cb: Option<impl FnMut(FsReq) + 'static>,
+        cb: CB,
     ) -> FsReqErrResult {
-        let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let cb = cb.into();
+        let uv_cb = use_c_callback!(crate::uv_fs_cb, cb);
         let path = CString::new(path)?;
         let new_path = CString::new(new_path)?;
         let mut req = FsReq::new(cb)?;
@@ -736,24 +741,25 @@ impl crate::Loop {
     }
 
     /// Equivalent to rename(2).
-    pub fn fs_rename(
+    pub fn fs_rename<CB: Into<crate::FsCB<'static>>>(
         &self,
         path: &str,
         new_path: &str,
-        cb: impl FnMut(FsReq) + 'static,
+        cb: CB,
     ) -> FsReqErrResult {
-        self._fs_rename(path, new_path, Some(cb))
+        self._fs_rename(path, new_path, cb)
     }
 
     /// Equivalent to rename(2).
     pub fn fs_rename_sync(&self, path: &str, new_path: &str) -> SyncErrResult {
-        self._fs_rename(path, new_path, None::<fn(_)>)
+        self._fs_rename(path, new_path, ())
             .and_then(destroy_req_return_boxed_result)
     }
 
     /// Private implementation for fs_fsync()
-    fn _fs_fsync(&self, file: File, cb: Option<impl FnMut(FsReq) + 'static>) -> FsReqResult {
-        let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+    fn _fs_fsync<CB: Into<crate::FsCB<'static>>>(&self, file: File, cb: CB) -> FsReqResult {
+        let cb = cb.into();
+        let uv_cb = use_c_callback!(crate::uv_fs_cb, cb);
         let mut req = FsReq::new(cb)?;
         let result =
             crate::uvret(unsafe { uv_fs_fsync(self.into_inner(), req.inner(), file as _, uv_cb) });
@@ -767,8 +773,8 @@ impl crate::Loop {
     ///
     /// Note: For AIX, uv_fs_fsync returns UV_EBADF on file descriptors referencing non regular
     /// files.
-    pub fn fs_fsync(&self, file: File, cb: impl FnMut(FsReq) + 'static) -> FsReqResult {
-        self._fs_fsync(file, Some(cb))
+    pub fn fs_fsync<CB: Into<crate::FsCB<'static>>>(&self, file: File, cb: CB) -> FsReqResult {
+        self._fs_fsync(file, cb)
     }
 
     /// Equivalent to fsync(2).
@@ -776,13 +782,14 @@ impl crate::Loop {
     /// Note: For AIX, uv_fs_fsync returns UV_EBADF on file descriptors referencing non regular
     /// files.
     pub fn fs_fsync_sync(&self, file: File) -> SyncResult {
-        self._fs_fsync(file, None::<fn(_)>)
+        self._fs_fsync(file, ())
             .and_then(destroy_req_return_result)
     }
 
     /// Private implementation for fs_fdatasync()
-    fn _fs_fdatasync(&self, file: File, cb: Option<impl FnMut(FsReq) + 'static>) -> FsReqResult {
-        let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+    fn _fs_fdatasync<CB: Into<crate::FsCB<'static>>>(&self, file: File, cb: CB) -> FsReqResult {
+        let cb = cb.into();
+        let uv_cb = use_c_callback!(crate::uv_fs_cb, cb);
         let mut req = FsReq::new(cb)?;
         let result = crate::uvret(unsafe {
             uv_fs_fdatasync(self.into_inner(), req.inner(), file as _, uv_cb)
@@ -794,24 +801,25 @@ impl crate::Loop {
     }
 
     /// Equivalent to fdatasync(2).
-    pub fn fs_fdatasync(&self, file: File, cb: impl FnMut(FsReq) + 'static) -> FsReqResult {
-        self._fs_fdatasync(file, Some(cb))
+    pub fn fs_fdatasync<CB: Into<crate::FsCB<'static>>>(&self, file: File, cb: CB) -> FsReqResult {
+        self._fs_fdatasync(file, cb)
     }
 
     /// Equivalent to fdatasync(2).
     pub fn fs_fdatasync_sync(&self, file: File) -> SyncResult {
-        self._fs_fdatasync(file, None::<fn(_)>)
+        self._fs_fdatasync(file, ())
             .and_then(destroy_req_return_result)
     }
 
     /// Private implementation for fs_ftruncate()
-    fn _fs_ftruncate(
+    fn _fs_ftruncate<CB: Into<crate::FsCB<'static>>>(
         &self,
         file: File,
         offset: i64,
-        cb: Option<impl FnMut(FsReq) + 'static>,
+        cb: CB,
     ) -> FsReqResult {
-        let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let cb = cb.into();
+        let uv_cb = use_c_callback!(crate::uv_fs_cb, cb);
         let mut req = FsReq::new(cb)?;
         let result = crate::uvret(unsafe {
             uv_fs_ftruncate(self.into_inner(), req.inner(), file as _, offset, uv_cb)
@@ -823,30 +831,31 @@ impl crate::Loop {
     }
 
     /// Equivalent to ftruncate(2).
-    pub fn fs_ftruncate(
+    pub fn fs_ftruncate<CB: Into<crate::FsCB<'static>>>(
         &self,
         file: File,
         offset: i64,
-        cb: impl FnMut(FsReq) + 'static,
+        cb: CB,
     ) -> FsReqResult {
-        self._fs_ftruncate(file, offset, Some(cb))
+        self._fs_ftruncate(file, offset, cb)
     }
 
     /// Equivalent to ftruncate(2).
     pub fn fs_ftruncate_sync(&self, file: File, offset: i64) -> SyncResult {
-        self._fs_ftruncate(file, offset, None::<fn(_)>)
+        self._fs_ftruncate(file, offset, ())
             .and_then(destroy_req_return_result)
     }
 
     /// Private implementation for fs_copyfile()
-    fn _fs_copyfile(
+    fn _fs_copyfile<CB: Into<crate::FsCB<'static>>>(
         &self,
         path: &str,
         new_path: &str,
         flags: FsCopyFlags,
-        cb: Option<impl FnMut(FsReq) + 'static>,
+        cb: CB,
     ) -> FsReqErrResult {
-        let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let cb = cb.into();
+        let uv_cb = use_c_callback!(crate::uv_fs_cb, cb);
         let path = CString::new(path)?;
         let new_path = CString::new(new_path)?;
         let mut req = FsReq::new(cb)?;
@@ -882,14 +891,14 @@ impl crate::Loop {
     /// Warning: If the destination path is created, but an error occurs while copying the data,
     /// then the destination path is removed. There is a brief window of time between closing and
     /// removing the file where another process could access the file.
-    pub fn fs_copyfile(
+    pub fn fs_copyfile<CB: Into<crate::FsCB<'static>>>(
         &self,
         path: &str,
         new_path: &str,
         flags: FsCopyFlags,
-        cb: impl FnMut(FsReq) + 'static,
+        cb: CB,
     ) -> FsReqErrResult {
-        self._fs_copyfile(path, new_path, flags, Some(cb))
+        self._fs_copyfile(path, new_path, flags, cb)
     }
 
     /// Copies a file from path to new_path. Supported flags are described below.
@@ -913,20 +922,21 @@ impl crate::Loop {
         new_path: &str,
         flags: FsCopyFlags,
     ) -> SyncErrResult {
-        self._fs_copyfile(path, new_path, flags, None::<fn(_)>)
+        self._fs_copyfile(path, new_path, flags, ())
             .and_then(destroy_req_return_boxed_result)
     }
 
     /// Private implementation for fs_sendfile
-    fn _fs_sendfile(
+    fn _fs_sendfile<CB: Into<crate::FsCB<'static>>>(
         &self,
         out_file: File,
         in_file: File,
         offset: i64,
         len: usize,
-        cb: Option<impl FnMut(FsReq) + 'static>,
+        cb: CB,
     ) -> FsReqResult {
-        let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let cb = cb.into();
+        let uv_cb = use_c_callback!(crate::uv_fs_cb, cb);
         let mut req = FsReq::new(cb)?;
         let result = crate::uvret(unsafe {
             uv_fs_sendfile(
@@ -946,15 +956,15 @@ impl crate::Loop {
     }
 
     /// Limited equivalent to sendfile(2).
-    pub fn fs_sendfile(
+    pub fn fs_sendfile<CB: Into<crate::FsCB<'static>>>(
         &self,
         out_file: File,
         in_file: File,
         offset: i64,
         len: usize,
-        cb: impl FnMut(FsReq) + 'static,
+        cb: CB,
     ) -> FsReqResult {
-        self._fs_sendfile(out_file, in_file, offset, len, Some(cb))
+        self._fs_sendfile(out_file, in_file, offset, len, cb)
     }
 
     /// Limited equivalent to sendfile(2).
@@ -965,18 +975,19 @@ impl crate::Loop {
         offset: i64,
         len: usize,
     ) -> SyncResult {
-        self._fs_sendfile(out_file, in_file, offset, len, None::<fn(_)>)
+        self._fs_sendfile(out_file, in_file, offset, len, ())
             .and_then(destroy_req_return_result)
     }
 
     /// Private implementation for fs_access()
-    fn _fs_access(
+    fn _fs_access<CB: Into<crate::FsCB<'static>>>(
         &self,
         path: &str,
         mode: FsAccessFlags,
-        cb: Option<impl FnMut(FsReq) + 'static>,
+        cb: CB,
     ) -> FsReqErrResult {
-        let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let cb = cb.into();
+        let uv_cb = use_c_callback!(crate::uv_fs_cb, cb);
         let path = CString::new(path)?;
         let mut req = FsReq::new(cb)?;
         let result = crate::uvret(unsafe {
@@ -996,29 +1007,30 @@ impl crate::Loop {
     }
 
     /// Equivalent to access(2) on Unix. Windows uses GetFileAttributesW().
-    pub fn fs_access(
+    pub fn fs_access<CB: Into<crate::FsCB<'static>>>(
         &self,
         path: &str,
         mode: FsAccessFlags,
-        cb: impl FnMut(FsReq) + 'static,
+        cb: CB,
     ) -> FsReqErrResult {
-        self._fs_access(path, mode, Some(cb))
+        self._fs_access(path, mode, cb)
     }
 
     /// Equivalent to access(2) on Unix. Windows uses GetFileAttributesW().
     pub fn fs_access_sync(&self, path: &str, mode: FsAccessFlags) -> SyncErrResult {
-        self._fs_access(path, mode, None::<fn(_)>)
+        self._fs_access(path, mode, ())
             .and_then(destroy_req_return_boxed_result)
     }
 
     /// Private implementation for fs_chmod()
-    fn _fs_chmod(
+    fn _fs_chmod<CB: Into<crate::FsCB<'static>>>(
         &self,
         path: &str,
         mode: FsModeFlags,
-        cb: Option<impl FnMut(FsReq) + 'static>,
+        cb: CB,
     ) -> FsReqErrResult {
-        let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let cb = cb.into();
+        let uv_cb = use_c_callback!(crate::uv_fs_cb, cb);
         let path = CString::new(path)?;
         let mut req = FsReq::new(cb)?;
         let result = crate::uvret(unsafe {
@@ -1038,29 +1050,30 @@ impl crate::Loop {
     }
 
     /// Equivalent to chmod(2).
-    pub fn fs_chmod(
+    pub fn fs_chmod<CB: Into<crate::FsCB<'static>>>(
         &self,
         path: &str,
         mode: FsModeFlags,
-        cb: impl FnMut(FsReq) + 'static,
+        cb: CB,
     ) -> FsReqErrResult {
-        self._fs_chmod(path, mode, Some(cb))
+        self._fs_chmod(path, mode, cb)
     }
 
     /// Equivalent to chmod(2).
     pub fn fs_chmod_sync(&self, path: &str, mode: FsModeFlags) -> SyncErrResult {
-        self._fs_chmod(path, mode, None::<fn(_)>)
+        self._fs_chmod(path, mode, ())
             .and_then(destroy_req_return_boxed_result)
     }
 
     /// Private implementation for fs_fchomd()
-    fn _fs_fchmod(
+    fn _fs_fchmod<CB: Into<crate::FsCB<'static>>>(
         &self,
         file: File,
         mode: FsModeFlags,
-        cb: Option<impl FnMut(FsReq) + 'static>,
+        cb: CB,
     ) -> FsReqResult {
-        let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let cb = cb.into();
+        let uv_cb = use_c_callback!(crate::uv_fs_cb, cb);
         let mut req = FsReq::new(cb)?;
         let result = crate::uvret(unsafe {
             uv_fs_fchmod(
@@ -1078,29 +1091,30 @@ impl crate::Loop {
     }
 
     /// Equivalent to fchmod(2).
-    pub fn fs_fchmod(
+    pub fn fs_fchmod<CB: Into<crate::FsCB<'static>>>(
         &self,
         file: File,
         mode: FsModeFlags,
-        cb: impl FnMut(FsReq) + 'static,
+        cb: CB,
     ) -> FsReqResult {
-        self._fs_fchmod(file, mode, Some(cb))
+        self._fs_fchmod(file, mode, cb)
     }
 
     /// Equivalent to fchmod(2).
     pub fn fs_fchmod_sync(&self, file: File, mode: FsModeFlags) -> SyncResult {
-        self._fs_fchmod(file, mode, None::<fn(_)>)
+        self._fs_fchmod(file, mode, ())
             .and_then(destroy_req_return_result)
     }
 
-    fn _fs_utime(
+    fn _fs_utime<CB: Into<crate::FsCB<'static>>>(
         &self,
         path: &str,
         atime: f64,
         mtime: f64,
-        cb: Option<impl FnMut(FsReq) + 'static>,
+        cb: CB,
     ) -> FsReqErrResult {
-        let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let cb = cb.into();
+        let uv_cb = use_c_callback!(crate::uv_fs_cb, cb);
         let path = CString::new(path)?;
         let mut req = FsReq::new(cb)?;
         let result = crate::uvret(unsafe {
@@ -1124,14 +1138,14 @@ impl crate::Loop {
     ///
     /// Note: AIX: This function only works for AIX 7.1 and newer. It can still be called on older
     /// versions but will return ENOSYS.
-    pub fn fs_utime(
+    pub fn fs_utime<CB: Into<crate::FsCB<'static>>>(
         &self,
         path: &str,
         atime: f64,
         mtime: f64,
-        cb: impl FnMut(FsReq) + 'static,
+        cb: CB,
     ) -> FsReqErrResult {
-        self._fs_utime(path, atime, mtime, Some(cb))
+        self._fs_utime(path, atime, mtime, cb)
     }
 
     /// Equivalent to utime(2).
@@ -1139,19 +1153,20 @@ impl crate::Loop {
     /// Note: AIX: This function only works for AIX 7.1 and newer. It can still be called on older
     /// versions but will return ENOSYS.
     pub fn fs_utime_sync(&self, path: &str, atime: f64, mtime: f64) -> SyncErrResult {
-        self._fs_utime(path, atime, mtime, None::<fn(_)>)
+        self._fs_utime(path, atime, mtime, ())
             .and_then(destroy_req_return_boxed_result)
     }
 
     /// Private implementation for fs_futime()
-    fn _fs_futime(
+    fn _fs_futime<CB: Into<crate::FsCB<'static>>>(
         &self,
         file: File,
         atime: f64,
         mtime: f64,
-        cb: Option<impl FnMut(FsReq) + 'static>,
+        cb: CB,
     ) -> FsReqResult {
-        let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let cb = cb.into();
+        let uv_cb = use_c_callback!(crate::uv_fs_cb, cb);
         let mut req = FsReq::new(cb)?;
         let result = crate::uvret(unsafe {
             uv_fs_futime(
@@ -1173,14 +1188,14 @@ impl crate::Loop {
     ///
     /// Note: AIX: This function only works for AIX 7.1 and newer. It can still be called on older
     /// versions but will return ENOSYS.
-    pub fn fs_futime(
+    pub fn fs_futime<CB: Into<crate::FsCB<'static>>>(
         &self,
         file: File,
         atime: f64,
         mtime: f64,
-        cb: impl FnMut(FsReq) + 'static,
+        cb: CB,
     ) -> FsReqResult {
-        self._fs_futime(file, atime, mtime, Some(cb))
+        self._fs_futime(file, atime, mtime, cb)
     }
 
     /// Equivalent to futimes(3) respectively.
@@ -1188,18 +1203,19 @@ impl crate::Loop {
     /// Note: AIX: This function only works for AIX 7.1 and newer. It can still be called on older
     /// versions but will return ENOSYS.
     pub fn fs_futime_sync(&self, file: File, atime: f64, mtime: f64) -> SyncResult {
-        self._fs_futime(file, atime, mtime, None::<fn(_)>)
+        self._fs_futime(file, atime, mtime, ())
             .and_then(destroy_req_return_result)
     }
 
     /// Private implementation for fs_link()
-    fn _fs_link(
+    fn _fs_link<CB: Into<crate::FsCB<'static>>>(
         &self,
         path: &str,
         new_path: &str,
-        cb: Option<impl FnMut(FsReq) + 'static>,
+        cb: CB,
     ) -> FsReqErrResult {
-        let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let cb = cb.into();
+        let uv_cb = use_c_callback!(crate::uv_fs_cb, cb);
         let path = CString::new(path)?;
         let new_path = CString::new(new_path)?;
         let mut req = FsReq::new(cb)?;
@@ -1220,30 +1236,31 @@ impl crate::Loop {
     }
 
     /// Equivalent to link(2).
-    pub fn fs_link(
+    pub fn fs_link<CB: Into<crate::FsCB<'static>>>(
         &self,
         path: &str,
         new_path: &str,
-        cb: impl FnMut(FsReq) + 'static,
+        cb: CB,
     ) -> FsReqErrResult {
-        self._fs_link(path, new_path, Some(cb))
+        self._fs_link(path, new_path, cb)
     }
 
     /// Equivalent to link(2).
     pub fn fs_link_sync(&self, path: &str, new_path: &str) -> SyncErrResult {
-        self._fs_link(path, new_path, None::<fn(_)>)
+        self._fs_link(path, new_path, ())
             .and_then(destroy_req_return_boxed_result)
     }
 
     /// Private implementation for fs_symlink()
-    fn _fs_symlink(
+    fn _fs_symlink<CB: Into<crate::FsCB<'static>>>(
         &self,
         path: &str,
         new_path: &str,
         flags: FsSymlinkFlags,
-        cb: Option<impl FnMut(FsReq) + 'static>,
+        cb: CB,
     ) -> FsReqErrResult {
-        let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let cb = cb.into();
+        let uv_cb = use_c_callback!(crate::uv_fs_cb, cb);
         let path = CString::new(path)?;
         let new_path = CString::new(new_path)?;
         let mut req = FsReq::new(cb)?;
@@ -1271,14 +1288,14 @@ impl crate::Loop {
     ///
     ///   * UV_FS_SYMLINK_DIR: indicates that path points to a directory.
     ///   * UV_FS_SYMLINK_JUNCTION: request that the symlink is created using junction points.
-    pub fn fs_symlink(
+    pub fn fs_symlink<CB: Into<crate::FsCB<'static>>>(
         &self,
         path: &str,
         new_path: &str,
         flags: FsSymlinkFlags,
-        cb: impl FnMut(FsReq) + 'static,
+        cb: CB,
     ) -> FsReqErrResult {
-        self._fs_symlink(path, new_path, flags, Some(cb))
+        self._fs_symlink(path, new_path, flags, cb)
     }
 
     /// Equivalent to symlink(2).
@@ -1294,12 +1311,13 @@ impl crate::Loop {
         new_path: &str,
         flags: FsSymlinkFlags,
     ) -> SyncErrResult {
-        self._fs_symlink(path, new_path, flags, None::<fn(_)>)
+        self._fs_symlink(path, new_path, flags, ())
             .and_then(destroy_req_return_boxed_result)
     }
 
-    fn _fs_readlink(&self, path: &str, cb: Option<impl FnMut(FsReq) + 'static>) -> FsReqErrResult {
-        let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+    fn _fs_readlink<CB: Into<crate::FsCB<'static>>>(&self, path: &str, cb: CB) -> FsReqErrResult {
+        let cb = cb.into();
+        let uv_cb = use_c_callback!(crate::uv_fs_cb, cb);
         let path = CString::new(path)?;
         let mut req = FsReq::new(cb)?;
         let result = crate::uvret(unsafe {
@@ -1313,13 +1331,13 @@ impl crate::Loop {
     }
 
     /// Equivalent to readlink(2). The path can be read from FsReq::real_path()
-    pub fn fs_readlink(&self, path: &str, cb: impl FnMut(FsReq) + 'static) -> FsReqErrResult {
-        self._fs_readlink(path, Some(cb))
+    pub fn fs_readlink<CB: Into<crate::FsCB<'static>>>(&self, path: &str, cb: CB) -> FsReqErrResult {
+        self._fs_readlink(path, cb)
     }
 
     /// Equivalent to readlink(2).
     pub fn fs_readlink_sync(&self, path: &str) -> Result<String, Box<dyn std::error::Error>> {
-        self._fs_readlink(path, None::<fn(_)>).and_then(|mut req| {
+        self._fs_readlink(path, ()).and_then(|mut req| {
             let path = req.real_path();
             req.destroy();
             path.ok_or_else(|| Box::new(crate::Error::EINVAL) as _)
@@ -1327,8 +1345,9 @@ impl crate::Loop {
     }
 
     /// Private implementation for fs_realpath()
-    fn _fs_realpath(&self, path: &str, cb: Option<impl FnMut(FsReq) + 'static>) -> FsReqErrResult {
-        let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+    fn _fs_realpath<CB: Into<crate::FsCB<'static>>>(&self, path: &str, cb: CB) -> FsReqErrResult {
+        let cb = cb.into();
+        let uv_cb = use_c_callback!(crate::uv_fs_cb, cb);
         let path = CString::new(path)?;
         let mut req = FsReq::new(cb)?;
         let result = crate::uvret(unsafe {
@@ -1362,8 +1381,8 @@ impl crate::Loop {
     ///
     /// Note: This function is not implemented on Windows XP and Windows Server 2003. On these
     /// systems, ENOSYS is returned.
-    pub fn fs_realpath(&self, path: &str, cb: impl FnMut(FsReq) + 'static) -> FsReqErrResult {
-        self._fs_realpath(path, Some(cb))
+    pub fn fs_realpath<CB: Into<crate::FsCB<'static>>>(&self, path: &str, cb: CB) -> FsReqErrResult {
+        self._fs_realpath(path, cb)
     }
 
     /// Equivalent to realpath(3) on Unix. Windows uses GetFinalPathNameByHandle.
@@ -1387,7 +1406,7 @@ impl crate::Loop {
     /// Note: This function is not implemented on Windows XP and Windows Server 2003. On these
     /// systems, ENOSYS is returned.
     pub fn fs_realpath_sync(&self, path: &str) -> Result<String, Box<dyn std::error::Error>> {
-        self._fs_realpath(path, None::<fn(_)>).and_then(|mut req| {
+        self._fs_realpath(path, ()).and_then(|mut req| {
             let path = req.real_path();
             req.destroy();
             path.ok_or_else(|| Box::new(crate::Error::EINVAL) as _)
@@ -1395,14 +1414,15 @@ impl crate::Loop {
     }
 
     /// Private implementation for fs_chown()
-    fn _fs_chown(
+    fn _fs_chown<CB: Into<crate::FsCB<'static>>>(
         &self,
         path: &str,
         uid: Uid,
         gid: Gid,
-        cb: Option<impl FnMut(FsReq) + 'static>,
+        cb: CB,
     ) -> FsReqErrResult {
-        let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let cb = cb.into();
+        let uv_cb = use_c_callback!(crate::uv_fs_cb, cb);
         let path = CString::new(path)?;
         let mut req = FsReq::new(cb)?;
         let result = crate::uvret(unsafe {
@@ -1425,33 +1445,34 @@ impl crate::Loop {
     /// Equivalent to chown(2)
     ///
     /// Note: This functions are not implemented on Windows.
-    pub fn fs_chown(
+    pub fn fs_chown<CB: Into<crate::FsCB<'static>>>(
         &self,
         path: &str,
         uid: Uid,
         gid: Gid,
-        cb: impl FnMut(FsReq) + 'static,
+        cb: CB,
     ) -> FsReqErrResult {
-        self._fs_chown(path, uid, gid, Some(cb))
+        self._fs_chown(path, uid, gid, cb)
     }
 
     /// Equivalent to chown(2)
     ///
     /// Note: This functions are not implemented on Windows.
     pub fn fs_chown_sync(&self, path: &str, uid: Uid, gid: Gid) -> SyncErrResult {
-        self._fs_chown(path, uid, gid, None::<fn(_)>)
+        self._fs_chown(path, uid, gid, ())
             .and_then(destroy_req_return_boxed_result)
     }
 
     /// Private implementation for fs_fchown()
-    fn _fs_fchown(
+    fn _fs_fchown<CB: Into<crate::FsCB<'static>>>(
         &self,
         file: File,
         uid: Uid,
         gid: Gid,
-        cb: Option<impl FnMut(FsReq) + 'static>,
+        cb: CB,
     ) -> FsReqResult {
-        let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let cb = cb.into();
+        let uv_cb = use_c_callback!(crate::uv_fs_cb, cb);
         let mut req = FsReq::new(cb)?;
         let result = crate::uvret(unsafe {
             uv_fs_fchown(
@@ -1472,33 +1493,34 @@ impl crate::Loop {
     /// Equivalent to fchown(2)
     ///
     /// Note: This functions are not implemented on Windows.
-    pub fn fs_fchown(
+    pub fn fs_fchown<CB: Into<crate::FsCB<'static>>>(
         &self,
         file: File,
         uid: Uid,
         gid: Gid,
-        cb: impl FnMut(FsReq) + 'static,
+        cb: CB,
     ) -> FsReqResult {
-        self._fs_fchown(file, uid, gid, Some(cb))
+        self._fs_fchown(file, uid, gid, cb)
     }
 
     /// Equivalent to fchown(2)
     ///
     /// Note: This functions are not implemented on Windows.
     pub fn fs_fchown_sync(&self, file: File, uid: Uid, gid: Gid) -> SyncResult {
-        self._fs_fchown(file, uid, gid, None::<fn(_)>)
+        self._fs_fchown(file, uid, gid, ())
             .and_then(destroy_req_return_result)
     }
 
     /// Private implementation for fs_lchown()
-    fn _fs_lchown(
+    fn _fs_lchown<CB: Into<crate::FsCB<'static>>>(
         &self,
         path: &str,
         uid: Uid,
         gid: Gid,
-        cb: Option<impl FnMut(FsReq) + 'static>,
+        cb: CB,
     ) -> FsReqErrResult {
-        let uv_cb = cb.as_ref().map(|_| crate::uv_fs_cb as _);
+        let cb = cb.into();
+        let uv_cb = use_c_callback!(crate::uv_fs_cb, cb);
         let path = CString::new(path)?;
         let mut req = FsReq::new(cb)?;
         let result = crate::uvret(unsafe {
@@ -1521,21 +1543,21 @@ impl crate::Loop {
     /// Equivalent to lchown(2)
     ///
     /// Note: This functions are not implemented on Windows.
-    pub fn fs_lchown(
+    pub fn fs_lchown<CB: Into<crate::FsCB<'static>>>(
         &self,
         path: &str,
         uid: Uid,
         gid: Gid,
-        cb: impl FnMut(FsReq) + 'static,
+        cb: CB,
     ) -> FsReqErrResult {
-        self._fs_lchown(path, uid, gid, Some(cb))
+        self._fs_lchown(path, uid, gid, cb)
     }
 
     /// Equivalent to lchown(2)
     ///
     /// Note: This functions are not implemented on Windows.
     pub fn fs_lchown_sync(&self, path: &str, uid: Uid, gid: Gid) -> SyncErrResult {
-        self._fs_lchown(path, uid, gid, None::<fn(_)>)
+        self._fs_lchown(path, uid, gid, ())
             .and_then(destroy_req_return_boxed_result)
     }
 }

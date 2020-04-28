@@ -29,7 +29,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut r#loop = Loop::default()?;
 
     for i in 0..FIB_UNTIL {
-        r#loop.queue_work(Some(move |_| fib(i)), Some(move |_, _| after_fib(i)))?;
+        r#loop.queue_work(move |_| fib(i), move |_, _| after_fib(i))?;
     }
 
     r#loop.run(RunMode::Default)?;

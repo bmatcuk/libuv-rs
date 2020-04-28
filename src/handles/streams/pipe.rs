@@ -68,10 +68,10 @@ impl PipeHandle {
     ///
     /// Note: Paths on Unix get truncated to sizeof(sockaddr_un.sun_path) bytes, typically between
     /// 92 and 108 bytes.
-    pub fn connect(
+    pub fn connect<CB: Into<crate::ConnectCB<'static>>>(
         &mut self,
         name: &str,
-        cb: Option<impl FnMut(crate::ConnectReq, crate::Result<u32>) + 'static>,
+        cb: CB,
     ) -> Result<crate::ConnectReq, Box<dyn std::error::Error>> {
         let req = crate::ConnectReq::new(cb)?;
         let name = CString::new(name)?;

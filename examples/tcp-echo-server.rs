@@ -21,7 +21,7 @@ fn echo_read(mut client: StreamHandle, nread: libuv::Result<usize>, buf: Readonl
     match nread {
         Ok(len) => {
             if len > 0 {
-                if let Err(e) = client.write(&[buf], Some(move |_, s| echo_write(buf, s))) {
+                if let Err(e) = client.write(&[buf], move |_, s| echo_write(buf, s)) {
                     eprintln!("Error echoing to socket: {}", e);
                 }
             }
@@ -30,12 +30,12 @@ fn echo_read(mut client: StreamHandle, nread: libuv::Result<usize>, buf: Readonl
             if e != libuv::Error::EOF {
                 eprintln!("Read error {}", e);
             }
-            client.close(None::<fn(Handle)>);
+            client.close(());
         }
     }
 }
 
-fn on_new_connection(mut server: StreamHandle, status: libuv::Result<i32>) {
+fn on_new_connection(mut server: StreamHandle, status: libuv::Result<u32>) {
     if let Err(e) = status {
         eprintln!("New connection error: {}", e);
         return;
@@ -44,13 +44,13 @@ fn on_new_connection(mut server: StreamHandle, status: libuv::Result<i32>) {
     if let Ok(client) = server.get_loop().tcp().as_mut() {
         match server.accept(&mut client.to_stream()) {
             Ok(_) => {
-                if let Err(e) = client.read_start(Some(alloc_buffer), Some(echo_read)) {
+                if let Err(e) = client.read_start(alloc_buffer, echo_read) {
                     eprintln!("Error starting read on client: {}", e);
                 }
             }
             Err(e) => {
                 eprintln!("Error accepting connection: {}", e);
-                client.close(None::<fn(Handle)>)
+                client.close(());
             }
         }
     }
@@ -62,7 +62,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut server = r#loop.tcp()?;
     let addr = (Ipv4Addr::UNSPECIFIED, DEFAULT_PORT).into();
     server.bind(&addr, TcpBindFlags::empty())?;
-    server.listen(DEFAULT_BACKLOG, Some(on_new_connection))?;
+    server.listen(DEFAULT_BACKLOG, on_new_connection)?;
 
     r#loop.run(RunMode::Default)?;
 

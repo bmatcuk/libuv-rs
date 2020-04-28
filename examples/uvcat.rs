@@ -28,7 +28,10 @@ fn on_read(req: FsReq, mut buf: Buf) {
         },
         Ok(len) => {
             let file = req.file();
-            buf.truncate(len as _);
+            if let Err(e) = buf.resize(len as _) {
+                eprintln!("error resizing buffer: {}", e);
+                buf.destroy();
+            }
             if let Err(e) = req.r#loop().fs_write(STDOUT, &[buf], -1, move |req| on_write(req, file, buf)) {
                 eprintln!("error starting write: {}", e);
                 buf.destroy();

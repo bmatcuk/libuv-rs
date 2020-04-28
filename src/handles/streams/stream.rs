@@ -154,9 +154,9 @@ pub trait StreamTrait: ToStream {
     /// Shutdown the outgoing (write) side of a duplex stream. It waits for pending write requests
     /// to complete. The handle should refer to a initialized stream. The cb is called after
     /// shutdown is complete at which point the returned ShutdownReq is automatically destroy()'d.
-    fn shutdown(
+    fn shutdown<CB: Into<crate::ShutdownCB<'static>>>(
         &mut self,
-        cb: Option<impl FnMut(crate::ShutdownReq, crate::Result<u32>) + 'static>,
+        cb: CB,
     ) -> crate::Result<crate::ShutdownReq> {
         let mut req = crate::ShutdownReq::new(cb)?;
         let result = crate::uvret(unsafe {

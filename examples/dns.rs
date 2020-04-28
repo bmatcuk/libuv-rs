@@ -23,7 +23,7 @@ fn on_read(mut client: StreamHandle, nread: libuv::Result<usize>, mut buf: Reado
             if e != libuv::Error::EOF {
                 eprintln!("Read error {}", e);
             }
-            client.close(None::<fn(_)>);
+            client.close(());
         }
     }
 
@@ -33,7 +33,7 @@ fn on_read(mut client: StreamHandle, nread: libuv::Result<usize>, mut buf: Reado
 fn on_connect(req: ConnectReq, status: libuv::Result<u32>) {
     match status {
         Ok(_) => {
-            if let Err(e) = req.handle().read_start(Some(alloc_buffer), Some(on_read)) {
+            if let Err(e) = req.handle().read_start(alloc_buffer, on_read) {
                 eprintln!("error starting read {}", e)
             }
         },
@@ -54,7 +54,7 @@ fn on_resolved(req: GetAddrInfoReq, status: libuv::Result<u32>, res: Vec<AddrInf
             let socket = req.r#loop().tcp();
             match socket {
                 Ok(mut socket) => {
-                    if let Err(e) = socket.connect(&addr, Some(on_connect)) {
+                    if let Err(e) = socket.connect(&addr, on_connect) {
                         eprintln!("error connecting socket: {}", e);
                     }
                 },
