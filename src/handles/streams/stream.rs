@@ -172,6 +172,9 @@ pub trait StreamTrait: ToStream {
         result.map(|_| req)
     }
 
+    /// Start listening for incoming connections. backlog indicates the number of connections the
+    /// kernel might queue, same as listen(2). When a new incoming connection is received the
+    /// uv_connection_cb callback is called.
     fn listen<CB: Into<ConnectionCB<'static>>>(
         &mut self,
         backlog: i32,
