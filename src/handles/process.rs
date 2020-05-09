@@ -26,7 +26,8 @@ extern "C" fn uv_exit_cb(
     if !dataptr.is_null() {
         unsafe {
             if let super::ProcessData(d) = &mut (*dataptr).addl {
-                d.exit_cb.call(handle.into_inner(), exit_status, term_signal as _);
+                d.exit_cb
+                    .call(handle.into_inner(), exit_status, term_signal as _);
             }
         }
     }
@@ -102,33 +103,33 @@ impl Inner<uv_stdio_container_data> for StdioType {
 
 /// Container for each stdio handle or fd passed to a child process.
 pub struct StdioContainer {
-    flags: StdioFlags,
-    data: StdioType,
+    pub flags: StdioFlags,
+    pub data: StdioType,
 }
 
 /// Options for spawning the process (passed to spawn()).
 pub struct ProcessOptions<'a> {
     /// Called after the process exits.
-    exit_cb: ExitCB<'static>,
+    pub exit_cb: ExitCB<'static>,
 
     /// Path to program to execute.
-    file: &'a str,
+    pub file: &'a str,
 
     /// Command line arguments. args[0] should be the path to the program. On Windows this uses
     /// CreateProcess which concatenates the arguments into a string this can cause some strange
     /// errors. See the note at windows_verbatim_arguments.
-    args: &'a [&'a str],
+    pub args: &'a [&'a str],
 
     /// This will be set as the environ variable in the subprocess. If this is None then the
     /// parents environ will be used.
-    env: Option<&'a [&'a str]>,
+    pub env: Option<&'a [&'a str]>,
 
     /// If Some() this represents a directory the subprocess should execute in. Stands for current
     /// working directory.
-    cwd: Option<&'a str>,
+    pub cwd: Option<&'a str>,
 
     /// Various flags that control how spawn() behaves. See the definition of `ProcessFlags`.
-    flags: ProcessFlags,
+    pub flags: ProcessFlags,
 
     /// The `stdio` field points to an array of StdioContainer structs that describe the file
     /// descriptors that will be made available to the child process. The convention is that
@@ -136,17 +137,40 @@ pub struct ProcessOptions<'a> {
     ///
     /// Note that on windows file descriptors greater than 2 are available to the child process
     /// only if the child processes uses the MSVCRT runtime.
-    stdio: &'a [StdioContainer],
+    pub stdio: &'a [StdioContainer],
 
     /// Libuv can change the child process' user/group id. This happens only when the appropriate
     /// bits are set in the flags fields. This is not supported on windows; spawn() will fail and
     /// set the error to ENOTSUP.
-    uid: u32,
+    pub uid: u32,
 
     /// Libuv can change the child process' user/group id. This happens only when the appropriate
     /// bits are set in the flags fields. This is not supported on windows; spawn() will fail and
     /// set the error to ENOTSUP.
-    gid: u32,
+    pub gid: u32,
+}
+
+impl<'a> ProcessOptions<'a> {
+    /// Constructs a new ProcessOptions object. The args slice must have at least one member: the
+    /// path to the program to execute. Any additional members of the slice will be passed as
+    /// command line arguments.
+    pub fn new(args: &'a [&'a str]) -> ProcessOptions {
+        assert!(
+            args.len() > 0,
+            "ProcessOptions args slice must contain at least one str"
+        );
+        ProcessOptions {
+            exit_cb: ().into(),
+            file: args[0],
+            args: args,
+            env: None,
+            cwd: None,
+            flags: ProcessFlags::empty(),
+            stdio: &[],
+            uid: 0,
+            gid: 0,
+        }
+    }
 }
 
 /// Process handles will spawn a new process and allow the user to control it and establish
