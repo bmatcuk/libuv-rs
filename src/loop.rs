@@ -150,8 +150,13 @@ impl Loop {
 
     /// This function runs the event loop. It will act differently depending on the specified mode.
     /// run() is not reentrant. It must not be called from a callback.
-    pub fn run(&mut self, mode: RunMode) -> crate::Result<()> {
-        crate::uvret(unsafe { uv_run(self.handle, mode.into_inner()) })
+    pub fn run(&mut self, mode: RunMode) -> crate::Result<i32> {
+        let ret = unsafe { uv_run(self.handle, mode.into_inner()) };
+        if ret < 0 {
+            Err(crate::Error::from_inner(ret as uv::uv_errno_t))
+        } else {
+            Ok(ret)
+        }
     }
 
     /// Returns true if there are referenced active handles, active requests or closing handles in
