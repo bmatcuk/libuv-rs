@@ -23,7 +23,7 @@ pub fn cwd() -> crate::Result<String> {
 }
 
 /// Gets the executable path.
-pub fn execpath() -> crate::Result<String> {
+pub fn exepath() -> crate::Result<String> {
     let mut allocated = 32usize;
     let mut size = allocated - 1;
     let mut buf: Vec<std::os::raw::c_uchar> = vec![];

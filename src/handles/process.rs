@@ -53,6 +53,12 @@ bitflags! {
     }
 }
 
+impl Default for StdioFlags {
+    fn default() -> Self {
+        StdioFlags::IGNORE
+    }
+}
+
 bitflags! {
     /// Flags to be set on the flags field of ProcessOptions.
     pub struct ProcessFlags: u32 {
@@ -92,6 +98,12 @@ pub enum StdioType {
     Fd(i32),
 }
 
+impl Default for StdioType {
+    fn default() -> Self {
+        StdioType::Fd(0)
+    }
+}
+
 impl Inner<uv_stdio_container_data> for StdioType {
     fn inner(&self) -> uv_stdio_container_data {
         match self {
@@ -102,6 +114,7 @@ impl Inner<uv_stdio_container_data> for StdioType {
 }
 
 /// Container for each stdio handle or fd passed to a child process.
+#[derive(Default)]
 pub struct StdioContainer {
     pub flags: StdioFlags,
     pub data: StdioType,
