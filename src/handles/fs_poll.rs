@@ -1,4 +1,5 @@
-use crate::{FromInner, Inner, IntoInner};
+use crate::{FromInner, HandleTrait, Inner, IntoInner};
+use std::convert::TryFrom;
 use std::ffi::{CStr, CString};
 use uv::{uv_fs_poll_getpath, uv_fs_poll_init, uv_fs_poll_start, uv_fs_poll_stop, uv_fs_poll_t};
 
@@ -158,7 +159,20 @@ impl crate::ToHandle for FsPollHandle {
     }
 }
 
-impl crate::HandleTrait for FsPollHandle {}
+impl TryFrom<crate::Handle> for FsPollHandle {
+    type Error = crate::ConversionError;
+
+    fn try_from(handle: crate::Handle) -> Result<Self, Self::Error> {
+        let t = handle.get_type();
+        if t != crate::HandleType::FS_POLL {
+            Err(crate::ConversionError::new(t, crate::HandleType::FS_POLL))
+        } else {
+            Ok((handle.inner() as *mut uv_fs_poll_t).into_inner())
+        }
+    }
+}
+
+impl HandleTrait for FsPollHandle {}
 
 impl crate::Loop {
     /// Create and initialize a fs poll handle

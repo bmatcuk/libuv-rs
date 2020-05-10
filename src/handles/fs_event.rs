@@ -1,5 +1,6 @@
-use crate::{FromInner, Inner, IntoInner};
+use crate::{FromInner, HandleTrait, Inner, IntoInner};
 use std::borrow::Cow;
+use std::convert::TryFrom;
 use std::ffi::{CStr, CString};
 use uv::{
     uv_fs_event_getpath, uv_fs_event_init, uv_fs_event_start, uv_fs_event_stop, uv_fs_event_t,
@@ -216,7 +217,20 @@ impl crate::ToHandle for FsEventHandle {
     }
 }
 
-impl crate::HandleTrait for FsEventHandle {}
+impl TryFrom<crate::Handle> for FsEventHandle {
+    type Error = crate::ConversionError;
+
+    fn try_from(handle: crate::Handle) -> Result<Self, Self::Error> {
+        let t = handle.get_type();
+        if t != crate::HandleType::FS_EVENT {
+            Err(crate::ConversionError::new(t, crate::HandleType::FS_EVENT))
+        } else {
+            Ok((handle.inner() as *mut uv_fs_event_t).into_inner())
+        }
+    }
+}
+
+impl HandleTrait for FsEventHandle {}
 
 impl crate::Loop {
     /// Create and initialize a fs event handle

@@ -1,4 +1,5 @@
-use crate::{FromInner, Inner, IntoInner};
+use crate::{FromInner, HandleTrait, Inner, IntoInner};
+use std::convert::TryFrom;
 use std::ffi::CString;
 use uv::uv_stdio_container_s__bindgen_ty_1 as uv_stdio_container_data;
 use uv::{
@@ -367,7 +368,20 @@ impl crate::ToHandle for ProcessHandle {
     }
 }
 
-impl crate::HandleTrait for ProcessHandle {}
+impl TryFrom<crate::Handle> for ProcessHandle {
+    type Error = crate::ConversionError;
+
+    fn try_from(handle: crate::Handle) -> Result<Self, Self::Error> {
+        let t = handle.get_type();
+        if t != crate::HandleType::PROCESS {
+            Err(crate::ConversionError::new(t, crate::HandleType::PROCESS))
+        } else {
+            Ok((handle.inner() as *mut uv_process_t).into_inner())
+        }
+    }
+}
+
+impl HandleTrait for ProcessHandle {}
 
 impl crate::Loop {
     /// Create a new process handle and spawn the process

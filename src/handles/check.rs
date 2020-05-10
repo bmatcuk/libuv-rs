@@ -1,4 +1,5 @@
-use crate::{FromInner, Inner, IntoInner};
+use crate::{FromInner, HandleTrait, Inner, IntoInner};
+use std::convert::TryFrom;
 use uv::{uv_check_init, uv_check_start, uv_check_stop, uv_check_t};
 
 callbacks! {
@@ -96,7 +97,20 @@ impl crate::ToHandle for CheckHandle {
     }
 }
 
-impl crate::HandleTrait for CheckHandle {}
+impl TryFrom<crate::Handle> for CheckHandle {
+    type Error = crate::ConversionError;
+
+    fn try_from(handle: crate::Handle) -> Result<Self, Self::Error> {
+        let t = handle.get_type();
+        if t != crate::HandleType::CHECK {
+            Err(crate::ConversionError::new(t, crate::HandleType::CHECK))
+        } else {
+            Ok((handle.inner() as *mut uv_check_t).into_inner())
+        }
+    }
+}
+
+impl HandleTrait for CheckHandle {}
 
 impl crate::Loop {
     /// Create and initialize a new check handle

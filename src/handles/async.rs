@@ -1,4 +1,5 @@
-use crate::{FromInner, Inner, IntoInner};
+use crate::{FromInner, HandleTrait, Inner, IntoInner};
+use std::convert::TryFrom;
 use uv::{uv_async_init, uv_async_send, uv_async_t};
 
 callbacks! {
@@ -100,7 +101,20 @@ impl crate::ToHandle for AsyncHandle {
     }
 }
 
-impl crate::HandleTrait for AsyncHandle {}
+impl TryFrom<crate::Handle> for AsyncHandle {
+    type Error = crate::ConversionError;
+
+    fn try_from(handle: crate::Handle) -> Result<Self, Self::Error> {
+        let t = handle.get_type();
+        if t != crate::HandleType::ASYNC {
+            Err(crate::ConversionError::new(t, crate::HandleType::ASYNC))
+        } else {
+            Ok((handle.inner() as *mut uv_async_t).into_inner())
+        }
+    }
+}
+
+impl HandleTrait for AsyncHandle {}
 
 impl crate::Loop {
     /// Create and initialize a new async handle

@@ -1,4 +1,5 @@
-use crate::{FromInner, Inner, IntoInner};
+use crate::{FromInner, HandleTrait, Inner, IntoInner, ToHandle};
+use std::convert::{TryFrom, TryInto};
 use std::ffi::CString;
 use std::net::SocketAddr;
 use uv::{
@@ -415,14 +416,35 @@ impl crate::ToStream for UdpHandle {
     }
 }
 
-impl crate::ToHandle for UdpHandle {
+impl ToHandle for UdpHandle {
     fn to_handle(&self) -> crate::Handle {
         crate::Handle::from_inner(Inner::<*mut uv::uv_handle_t>::inner(self))
     }
 }
 
+impl TryFrom<crate::Handle> for UdpHandle {
+    type Error = crate::ConversionError;
+
+    fn try_from(handle: crate::Handle) -> Result<Self, Self::Error> {
+        let t = handle.get_type();
+        if t != crate::HandleType::UDP {
+            Err(crate::ConversionError::new(t, crate::HandleType::UDP))
+        } else {
+            Ok((handle.inner() as *mut uv_udp_t).into_inner())
+        }
+    }
+}
+
+impl TryFrom<crate::StreamHandle> for UdpHandle {
+    type Error = crate::ConversionError;
+
+    fn try_from(stream: crate::StreamHandle) -> Result<Self, Self::Error> {
+        stream.to_handle().try_into()
+    }
+}
+
 impl crate::StreamTrait for UdpHandle {}
-impl crate::HandleTrait for UdpHandle {}
+impl HandleTrait for UdpHandle {}
 
 impl crate::Loop {
     /// Initialize a new UDP handle. The actual socket is created lazily.

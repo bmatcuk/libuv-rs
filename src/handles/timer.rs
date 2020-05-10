@@ -1,4 +1,5 @@
-use crate::{FromInner, Inner, IntoInner};
+use crate::{FromInner, HandleTrait, Inner, IntoInner};
+use std::convert::TryFrom;
 use uv::{
     uv_timer_again, uv_timer_get_repeat, uv_timer_init, uv_timer_set_repeat, uv_timer_start,
     uv_timer_stop, uv_timer_t,
@@ -139,7 +140,20 @@ impl crate::ToHandle for TimerHandle {
     }
 }
 
-impl crate::HandleTrait for TimerHandle {}
+impl TryFrom<crate::Handle> for TimerHandle {
+    type Error = crate::ConversionError;
+
+    fn try_from(handle: crate::Handle) -> Result<Self, Self::Error> {
+        let t = handle.get_type();
+        if t != crate::HandleType::TIMER {
+            Err(crate::ConversionError::new(t, crate::HandleType::TIMER))
+        } else {
+            Ok((handle.inner() as *mut uv_timer_t).into_inner())
+        }
+    }
+}
+
+impl HandleTrait for TimerHandle {}
 
 impl crate::Loop {
     /// Create and initialize a new timer handle

@@ -1,4 +1,5 @@
-use crate::{FromInner, Inner, IntoInner};
+use crate::{FromInner, HandleTrait, Inner, IntoInner, ToHandle};
+use std::convert::{TryFrom, TryInto};
 use uv::{
     uv_tty_get_vterm_state, uv_tty_get_winsize, uv_tty_init, uv_tty_reset_mode, uv_tty_set_mode,
     uv_tty_set_vterm_state, uv_tty_t,
@@ -150,14 +151,35 @@ impl crate::ToStream for TtyHandle {
     }
 }
 
-impl crate::ToHandle for TtyHandle {
+impl ToHandle for TtyHandle {
     fn to_handle(&self) -> crate::Handle {
         crate::Handle::from_inner(Inner::<*mut uv::uv_handle_t>::inner(self))
     }
 }
 
+impl TryFrom<crate::Handle> for TtyHandle {
+    type Error = crate::ConversionError;
+
+    fn try_from(handle: crate::Handle) -> Result<Self, Self::Error> {
+        let t = handle.get_type();
+        if t != crate::HandleType::TTY {
+            Err(crate::ConversionError::new(t, crate::HandleType::TTY))
+        } else {
+            Ok((handle.inner() as *mut uv_tty_t).into_inner())
+        }
+    }
+}
+
+impl TryFrom<crate::StreamHandle> for TtyHandle {
+    type Error = crate::ConversionError;
+
+    fn try_from(stream: crate::StreamHandle) -> Result<Self, Self::Error> {
+        stream.to_handle().try_into()
+    }
+}
+
 impl crate::StreamTrait for TtyHandle {}
-impl crate::HandleTrait for TtyHandle {}
+impl HandleTrait for TtyHandle {}
 
 impl crate::Loop {
     /// Initialize a new TTY stream with the given file descriptor. Usually the file descriptor

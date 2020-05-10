@@ -1,4 +1,5 @@
-use crate::{FromInner, Inner, IntoInner};
+use crate::{FromInner, HandleTrait, Inner, IntoInner};
+use std::convert::TryFrom;
 use uv::{uv_prepare_init, uv_prepare_start, uv_prepare_stop, uv_prepare_t};
 
 callbacks! {
@@ -97,7 +98,20 @@ impl crate::ToHandle for PrepareHandle {
     }
 }
 
-impl crate::HandleTrait for PrepareHandle {}
+impl TryFrom<crate::Handle> for PrepareHandle {
+    type Error = crate::ConversionError;
+
+    fn try_from(handle: crate::Handle) -> Result<Self, Self::Error> {
+        let t = handle.get_type();
+        if t != crate::HandleType::PREPARE {
+            Err(crate::ConversionError::new(t, crate::HandleType::PREPARE))
+        } else {
+            Ok((handle.inner() as *mut uv_prepare_t).into_inner())
+        }
+    }
+}
+
+impl HandleTrait for PrepareHandle {}
 
 impl crate::Loop {
     /// Create and initialize a new prepare handle

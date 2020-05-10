@@ -85,7 +85,10 @@ fn setup_workers(r#loop: &mut Loop) -> Result<Workers, Box<dyn std::error::Error
                 flags: StdioFlags::CREATE_PIPE | StdioFlags::READABLE_PIPE,
                 data: StdioType::Stream(pipe.to_stream()),
             },
-            Default::default(),
+            StdioContainer {
+                flags: StdioFlags::INHERIT_FD,
+                data: StdioType::Fd(1),
+            },
             StdioContainer {
                 flags: StdioFlags::INHERIT_FD,
                 data: StdioType::Fd(2),
@@ -111,7 +114,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut server = r#loop.tcp()?;
     let addr = (Ipv4Addr::UNSPECIFIED, 7000).into();
     server.bind(&addr, TcpBindFlags::empty())?;
-    server.listen(128, move |server, status| on_new_connection(server, status, &mut workers))?;
+    server.listen(128, move |server, status| {
+        on_new_connection(server, status, &mut workers)
+    })?;
 
     r#loop.run(RunMode::Default)?;
 

@@ -1,4 +1,5 @@
-use crate::{FromInner, Inner, IntoInner};
+use crate::{FromInner, HandleTrait, Inner, IntoInner};
+use std::convert::TryFrom;
 use uv::{uv_signal_init, uv_signal_start, uv_signal_start_oneshot, uv_signal_stop, uv_signal_t};
 
 callbacks! {
@@ -76,11 +77,7 @@ impl SignalHandle {
     }
 
     /// Start the handle with the given callback, watching for the given signal.
-    pub fn start<CB: Into<SignalCB<'static>>>(
-        &mut self,
-        cb: CB,
-        signum: i32,
-    ) -> crate::Result<()> {
+    pub fn start<CB: Into<SignalCB<'static>>>(&mut self, cb: CB, signum: i32) -> crate::Result<()> {
         // uv_cb is either Some(uv_signal_cb) or None
         let cb = cb.into();
         let uv_cb = use_c_callback!(uv_signal_cb, cb);
@@ -153,7 +150,20 @@ impl crate::ToHandle for SignalHandle {
     }
 }
 
-impl crate::HandleTrait for SignalHandle {}
+impl TryFrom<crate::Handle> for SignalHandle {
+    type Error = crate::ConversionError;
+
+    fn try_from(handle: crate::Handle) -> Result<Self, Self::Error> {
+        let t = handle.get_type();
+        if t != crate::HandleType::SIGNAL {
+            Err(crate::ConversionError::new(t, crate::HandleType::SIGNAL))
+        } else {
+            Ok((handle.inner() as *mut uv_signal_t).into_inner())
+        }
+    }
+}
+
+impl HandleTrait for SignalHandle {}
 
 impl crate::Loop {
     /// Create and initialize a new signal handle

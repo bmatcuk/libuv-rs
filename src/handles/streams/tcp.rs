@@ -1,4 +1,5 @@
-use crate::{FromInner, Inner, IntoInner};
+use crate::{FromInner, HandleTrait, Inner, IntoInner, ToHandle};
+use std::convert::{TryFrom, TryInto};
 use std::net::SocketAddr;
 use uv::{
     uv_tcp_bind, uv_tcp_close_reset, uv_tcp_connect, uv_tcp_getpeername, uv_tcp_getsockname,
@@ -175,10 +176,7 @@ impl TcpHandle {
     /// Resets a TCP connection by sending a RST packet. This is accomplished by setting the
     /// SO_LINGER socket option with a linger interval of zero and then calling close(). Due to
     /// some platform inconsistencies, mixing of shutdown() and close_reset() calls is not allowed.
-    pub fn close_reset<CB: Into<crate::CloseCB<'static>>>(
-        &mut self,
-        cb: CB,
-    ) -> crate::Result<()> {
+    pub fn close_reset<CB: Into<crate::CloseCB<'static>>>(&mut self, cb: CB) -> crate::Result<()> {
         let cb = cb.into();
         let dataptr = crate::Handle::get_data(uv_handle!(self.handle));
         if !dataptr.is_null() {
@@ -231,14 +229,35 @@ impl crate::ToStream for TcpHandle {
     }
 }
 
-impl crate::ToHandle for TcpHandle {
+impl ToHandle for TcpHandle {
     fn to_handle(&self) -> crate::Handle {
         crate::Handle::from_inner(Inner::<*mut uv::uv_handle_t>::inner(self))
     }
 }
 
+impl TryFrom<crate::Handle> for TcpHandle {
+    type Error = crate::ConversionError;
+
+    fn try_from(handle: crate::Handle) -> Result<Self, Self::Error> {
+        let t = handle.get_type();
+        if t != crate::HandleType::TCP {
+            Err(crate::ConversionError::new(t, crate::HandleType::TCP))
+        } else {
+            Ok((handle.inner() as *mut uv_tcp_t).into_inner())
+        }
+    }
+}
+
+impl TryFrom<crate::StreamHandle> for TcpHandle {
+    type Error = crate::ConversionError;
+
+    fn try_from(stream: crate::StreamHandle) -> Result<Self, Self::Error> {
+        stream.to_handle().try_into()
+    }
+}
+
 impl crate::StreamTrait for TcpHandle {}
-impl crate::HandleTrait for TcpHandle {}
+impl HandleTrait for TcpHandle {}
 
 impl crate::Loop {
     /// Initialize the handle. No socket is created as of yet.

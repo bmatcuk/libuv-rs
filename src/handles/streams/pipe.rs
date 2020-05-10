@@ -1,4 +1,5 @@
-use crate::{FromInner, Inner, IntoInner};
+use crate::{FromInner, HandleTrait, Inner, IntoInner, ToHandle};
+use std::convert::{TryFrom, TryInto};
 use std::ffi::CString;
 use std::net::SocketAddr;
 use uv::{
@@ -195,14 +196,38 @@ impl crate::ToStream for PipeHandle {
     }
 }
 
-impl crate::ToHandle for PipeHandle {
+impl ToHandle for PipeHandle {
     fn to_handle(&self) -> crate::Handle {
         crate::Handle::from_inner(Inner::<*mut uv::uv_handle_t>::inner(self))
     }
 }
 
+impl TryFrom<crate::Handle> for PipeHandle {
+    type Error = crate::ConversionError;
+
+    fn try_from(handle: crate::Handle) -> Result<Self, Self::Error> {
+        let t = handle.get_type();
+        if t != crate::HandleType::NAMED_PIPE {
+            Err(crate::ConversionError::new(
+                t,
+                crate::HandleType::NAMED_PIPE,
+            ))
+        } else {
+            Ok((handle.inner() as *mut uv_pipe_t).into_inner())
+        }
+    }
+}
+
+impl TryFrom<crate::StreamHandle> for PipeHandle {
+    type Error = crate::ConversionError;
+
+    fn try_from(stream: crate::StreamHandle) -> Result<Self, Self::Error> {
+        stream.to_handle().try_into()
+    }
+}
+
 impl crate::StreamTrait for PipeHandle {}
-impl crate::HandleTrait for PipeHandle {}
+impl HandleTrait for PipeHandle {}
 
 impl crate::Loop {
     /// Create and initialize a pipe handle. The ipc argument is a boolean to indicate if this pipe

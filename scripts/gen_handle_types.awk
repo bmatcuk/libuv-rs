@@ -10,7 +10,7 @@ END {
   ntypes = asorti(types);
 
   print "#[allow(non_camel_case_types)]";
-  print "#[derive(Clone, Copy, Debug)]";
+  print "#[derive(Clone, Copy, Debug, Eq, PartialEq)]";
   print "pub enum HandleType {";
   for (i = 1; i <= ntypes; i++)
     print indent types[i] ",";

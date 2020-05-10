@@ -4,9 +4,9 @@ use crate::{FromInner, Inner, IntoInner};
 use std::alloc::Layout;
 use std::ffi::CStr;
 use uv::{
-    uv_close, uv_handle_get_data, uv_handle_get_loop, uv_handle_get_type, uv_handle_set_data,
-    uv_handle_t, uv_handle_type_name, uv_has_ref, uv_is_active, uv_is_closing, uv_recv_buffer_size,
-    uv_ref, uv_send_buffer_size, uv_unref,
+    uv_close, uv_fileno, uv_handle_get_data, uv_handle_get_loop, uv_handle_get_type,
+    uv_handle_set_data, uv_handle_t, uv_handle_type_name, uv_has_ref, uv_is_active, uv_is_closing,
+    uv_recv_buffer_size, uv_ref, uv_send_buffer_size, uv_unref,
 };
 
 impl HandleType {
@@ -226,6 +226,22 @@ pub trait HandleTrait: ToHandle {
         let mut v = value;
         crate::uvret(unsafe { uv_recv_buffer_size(self.to_handle().inner(), &mut v as _) })?;
         Ok(v)
+    }
+
+    /// Gets the platform dependent file descriptor equivalent.
+    ///
+    /// The following handles are supported: TCP, pipes, TTY, UDP and poll. Passing any other
+    /// handle type will fail with EINVAL.
+    ///
+    /// If a handle doesn’t have an attached file descriptor yet or the handle itself has been
+    /// closed, this function will return EBADF.
+    ///
+    /// Warning: Be very careful when using this function. libuv assumes it’s in control of the
+    /// file descriptor so any change to it may lead to malfunction.
+    fn get_fileno(&self) -> crate::Result<crate::File> {
+        let mut v: uv::uv_os_fd_t = 0;
+        crate::uvret(unsafe { uv_fileno(self.to_handle().inner(), &mut v as _) })?;
+        Ok(v as _)
     }
 
     /// Returns the Loop associated with this handle.

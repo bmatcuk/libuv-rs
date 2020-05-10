@@ -1,4 +1,5 @@
-use crate::{FromInner, Inner, IntoInner};
+use crate::{FromInner, HandleTrait, Inner, IntoInner};
+use std::convert::TryFrom;
 use uv::{uv_idle_init, uv_idle_start, uv_idle_stop, uv_idle_t};
 
 callbacks! {
@@ -103,7 +104,20 @@ impl crate::ToHandle for IdleHandle {
     }
 }
 
-impl crate::HandleTrait for IdleHandle {}
+impl TryFrom<crate::Handle> for IdleHandle {
+    type Error = crate::ConversionError;
+
+    fn try_from(handle: crate::Handle) -> Result<Self, Self::Error> {
+        let t = handle.get_type();
+        if t != crate::HandleType::IDLE {
+            Err(crate::ConversionError::new(t, crate::HandleType::IDLE))
+        } else {
+            Ok((handle.inner() as *mut uv_idle_t).into_inner())
+        }
+    }
+}
+
+impl HandleTrait for IdleHandle {}
 
 impl crate::Loop {
     /// Create and initialize a new idle handle
