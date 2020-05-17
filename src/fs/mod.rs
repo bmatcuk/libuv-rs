@@ -46,6 +46,12 @@ type SyncErrResult = Result<usize, Box<dyn std::error::Error>>;
 /// Cross platform representation of a file handle.
 pub type File = i32;
 
+/// Cross platform representation of a socket handle.
+#[cfg(windows)]
+pub type Socket = usize;
+#[cfg(not(windows))]
+pub type Socket = i32;
+
 /// Cross platform representation of a user id
 pub type Uid = u32;
 
