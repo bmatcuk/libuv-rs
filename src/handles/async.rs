@@ -31,6 +31,9 @@ pub struct AsyncHandle {
     handle: *mut uv_async_t,
 }
 
+unsafe impl Send for AsyncHandle {}
+unsafe impl Sync for AsyncHandle {}
+
 impl AsyncHandle {
     /// Create and initialize a new async handle
     pub fn new<CB: Into<AsyncCB<'static>>>(
