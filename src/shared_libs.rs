@@ -1,5 +1,6 @@
 use crate::{FromInner, Inner, IntoInner};
-use std::ffi::{CStr, CString};
+use std::ffi::{c_void, CStr, CString};
+use std::mem::{size_of, transmute};
 use uv::{uv_dlclose, uv_dlerror, uv_dlopen, uv_dlsym, uv_lib_t};
 
 /// Returns an error from DLib::open() or DLib::sym()
@@ -48,9 +49,7 @@ impl DLib {
         let filename = CString::new(filename)?;
         let lib = DLib::new()?;
         let libptr = lib.inner();
-        let result = unsafe {
-            uv_dlopen(filename.as_ptr(), libptr)
-        };
+        let result = unsafe { uv_dlopen(filename.as_ptr(), libptr) };
         if result < 0 {
             Err(Box::new(DLError::new(&lib)))
         } else {
@@ -65,16 +64,24 @@ impl DLib {
 
     /// Retrieves a data pointer from a dynamic library. It is legal for a symbol to map to NULL.
     /// Returns a DLError if the symbol was not found.
-    pub fn sym<T>(&self, name: &str) -> Result<*mut T, Box<dyn std::error::Error>> {
+    ///
+    /// Type "T" should be either a function pointer or a *mut/*const pointer. For example:
+    ///   sym::<extern "C" fn()>("test")
+    ///   sym::<*mut f64>("test")
+    pub fn sym<T>(&self, name: &str) -> Result<&T, Box<dyn std::error::Error>> {
+        if size_of::<T>() != size_of::<*mut c_void>() {
+            return Err(Box::new(DLError(
+                "Type is not compatible with *mut c_void".to_owned(),
+            )));
+        }
+
         let name = CString::new(name)?;
-        let mut ptr: *mut std::os::raw::c_void = std::ptr::null_mut();
-        let result = unsafe {
-            uv_dlsym((*self).inner(), name.as_ptr(), &mut ptr)
-        };
+        let mut ptr: *mut c_void = std::ptr::null_mut();
+        let result = unsafe { uv_dlsym((*self).inner(), name.as_ptr(), &mut ptr) };
         if result < 0 {
             Err(Box::new(DLError::new(self)))
         } else {
-            Ok(ptr as _)
+            unsafe { Ok(transmute(&ptr)) }
         }
     }
 }
