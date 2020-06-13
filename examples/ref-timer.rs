@@ -17,10 +17,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // is still running
     let mut timer = r#loop.timer()?;
     timer.unref();
-    timer.start(gc, 0, 2000)?;
+    timer.start(0, 2000, gc)?;
 
     let mut fake_job_timer = r#loop.timer()?;
-    fake_job_timer.start(fake_job, 9000, 0)?;
+    fake_job_timer.start(9000, 0, fake_job)?;
 
     r#loop.run(RunMode::Default)?;
 

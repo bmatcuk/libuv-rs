@@ -65,9 +65,9 @@ impl TimerHandle {
     /// If the timer is already active, it is simply updated.
     pub fn start<CB: Into<TimerCB<'static>>>(
         &mut self,
-        cb: CB,
         timeout: u64,
         repeat: u64,
+        cb: CB,
     ) -> crate::Result<()> {
         // uv_cb is either Some(uv_timer_cb) or None
         let cb = cb.into();
