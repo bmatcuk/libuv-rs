@@ -16,7 +16,7 @@ maintenance = { status = "actively-developed" }
 
 [dependencies]
 bitflags = "~1.2.1"
-libuv-sys2 = "~1.37.0"
+libuv-sys2 = "~1.37.1"
 
 [dev-dependencies]
 rand = "~0.7.3"

@@ -1,6 +1,6 @@
 extern crate libuv;
 use libuv::prelude::*;
-use libuv::{Buf, HandleType, TtyHandle, TtyMode, guess_handle};
+use libuv::{guess_handle, Buf, HandleType, TtyHandle, TtyMode};
 
 const STDOUT: libuv::File = 1;
 
@@ -9,7 +9,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut tty = r#loop.tty(STDOUT)?;
     tty.set_mode(TtyMode::Normal)?;
-    if (guess_handle(STDOUT) == HandleType::TTY) {
+    if guess_handle(STDOUT) == HandleType::TTY {
         let buf = Buf::new("\x1b[41;37m")?;
         tty.write(&[buf], ())?;
     }

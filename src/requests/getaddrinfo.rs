@@ -47,9 +47,7 @@ pub struct GetAddrInfoReq {
 
 impl GetAddrInfoReq {
     /// Create a new GetAddrInfo request
-    pub fn new<CB: Into<GetAddrInfoCB<'static>>>(
-        cb: CB,
-    ) -> crate::Result<GetAddrInfoReq> {
+    pub fn new<CB: Into<GetAddrInfoCB<'static>>>(cb: CB) -> crate::Result<GetAddrInfoReq> {
         let layout = std::alloc::Layout::new::<uv_getaddrinfo_t>();
         let req = unsafe { std::alloc::alloc(layout) as *mut uv_getaddrinfo_t };
         if req.is_null() {

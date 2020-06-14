@@ -1,6 +1,6 @@
 extern crate libuv;
 use libuv::prelude::*;
-use libuv::{SignalHandle, getpid};
+use libuv::{getpid, SignalHandle};
 use libuv_sys2::{SIGUSR1, SIGUSR2};
 use std::thread;
 

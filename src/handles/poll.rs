@@ -5,10 +5,10 @@ use uv::{uv_poll_init, uv_poll_init_socket, uv_poll_start, uv_poll_stop, uv_poll
 bitflags! {
     /// Poll event types
     pub struct PollEvents: u32 {
-        const DISCONNECT = uv::uv_poll_event_UV_DISCONNECT;
-        const PRIORITIZED = uv::uv_poll_event_UV_PRIORITIZED;
-        const READABLE = uv::uv_poll_event_UV_READABLE;
-        const WRITABLE = uv::uv_poll_event_UV_WRITABLE;
+        const DISCONNECT = uv::uv_poll_event_UV_DISCONNECT as _;
+        const PRIORITIZED = uv::uv_poll_event_UV_PRIORITIZED as _;
+        const READABLE = uv::uv_poll_event_UV_READABLE as _;
+        const WRITABLE = uv::uv_poll_event_UV_WRITABLE as _;
     }
 }
 
@@ -103,7 +103,7 @@ impl PollHandle {
             return Err(crate::Error::ENOMEM);
         }
 
-        let ret = unsafe { uv_poll_init_socket(r#loop.into_inner(), handle, socket) };
+        let ret = unsafe { uv_poll_init_socket(r#loop.into_inner(), handle, socket as _) };
         if ret < 0 {
             unsafe { std::alloc::dealloc(handle as _, layout) };
             return Err(crate::Error::from_inner(ret as uv::uv_errno_t));

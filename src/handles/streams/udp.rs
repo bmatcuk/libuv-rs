@@ -23,16 +23,16 @@ bitflags! {
 bitflags! {
     /// Flags to UdpHandle::bind()
     pub struct UdpBindFlags: u32 {
-        const IPV6ONLY = uv::uv_udp_flags_UV_UDP_IPV6ONLY;
-        const PARTIAL = uv::uv_udp_flags_UV_UDP_PARTIAL;
-        const REUSEADDR = uv::uv_udp_flags_UV_UDP_REUSEADDR;
+        const IPV6ONLY = uv::uv_udp_flags_UV_UDP_IPV6ONLY as _;
+        const PARTIAL = uv::uv_udp_flags_UV_UDP_PARTIAL as _;
+        const REUSEADDR = uv::uv_udp_flags_UV_UDP_REUSEADDR as _;
     }
 }
 
 #[repr(u32)]
 pub enum Membership {
-    Leave = uv::uv_membership_UV_LEAVE_GROUP,
-    Join = uv::uv_membership_UV_JOIN_GROUP,
+    Leave = uv::uv_membership_UV_LEAVE_GROUP as _,
+    Join = uv::uv_membership_UV_JOIN_GROUP as _,
 }
 
 callbacks! {
@@ -134,10 +134,15 @@ impl UdpHandle {
     }
 
     /// Bind the UDP handle to an IP address and port.
-    pub fn bind(&mut self, addr: &SocketAddr, flags: UdpBindFlags) -> crate::Result<()> {
+    pub fn bind(
+        &mut self,
+        addr: &SocketAddr,
+        flags: UdpBindFlags,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let mut sockaddr: uv::sockaddr = unsafe { std::mem::zeroed() };
-        crate::fill_sockaddr(&mut sockaddr, addr);
+        crate::fill_sockaddr(&mut sockaddr, addr)?;
         crate::uvret(unsafe { uv_udp_bind(self.handle, &sockaddr as _, flags.bits()) })
+            .map_err(|e| Box::new(e) as _)
     }
 
     /// Associate the UDP handle to a remote address and port, so every message sent by this handle
@@ -145,19 +150,20 @@ impl UdpHandle {
     /// disconnects the handle. Trying to call connect() on an already connected handle will result
     /// in an EISCONN error. Trying to disconnect a handle that is not connected will return an
     /// ENOTCONN error.
-    pub fn connect(&mut self, addr: Option<&SocketAddr>) -> crate::Result<()> {
+    pub fn connect(&mut self, addr: Option<&SocketAddr>) -> Result<(), Box<dyn std::error::Error>> {
         if let Some(addr) = addr {
             let mut sockaddr: uv::sockaddr = unsafe { std::mem::zeroed() };
-            crate::fill_sockaddr(&mut sockaddr, addr);
+            crate::fill_sockaddr(&mut sockaddr, addr)?;
             crate::uvret(unsafe { uv_udp_connect(self.handle, &sockaddr as _) })
         } else {
             crate::uvret(unsafe { uv_udp_connect(self.handle, std::ptr::null()) })
         }
+        .map_err(|e| Box::new(e) as _)
     }
 
     /// Get the remote IP and port of the UDP handle on connected UDP handles. On unconnected
     /// handles, it returns ENOTCONN.
-    pub fn getpeername(&self) -> crate::Result<SocketAddr> {
+    pub fn getpeername(&self) -> Result<SocketAddr, Box<dyn std::error::Error>> {
         let mut sockaddr: uv::sockaddr_storage = unsafe { std::mem::zeroed() };
         let mut sockaddr_len: std::os::raw::c_int =
             std::mem::size_of::<uv::sockaddr_storage>() as _;
@@ -173,7 +179,7 @@ impl UdpHandle {
     }
 
     /// Get the local IP and port of the UDP handle.
-    pub fn getsockname(&self) -> crate::Result<SocketAddr> {
+    pub fn getsockname(&self) -> Result<SocketAddr, Box<dyn std::error::Error>> {
         let mut sockaddr: uv::sockaddr_storage = unsafe { std::mem::zeroed() };
         let mut sockaddr_len: std::os::raw::c_int =
             std::mem::size_of::<uv::sockaddr_storage>() as _;
@@ -279,12 +285,12 @@ impl UdpHandle {
         addr: Option<&SocketAddr>,
         bufs: &[impl crate::BufTrait],
         cb: CB,
-    ) -> crate::Result<crate::UdpSendReq> {
+    ) -> Result<crate::UdpSendReq, Box<dyn std::error::Error>> {
         let mut req = crate::UdpSendReq::new(bufs, cb)?;
         let mut sockaddr: uv::sockaddr = unsafe { std::mem::zeroed() };
         let mut sockaddr_ptr: *const uv::sockaddr = std::ptr::null();
         if let Some(addr) = addr {
-            crate::fill_sockaddr(&mut sockaddr, addr);
+            crate::fill_sockaddr(&mut sockaddr, addr)?;
             sockaddr_ptr = &sockaddr as _;
         }
 
@@ -301,7 +307,7 @@ impl UdpHandle {
         if result.is_err() {
             req.destroy();
         }
-        result.map(|_| req)
+        result.map(|_| req).map_err(|e| Box::new(e) as _)
     }
 
     /// Same as send(), but won’t queue a send request if it can’t be completed immediately.
@@ -315,12 +321,12 @@ impl UdpHandle {
         &self,
         addr: Option<&SocketAddr>,
         bufs: &[impl crate::BufTrait],
-    ) -> crate::Result<i32> {
+    ) -> Result<i32, Box<dyn std::error::Error>> {
         let (bufs_ptr, bufs_len, bufs_capacity) = bufs.into_inner();
         let mut sockaddr: uv::sockaddr = unsafe { std::mem::zeroed() };
         let mut sockaddr_ptr: *const uv::sockaddr = std::ptr::null();
         if let Some(addr) = addr {
-            crate::fill_sockaddr(&mut sockaddr, addr);
+            crate::fill_sockaddr(&mut sockaddr, addr)?;
             sockaddr_ptr = &sockaddr as _;
         }
 
@@ -328,7 +334,9 @@ impl UdpHandle {
 
         unsafe { std::mem::drop(Vec::from_raw_parts(bufs_ptr, bufs_len, bufs_capacity)) };
 
-        crate::uvret(result).map(|_| result as _)
+        crate::uvret(result)
+            .map(|_| result as _)
+            .map_err(|e| Box::new(e) as _)
     }
 
     /// Prepare for receiving data. If the socket has not previously been bound with bind() it is

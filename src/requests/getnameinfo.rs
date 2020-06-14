@@ -53,9 +53,7 @@ pub struct GetNameInfoReq {
 
 impl GetNameInfoReq {
     /// Create a new GetNameInfo request
-    pub fn new<CB: Into<GetNameInfoCB<'static>>>(
-        cb: CB,
-    ) -> crate::Result<GetNameInfoReq> {
+    pub fn new<CB: Into<GetNameInfoCB<'static>>>(cb: CB) -> crate::Result<GetNameInfoReq> {
         let layout = std::alloc::Layout::new::<uv_getnameinfo_t>();
         let req = unsafe { std::alloc::alloc(layout) as *mut uv_getnameinfo_t };
         if req.is_null() {
@@ -148,9 +146,9 @@ impl crate::Loop {
         addr: &SocketAddr,
         flags: u32,
         cb: CB,
-    ) -> crate::Result<GetNameInfoReq> {
+    ) -> Result<GetNameInfoReq, Box<dyn std::error::Error>> {
         let mut sockaddr: uv::sockaddr = unsafe { std::mem::zeroed() };
-        crate::fill_sockaddr(&mut sockaddr, addr);
+        crate::fill_sockaddr(&mut sockaddr, addr)?;
 
         let cb = cb.into();
         let uv_cb = use_c_callback!(uv_getnameinfo_cb, cb);
@@ -167,7 +165,7 @@ impl crate::Loop {
         if result.is_err() {
             req.destroy();
         }
-        result.map(|_| req)
+        result.map(|_| req).map_err(|e| Box::new(e) as _)
     }
 
     /// Asynchronous getnameinfo(3).
@@ -181,7 +179,7 @@ impl crate::Loop {
         addr: &SocketAddr,
         flags: u32,
         cb: CB,
-    ) -> crate::Result<GetNameInfoReq> {
+    ) -> Result<GetNameInfoReq, Box<dyn std::error::Error>> {
         self._getnameinfo(addr, flags, cb)
     }
 
@@ -194,12 +192,11 @@ impl crate::Loop {
         &self,
         addr: &SocketAddr,
         flags: u32,
-    ) -> crate::Result<(String, String)> {
-        self._getnameinfo(addr, flags, ())
-            .map(|mut req| {
-                let res = (req.host(), req.service());
-                req.destroy();
-                return res;
-            })
+    ) -> Result<(String, String), Box<dyn std::error::Error>> {
+        self._getnameinfo(addr, flags, ()).map(|mut req| {
+            let res = (req.host(), req.service());
+            req.destroy();
+            return res;
+        })
     }
 }

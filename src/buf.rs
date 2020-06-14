@@ -62,7 +62,7 @@ impl ReadonlyBuf {
     pub fn dealloc(&mut self) {
         unsafe {
             if self.is_allocated() {
-                let len = (*self.buf).len;
+                let len = (*self.buf).len as _;
                 if let Ok(layout) = layout(len) {
                     std::alloc::dealloc((*self.buf).base as _, layout);
                 }
@@ -99,7 +99,10 @@ impl ReadonlyBuf {
             if (*ptr).base.is_null() {
                 Err(Box::new(EmptyBufError))
             } else {
-                Ok(std::str::from_utf8(std::slice::from_raw_parts((*ptr).base as _, len))?)
+                Ok(std::str::from_utf8(std::slice::from_raw_parts(
+                    (*ptr).base as _,
+                    len,
+                ))?)
             }
         }
     }
@@ -126,7 +129,7 @@ impl Index<usize> for ReadonlyBuf {
         } else {
             0
         };
-        if len <= index {
+        if len <= (index as _) {
             panic!("index {} out of range for Buf of length {}", index, len);
         }
         unsafe { &*((*self.buf).base.add(index) as *const u8) }
@@ -141,7 +144,7 @@ where
     I: RangeBounds<usize>,
 {
     let len = if buf.is_allocated() {
-        unsafe { (*buf.buf).len }
+        unsafe { (*buf.buf).len as usize }
     } else {
         0
     };
@@ -277,7 +280,7 @@ impl Buf {
         let len = if let Some(s) = size {
             s
         } else {
-            unsafe { (*other.buf).len }
+            unsafe { (*other.buf).len as _ }
         };
 
         let mut buf = Buf::with_capacity(len)?;
@@ -293,7 +296,7 @@ impl Buf {
     /// Resizes the internal buffer
     pub fn resize(&mut self, size: usize) -> crate::Result<()> {
         if self.is_allocated() {
-            let len = unsafe { (*self.buf).len };
+            let len = unsafe { (*self.buf).len as _ };
             if len != size {
                 let (alloc_size, _) = calc_alloc_size_alignment(size)?;
                 let layout = layout(len)?;
@@ -303,14 +306,14 @@ impl Buf {
                 }
                 unsafe {
                     (*self.buf).base = ptr as _;
-                    (*self.buf).len = alloc_size;
+                    (*self.buf).len = alloc_size as _;
                 }
             }
         } else {
             let base = Buf::alloc(size)?;
             unsafe {
                 (*self.buf).base = base as _;
-                (*self.buf).len = size;
+                (*self.buf).len = size as _;
             }
         }
         Ok(())
@@ -323,7 +326,7 @@ impl Buf {
             return Ok(());
         }
 
-        let other_len = unsafe { (*other.buf).len };
+        let other_len = unsafe { (*other.buf).len as _ };
         if !self.is_allocated() {
             self.resize(other_len)?;
         }
@@ -343,7 +346,7 @@ impl Buf {
     pub fn dealloc(&mut self) {
         unsafe {
             if self.is_allocated() {
-                let len = (*self.buf).len;
+                let len = (*self.buf).len as _;
                 if let Ok(layout) = layout(len) {
                     std::alloc::dealloc((*self.buf).base as _, layout);
                     (*self.buf).base = std::ptr::null_mut();

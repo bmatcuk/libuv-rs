@@ -29,7 +29,11 @@ impl FromInner<uv_passwd_t> for User {
         let shell = if passwd.shell.is_null() {
             None
         } else {
-            Some(unsafe { CStr::from_ptr(passwd.shell) }.to_string_lossy().into_owned())
+            Some(
+                unsafe { CStr::from_ptr(passwd.shell) }
+                    .to_string_lossy()
+                    .into_owned(),
+            )
         };
         let uid = if passwd.uid >= 0 {
             Some(passwd.uid as _)

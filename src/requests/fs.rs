@@ -76,7 +76,7 @@ impl FsReq {
         if self.request_type() == crate::FsType::OPEN {
             return unsafe { uv_fs_get_result(self.req) as _ };
         }
-        unsafe { (*self.req).file }
+        unsafe { (*self.req).file as _ }
     }
 
     /// Returns the file stats

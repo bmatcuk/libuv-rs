@@ -10,8 +10,8 @@ pub struct TimeSpec {
 impl FromInner<uv_timespec_t> for TimeSpec {
     fn from_inner(ts: uv_timespec_t) -> TimeSpec {
         TimeSpec {
-            sec: ts.tv_sec,
-            nsec: ts.tv_nsec,
+            sec: ts.tv_sec as _,
+            nsec: ts.tv_nsec as _,
         }
     }
 }

@@ -15,20 +15,20 @@ bitflags! {
         /// watched.
         ///
         /// This flag is currently not implemented yet on any backend.
-        const WATCHENTRY = uv::uv_fs_event_flags_UV_FS_EVENT_WATCH_ENTRY;
+        const WATCHENTRY = uv::uv_fs_event_flags_UV_FS_EVENT_WATCH_ENTRY as _;
 
         /// By default FsEventHandle will try to use a kernel interface such as inotify or kqueue
         /// to detect events. This may not work on remote file systems such as NFS mounts. This
         /// flag makes fs_event fall back to calling stat() on a regular interval.
         ///
         /// This flag is currently not implemented yet on any backend.
-        const STAT = uv::uv_fs_event_flags_UV_FS_EVENT_STAT;
+        const STAT = uv::uv_fs_event_flags_UV_FS_EVENT_STAT as _;
 
         /// By default, event watcher, when watching directory, is not registering (is ignoring)
         /// changes in its subdirectories.
         ///
         /// This flag will override this behaviour on platforms that support it.
-        const RECURSIVE = uv::uv_fs_event_flags_UV_FS_EVENT_RECURSIVE;
+        const RECURSIVE = uv::uv_fs_event_flags_UV_FS_EVENT_RECURSIVE as _;
     }
 }
 
@@ -36,10 +36,10 @@ bitflags! {
     /// Event that caused the FsEventHandle callback to be called.
     pub struct FsEvent: u32 {
         /// File has been renamed
-        const RENAME = uv::uv_fs_event_UV_RENAME;
+        const RENAME = uv::uv_fs_event_UV_RENAME as _;
 
         /// File has changed
-        const CHANGE = uv::uv_fs_event_UV_CHANGE;
+        const CHANGE = uv::uv_fs_event_UV_CHANGE as _;
     }
 }
 

@@ -37,20 +37,20 @@ extern "C" fn uv_exit_cb(
 bitflags! {
     /// Flags specifying how a stdio should be transmitted to the child process.
     pub struct StdioFlags: u32 {
-        const IGNORE = uv::uv_stdio_flags_UV_IGNORE;
-        const CREATE_PIPE = uv::uv_stdio_flags_UV_CREATE_PIPE;
-        const INHERIT_FD = uv::uv_stdio_flags_UV_INHERIT_FD;
-        const INHERIT_STREAM = uv::uv_stdio_flags_UV_INHERIT_STREAM;
+        const IGNORE = uv::uv_stdio_flags_UV_IGNORE as _;
+        const CREATE_PIPE = uv::uv_stdio_flags_UV_CREATE_PIPE as _;
+        const INHERIT_FD = uv::uv_stdio_flags_UV_INHERIT_FD as _;
+        const INHERIT_STREAM = uv::uv_stdio_flags_UV_INHERIT_STREAM as _;
 
         /// When UV_CREATE_PIPE is specified, UV_READABLE_PIPE and UV_WRITABLE_PIPE determine the
         /// direction of flow, from the child process' perspective. Both flags may be specified to
         /// create a duplex data stream.
-        const READABLE_PIPE = uv::uv_stdio_flags_UV_READABLE_PIPE;
-        const WRITABLE_PIPE = uv::uv_stdio_flags_UV_WRITABLE_PIPE;
+        const READABLE_PIPE = uv::uv_stdio_flags_UV_READABLE_PIPE as _;
+        const WRITABLE_PIPE = uv::uv_stdio_flags_UV_WRITABLE_PIPE as _;
 
         /// Open the child pipe handle in overlapped mode on Windows. On Unix it is silently
         /// ignored.
-        const OVERLAPPED_PIPE = uv::uv_stdio_flags_UV_OVERLAPPED_PIPE;
+        const OVERLAPPED_PIPE = uv::uv_stdio_flags_UV_OVERLAPPED_PIPE as _;
     }
 }
 
@@ -64,33 +64,33 @@ bitflags! {
     /// Flags to be set on the flags field of ProcessOptions.
     pub struct ProcessFlags: u32 {
         /// Set the child process' user id.
-        const SETUID = uv::uv_process_flags_UV_PROCESS_SETUID;
+        const SETUID = uv::uv_process_flags_UV_PROCESS_SETUID as _;
 
         /// Set the child process' group id.
-        const SETGID = uv::uv_process_flags_UV_PROCESS_SETGID;
+        const SETGID = uv::uv_process_flags_UV_PROCESS_SETGID as _;
 
         /// Do not wrap any arguments in quotes, or perform any other escaping, when converting the
         /// argument list into a command line string. This option is only meaningful on Windows
         /// systems. On Unix it is silently ignored.
-        const WINDOWS_VERBATIM_ARGUMENTS = uv::uv_process_flags_UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS;
+        const WINDOWS_VERBATIM_ARGUMENTS = uv::uv_process_flags_UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS as _;
 
         /// Spawn the child process in a detached state - this will make it a process group leader,
         /// and will effectively enable the child to keep running after the parent exits. Note that
         /// the child process will still keep the parent's event loop alive unless the parent
         /// process calls uv_unref() on the child's process handle.
-        const DETACHED = uv::uv_process_flags_UV_PROCESS_DETACHED;
+        const DETACHED = uv::uv_process_flags_UV_PROCESS_DETACHED as _;
 
         /// Hide the subprocess window that would normally be created. This option is only
         /// meaningful on Windows systems. On Unix it is silently ignored.
-        const WINDOWS_HIDE = uv::uv_process_flags_UV_PROCESS_WINDOWS_HIDE;
+        const WINDOWS_HIDE = uv::uv_process_flags_UV_PROCESS_WINDOWS_HIDE as _;
 
         /// Hide the subprocess console window that would normally be created. This option is only
         /// meaningful on Windows systems. On Unix it is silently ignored.
-        const WINDOWS_HIDE_CONSOLE = uv::uv_process_flags_UV_PROCESS_WINDOWS_HIDE_CONSOLE;
+        const WINDOWS_HIDE_CONSOLE = uv::uv_process_flags_UV_PROCESS_WINDOWS_HIDE_CONSOLE as _;
 
         /// Hide the subprocess GUI window that would normally be created. This option is only
         /// meaningful on Windows systems. On Unix it is silently ignored.
-        const WINDOWS_HIDE_GUI = uv::uv_process_flags_UV_PROCESS_WINDOWS_HIDE_GUI;
+        const WINDOWS_HIDE_GUI = uv::uv_process_flags_UV_PROCESS_WINDOWS_HIDE_GUI as _;
     }
 }
 
@@ -276,7 +276,7 @@ impl ProcessHandle {
             .stdio
             .iter()
             .map(|stdio| uv_stdio_container_t {
-                flags: stdio.flags.bits(),
+                flags: stdio.flags.bits() as _,
                 data: stdio.data.inner(),
             })
             .collect::<Vec<uv_stdio_container_t>>();

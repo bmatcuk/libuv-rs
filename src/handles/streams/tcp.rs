@@ -20,7 +20,7 @@ bitflags! {
     /// Flags to TcpHandle::bind()
     pub struct TcpBindFlags: u32 {
         /// Dual-stack support is disabled and only IPv6 is used.
-        const IPV6ONLY = uv::uv_tcp_flags_UV_TCP_IPV6ONLY;
+        const IPV6ONLY = uv::uv_tcp_flags_UV_TCP_IPV6ONLY as _;
     }
 }
 
@@ -105,14 +105,19 @@ impl TcpHandle {
     ///
     /// flags can contain IPV6ONLY, in which case dual-stack support is disabled and only IPv6 is
     /// used.
-    pub fn bind(&mut self, addr: &SocketAddr, flags: TcpBindFlags) -> crate::Result<()> {
+    pub fn bind(
+        &mut self,
+        addr: &SocketAddr,
+        flags: TcpBindFlags,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let mut sockaddr: uv::sockaddr = unsafe { std::mem::zeroed() };
-        crate::fill_sockaddr(&mut sockaddr, addr);
+        crate::fill_sockaddr(&mut sockaddr, addr)?;
         crate::uvret(unsafe { uv_tcp_bind(self.handle, &sockaddr as _, flags.bits()) })
+            .map_err(|e| Box::new(e) as _)
     }
 
     /// Get the current address to which the handle is bound.
-    pub fn getsockname(&self) -> crate::Result<SocketAddr> {
+    pub fn getsockname(&self) -> Result<SocketAddr, Box<dyn std::error::Error>> {
         let mut sockaddr: uv::sockaddr_storage = unsafe { std::mem::zeroed() };
         let mut sockaddr_len: std::os::raw::c_int =
             std::mem::size_of::<uv::sockaddr_storage>() as _;
@@ -128,7 +133,7 @@ impl TcpHandle {
     }
 
     /// Get the address of the peer connected to the handle.
-    pub fn getpeername(&self) -> crate::Result<SocketAddr> {
+    pub fn getpeername(&self) -> Result<SocketAddr, Box<dyn std::error::Error>> {
         let mut sockaddr: uv::sockaddr_storage = unsafe { std::mem::zeroed() };
         let mut sockaddr_len: std::os::raw::c_int =
             std::mem::size_of::<uv::sockaddr_storage>() as _;
@@ -154,10 +159,10 @@ impl TcpHandle {
         &mut self,
         addr: &SocketAddr,
         cb: CB,
-    ) -> crate::Result<crate::ConnectReq> {
+    ) -> Result<crate::ConnectReq, Box<dyn std::error::Error>> {
         let mut req = crate::ConnectReq::new(cb)?;
         let mut sockaddr: uv::sockaddr = unsafe { std::mem::zeroed() };
-        crate::fill_sockaddr(&mut sockaddr, addr);
+        crate::fill_sockaddr(&mut sockaddr, addr)?;
 
         let result = crate::uvret(unsafe {
             uv_tcp_connect(
@@ -170,7 +175,7 @@ impl TcpHandle {
         if result.is_err() {
             req.destroy();
         }
-        result.map(|_| req)
+        result.map(|_| req).map_err(|e| Box::new(e) as _)
     }
 
     /// Resets a TCP connection by sending a RST packet. This is accomplished by setting the

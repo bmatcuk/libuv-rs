@@ -48,16 +48,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut r#loop = Loop::default()?;
 
     let mut reqs = (0..FIB_UNTIL)
-        .map(|i| {
-            r#loop.queue_work(
-                move |_| fib(i),
-                move |_, status| after_fib(i, status),
-            )
-        })
+        .map(|i| r#loop.queue_work(move |_| fib(i), move |_, status| after_fib(i, status)))
         .collect::<libuv::Result<Vec<WorkReq>>>()?;
 
     let mut sig = r#loop.signal()?;
-    sig.start(move |handle, _| signal_handler(handle, &mut reqs), SIGINT as _)?;
+    sig.start(
+        move |handle, _| signal_handler(handle, &mut reqs),
+        SIGINT as _,
+    )?;
 
     r#loop.run(RunMode::Default)?;
 

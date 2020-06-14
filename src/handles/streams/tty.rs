@@ -9,20 +9,20 @@ use uv::{
 #[repr(u32)]
 pub enum TtyMode {
     /// Initial/normal terminal mode
-    Normal = uv::uv_tty_mode_t_UV_TTY_MODE_NORMAL,
+    Normal = uv::uv_tty_mode_t_UV_TTY_MODE_NORMAL as _,
 
     /// Raw input mode (On Windows, ENABLE_WINDOW_INPUT is also enabled)
-    Raw = uv::uv_tty_mode_t_UV_TTY_MODE_RAW,
+    Raw = uv::uv_tty_mode_t_UV_TTY_MODE_RAW as _,
 
     /// Binary-safe I/O mode for IPC (Unix-only)
-    IO = uv::uv_tty_mode_t_UV_TTY_MODE_IO,
+    IO = uv::uv_tty_mode_t_UV_TTY_MODE_IO as _,
 }
 
 /// Console virtual terminal mode type
 #[repr(u32)]
 pub enum VTermState {
-    Supported = uv::uv_tty_vtermstate_t_UV_TTY_SUPPORTED,
-    Unsupported = uv::uv_tty_vtermstate_t_UV_TTY_UNSUPPORTED,
+    Supported = uv::uv_tty_vtermstate_t_UV_TTY_SUPPORTED as _,
+    Unsupported = uv::uv_tty_vtermstate_t_UV_TTY_UNSUPPORTED as _,
 }
 
 /// TTY handles represent a stream for the console.
@@ -35,9 +35,9 @@ impl TtyHandle {
     /// Initialize a new TTY stream with the given file descriptor. Usually the file descriptor
     /// will be:
     ///
-    ///     0 = stdin
-    ///     1 = stdout
-    ///     2 = stderr
+    /// 0 = stdin
+    /// 1 = stdout
+    /// 2 = stderr
     ///
     /// On Unix this function will determine the path of the fd of the terminal using ttyname_r(3),
     /// open it, and use it if the passed file descriptor refers to a TTY. This lets libuv put the
@@ -185,9 +185,9 @@ impl crate::Loop {
     /// Initialize a new TTY stream with the given file descriptor. Usually the file descriptor
     /// will be:
     ///
-    ///     0 = stdin
-    ///     1 = stdout
-    ///     2 = stderr
+    /// 0 = stdin
+    /// 1 = stdout
+    /// 2 = stderr
     ///
     /// On Unix this function will determine the path of the fd of the terminal using ttyname_r(3),
     /// open it, and use it if the passed file descriptor refers to a TTY. This lets libuv put the

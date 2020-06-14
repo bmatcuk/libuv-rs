@@ -1,6 +1,6 @@
 extern crate libuv;
 use libuv::prelude::*;
-use libuv::{Buf, ReadonlyBuf, SignalHandle, PipeHandle};
+use libuv::{Buf, ReadonlyBuf, SignalHandle};
 use libuv_sys2::SIGINT;
 
 #[cfg(windows)]
@@ -28,7 +28,7 @@ fn echo_read(mut client: StreamHandle, nread: libuv::Result<usize>, buf: Readonl
                     eprintln!("Error echoing to pipe: {}", e);
                 }
             }
-        },
+        }
         Err(e) => {
             if e != libuv::Error::EOF {
                 eprintln!("Read error {}", e);
@@ -48,7 +48,7 @@ fn on_new_connection(mut server: StreamHandle, status: libuv::Result<u32>) {
         match server.accept(&mut client.to_stream()) {
             Ok(_) => {
                 let _ = client.read_start(alloc_buffer, echo_read);
-            },
+            }
             Err(e) => {
                 eprintln!("Error accepting connection: {}", e);
                 client.close(());
@@ -65,11 +65,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     server.listen(128, on_new_connection)?;
 
     let mut sig = r#loop.signal()?;
-    sig.start(move |mut sig: SignalHandle, _| {
-        let _ = sig.get_loop().fs_unlink_sync(PIPENAME);
-        let _ = sig.stop();
-        server.close(());
-    }, SIGINT as _)?;
+    sig.start(
+        move |mut sig: SignalHandle, _| {
+            let _ = sig.get_loop().fs_unlink_sync(PIPENAME);
+            let _ = sig.stop();
+            server.close(());
+        },
+        SIGINT as _,
+    )?;
 
     r#loop.run(RunMode::Default)?;
 

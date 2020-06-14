@@ -1,6 +1,6 @@
 mod addl_handle_data;
-use addl_handle_data::*;
 use addl_handle_data::AddlHandleData::*;
+use addl_handle_data::*;
 
 pub mod handle;
 pub use handle::*;

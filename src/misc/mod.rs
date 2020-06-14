@@ -19,8 +19,8 @@ pub struct TimeVal {
 impl FromInner<uv_timeval_t> for TimeVal {
     fn from_inner(tv: uv_timeval_t) -> TimeVal {
         TimeVal {
-            sec: tv.tv_sec,
-            usec: tv.tv_usec,
+            sec: tv.tv_sec as _,
+            usec: tv.tv_usec as _,
         }
     }
 }
@@ -121,7 +121,9 @@ pub struct CpuInfo {
 
 impl FromInner<&uv_cpu_info_t> for CpuInfo {
     fn from_inner(cpu: &uv_cpu_info_t) -> CpuInfo {
-        let model = unsafe { CStr::from_ptr(cpu.model) }.to_string_lossy().into_owned();
+        let model = unsafe { CStr::from_ptr(cpu.model) }
+            .to_string_lossy()
+            .into_owned();
         CpuInfo {
             model,
             speed: cpu.speed,
@@ -151,7 +153,11 @@ pub fn setup_args() -> Result<Vec<String>, std::ffi::NulError> {
     let args = unsafe { std::slice::from_raw_parts(args, argc) };
     Ok(args
         .iter()
-        .map(|arg| unsafe { CStr::from_ptr(*arg) }.to_string_lossy().into_owned())
+        .map(|arg| {
+            unsafe { CStr::from_ptr(*arg) }
+                .to_string_lossy()
+                .into_owned()
+        })
         .collect())
 }
 

@@ -39,9 +39,7 @@ pub struct ShutdownReq {
 
 impl ShutdownReq {
     /// Create a new shutdown request
-    pub fn new<CB: Into<ShutdownCB<'static>>>(
-        cb: CB,
-    ) -> crate::Result<ShutdownReq> {
+    pub fn new<CB: Into<ShutdownCB<'static>>>(cb: CB) -> crate::Result<ShutdownReq> {
         let layout = std::alloc::Layout::new::<uv_shutdown_t>();
         let req = unsafe { std::alloc::alloc(layout) as *mut uv_shutdown_t };
         if req.is_null() {

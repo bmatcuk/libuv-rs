@@ -1,6 +1,9 @@
 //! Internal utilities
-use std::net::SocketAddr;
-use uv::{AF_INET, AF_INET6};
+use std::ffi::{CStr, CString};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
+use std::str::FromStr;
+use std::string::ToString;
+use uv::{uv_ip4_addr, uv_ip4_name, uv_ip6_addr, uv_ip6_name, AF_INET, AF_INET6};
 
 /// An internal version of From<T>
 #[doc(hidden)]
@@ -100,54 +103,57 @@ where
 }
 
 /// Fill a uv::sockaddr from a SocketAddr
-pub(crate) fn fill_sockaddr(sockaddr: *mut uv::sockaddr, addr: &SocketAddr) {
-    // sockaddr_in/sockaddr_in6 port and addr must be in network byte order, which is big endian.
-    // addr.ip().octets() returns the bytes in big endian already so we're good there.
+pub(crate) fn fill_sockaddr(
+    sockaddr: *mut uv::sockaddr,
+    addr: &SocketAddr,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let s = addr.ip().to_string();
+    let s = CString::new(s)?;
     match addr {
         SocketAddr::V4(addr) => {
             let sockaddr_in: *mut uv::sockaddr_in = sockaddr as _;
-            unsafe {
-                (*sockaddr_in).sin_family = AF_INET as _;
-                (*sockaddr_in).sin_port = addr.port().to_be();
-                (*sockaddr_in).sin_addr.s_addr = u32::from_ne_bytes(addr.ip().octets());
-            }
+            crate::uvret(unsafe { uv_ip4_addr(s.as_ptr(), addr.port() as _, sockaddr_in) })
+                .map_err(|e| Box::new(e) as _)
         }
         SocketAddr::V6(addr) => {
             let sockaddr_in6: *mut uv::sockaddr_in6 = sockaddr as _;
-            unsafe {
-                (*sockaddr_in6).sin6_family = AF_INET6 as _;
-                (*sockaddr_in6).sin6_port = addr.port().to_be();
-                (*sockaddr_in6).sin6_addr.__u6_addr.__u6_addr8 = addr.ip().octets();
-            }
+            crate::uvret(unsafe { uv_ip6_addr(s.as_ptr(), addr.port() as _, sockaddr_in6) })
+                .map_err(|e| Box::new(e) as _)
         }
     }
 }
 
 /// Create a SocketAddr from a uv::sockaddr_storage
-pub(crate) fn build_socketaddr(sockaddr: *const uv::sockaddr) -> crate::Result<SocketAddr> {
-    // sockaddr_in/sockaddr_in6 port and addr are in network byte order, which is big endian. So,
-    // we need to make sure to convert to "native endianness" (ne).
+pub(crate) fn build_socketaddr(
+    sockaddr: *const uv::sockaddr,
+) -> Result<SocketAddr, Box<dyn std::error::Error>> {
+    // sockaddr_in/sockaddr_in6 port are in network byte order, which is big endian. So, we need to
+    // make sure to convert to "native endianness" (ne).
     match unsafe { (*sockaddr).sa_family as _ } {
         AF_INET => {
             let sockaddr_in: *const uv::sockaddr_in = sockaddr as _;
+            let mut buf: Vec<std::os::raw::c_uchar> = Vec::with_capacity(16);
             unsafe {
-                Ok((
-                    (*sockaddr_in).sin_addr.s_addr.to_ne_bytes(),
-                    u16::from_be((*sockaddr_in).sin_port),
-                )
-                    .into())
+                let port = u16::from_be((*sockaddr_in).sin_port) as _;
+                buf.set_len(16);
+                crate::uvret(uv_ip4_name(sockaddr_in, buf.as_mut_ptr() as _, 16))?;
+                let s = CStr::from_bytes_with_nul_unchecked(&buf).to_string_lossy();
+                let addr = Ipv4Addr::from_str(s.as_ref())?;
+                Ok(SocketAddr::new(IpAddr::V4(addr), port))
             }
         }
         AF_INET6 => {
             let sockaddr_in6: *const uv::sockaddr_in6 = sockaddr as _;
+            let mut buf: Vec<std::os::raw::c_uchar> = Vec::with_capacity(46);
             unsafe {
-                Ok((
-                    (*sockaddr_in6).sin6_addr.__u6_addr.__u6_addr8,
-                    u16::from_be((*sockaddr_in6).sin6_port),
-                )
-                    .into())
+                let port = u16::from_be((*sockaddr_in6).sin6_port) as _;
+                buf.set_len(46);
+                crate::uvret(uv_ip6_name(sockaddr_in6, buf.as_mut_ptr() as _, 46))?;
+                let s = CStr::from_bytes_with_nul_unchecked(&buf).to_string_lossy();
+                let addr = Ipv6Addr::from_str(s.as_ref())?;
+                Ok(SocketAddr::new(IpAddr::V6(addr), port))
             }
         }
-        _ => Err(crate::Error::ENOTSUP),
+        _ => Err(Box::new(crate::Error::ENOTSUP)),
     }
 }

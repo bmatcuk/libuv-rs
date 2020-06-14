@@ -39,9 +39,7 @@ pub struct ConnectReq {
 
 impl ConnectReq {
     /// Create a new connect request
-    pub fn new<CB: Into<ConnectCB<'static>>>(
-        cb: CB,
-    ) -> crate::Result<ConnectReq> {
+    pub fn new<CB: Into<ConnectCB<'static>>>(cb: CB) -> crate::Result<ConnectReq> {
         let layout = std::alloc::Layout::new::<uv_connect_t>();
         let req = unsafe { std::alloc::alloc(layout) as *mut uv_connect_t };
         if req.is_null() {

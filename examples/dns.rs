@@ -1,7 +1,7 @@
 extern crate libuv;
 use libuv::prelude::*;
 use libuv::{AddrInfo, Buf, ConnectReq, GetAddrInfoReq, ReadonlyBuf};
-use libuv_sys2::{AF_INET, SOCK_STREAM, IPPROTO_TCP};
+use libuv_sys2::{AF_INET, IPPROTO_TCP, SOCK_STREAM};
 
 fn alloc_buffer(_: Handle, suggested_size: usize) -> Option<Buf> {
     Buf::with_capacity(suggested_size).ok()
@@ -16,9 +16,9 @@ fn on_read(mut client: StreamHandle, nread: libuv::Result<usize>, mut buf: Reado
 
             match buf.to_str(len) {
                 Ok(s) => println!("{}", s),
-                Err(e) => eprintln!("couldn't convert to string {}", e)
+                Err(e) => eprintln!("couldn't convert to string {}", e),
             }
-        },
+        }
         Err(e) => {
             if e != libuv::Error::EOF {
                 eprintln!("Read error {}", e);
@@ -36,8 +36,8 @@ fn on_connect(req: ConnectReq, status: libuv::Result<u32>) {
             if let Err(e) = req.handle().read_start(alloc_buffer, on_read) {
                 eprintln!("error starting read {}", e)
             }
-        },
-        Err(e) => eprintln!("connect failed error {}", e)
+        }
+        Err(e) => eprintln!("connect failed error {}", e),
     }
 }
 
@@ -47,7 +47,7 @@ fn on_resolved(req: GetAddrInfoReq, status: libuv::Result<u32>, res: Vec<AddrInf
         return;
     }
 
-    if let Some(info) = res.get(0) {
+    for info in res {
         if let Some(addr) = info.addr {
             println!("{}", addr);
 
@@ -57,11 +57,13 @@ fn on_resolved(req: GetAddrInfoReq, status: libuv::Result<u32>, res: Vec<AddrInf
                     if let Err(e) = socket.connect(&addr, on_connect) {
                         eprintln!("error connecting socket: {}", e);
                     }
-                },
+                }
                 Err(e) => {
                     eprintln!("cannot create socket: {}", e);
                 }
             }
+
+            return;
         }
     }
 }
@@ -77,7 +79,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         canonical_name: None,
         addr: None,
     };
-    r#loop.getaddrinfo(Some("irc.freenode.net"), Some("6667"), Some(hints), on_resolved)?;
+    r#loop.getaddrinfo(
+        Some("irc.freenode.net"),
+        Some("6667"),
+        Some(hints),
+        on_resolved,
+    )?;
 
     r#loop.run(RunMode::Default)?;
 

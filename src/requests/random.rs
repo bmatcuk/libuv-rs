@@ -49,9 +49,7 @@ pub struct RandomReq {
 
 impl RandomReq {
     /// Create a new random request
-    pub fn new<CB: Into<RandomCB<'static>>>(
-        cb: CB,
-    ) -> crate::Result<RandomReq> {
+    pub fn new<CB: Into<RandomCB<'static>>>(cb: CB) -> crate::Result<RandomReq> {
         let layout = std::alloc::Layout::new::<uv_random_t>();
         let req = unsafe { std::alloc::alloc(layout) as *mut uv_random_t };
         if req.is_null() {

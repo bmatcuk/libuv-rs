@@ -11,5 +11,9 @@ pub fn version() -> u32 {
 /// Returns the libuv version number as a string. For non-release versions the version suffix is
 /// included.
 pub fn version_string() -> String {
-    unsafe { CStr::from_ptr(uv_version_string()).to_string_lossy().into_owned() }
+    unsafe {
+        CStr::from_ptr(uv_version_string())
+            .to_string_lossy()
+            .into_owned()
+    }
 }

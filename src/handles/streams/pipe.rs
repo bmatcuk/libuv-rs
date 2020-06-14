@@ -88,7 +88,7 @@ impl PipeHandle {
     }
 
     /// Get the name of the Unix domain socket or the named pipe.
-    pub fn getsockname(&self) -> crate::Result<SocketAddr> {
+    pub fn getsockname(&self) -> Result<SocketAddr, Box<dyn std::error::Error>> {
         let mut sockaddr: uv::sockaddr_storage = unsafe { std::mem::zeroed() };
         let mut sockaddr_len: std::os::raw::c_int =
             std::mem::size_of::<uv::sockaddr_storage>() as _;
@@ -104,7 +104,7 @@ impl PipeHandle {
     }
 
     /// Get the name of the Unix domain socket or the named pipe to which the handle is connected.
-    pub fn getpeername(&self) -> crate::Result<SocketAddr> {
+    pub fn getpeername(&self) -> Result<SocketAddr, Box<dyn std::error::Error>> {
         let mut sockaddr: uv::sockaddr_storage = unsafe { std::mem::zeroed() };
         let mut sockaddr_len: std::os::raw::c_int =
             std::mem::size_of::<uv::sockaddr_storage>() as _;

@@ -1,6 +1,6 @@
 extern crate libuv;
 use libuv::prelude::*;
-use libuv::{Buf, FsReq, FsOpenFlags, FsModeFlags};
+use libuv::{Buf, FsModeFlags, FsOpenFlags, FsReq};
 
 const STDOUT: libuv::File = 1;
 
@@ -8,7 +8,10 @@ fn on_write(req: FsReq, file: libuv::File, mut buf: Buf) {
     if let Err(e) = req.result() {
         eprintln!("Write error: {}", e);
         buf.destroy();
-    } else if let Err(e) = req.r#loop().fs_read(file, &[buf], -1, move |req| on_read(req, buf)) {
+    } else if let Err(e) = req
+        .r#loop()
+        .fs_read(file, &[buf], -1, move |req| on_read(req, buf))
+    {
         eprintln!("error continuing read: {}", e);
     }
 }
@@ -19,20 +22,23 @@ fn on_read(req: FsReq, mut buf: Buf) {
             eprintln!("Read error: {}", e);
             buf.destroy();
             return;
-        },
+        }
         Ok(0) => {
             buf.destroy();
             if let Err(e) = req.r#loop().fs_close_sync(req.file()) {
                 eprintln!("error closing file: {}", e);
             }
-        },
+        }
         Ok(len) => {
             let file = req.file();
             if let Err(e) = buf.resize(len as _) {
                 eprintln!("error resizing buffer: {}", e);
                 buf.destroy();
             }
-            if let Err(e) = req.r#loop().fs_write(STDOUT, &[buf], -1, move |req| on_write(req, file, buf)) {
+            if let Err(e) = req
+                .r#loop()
+                .fs_write(STDOUT, &[buf], -1, move |req| on_write(req, file, buf))
+            {
                 eprintln!("error starting write: {}", e);
                 buf.destroy();
             }
@@ -51,10 +57,13 @@ fn on_open(req: FsReq) {
         Err(e) => {
             eprintln!("error allocating a buffer: {}", e);
             return;
-        },
+        }
     };
 
-    if let Err(e) = req.r#loop().fs_read(req.file(), &[buf], -1, move |req| on_read(req, buf)) {
+    if let Err(e) = req
+        .r#loop()
+        .fs_read(req.file(), &[buf], -1, move |req| on_read(req, buf))
+    {
         eprintln!("error starting read: {}", e);
         buf.destroy();
     }

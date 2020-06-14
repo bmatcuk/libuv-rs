@@ -5,19 +5,6 @@ os:
   - linux
   - osx
 
-addons:
-  apt:
-    packages:
-      - llvm-dev
-      - libclang-dev
-      - clang
-  homebrew:
-    packages:
-      - llvm
-
-before_install:
-  - rustup component add rustfmt
-
 script:
   - cargo build -v
   - cargo test
@@ -26,3 +13,32 @@ jobs:
   include:
     - os: windows
       rust: stable-x86_64-pc-windows-msvc
+    - stage: publish
+      if: type = push && fork = false && branch = master
+      os: linux
+      rust: stable
+      addons:
+        apt:
+          packages:
+      before_install: echo "Publishing..."
+      script:
+        - git config --local user.name $GIT_USER_NAME
+        - git config --local user.email $GIT_USER_EMAIL
+        - git remote set-url origin https://${GITHUB_TOKEN}@github.com/bmatcuk/libuv-rs.git
+        - export TRAVIS_TAG=$(grep '^version =' Cargo.toml | awk -F'"' '{print "v" $2}')
+        - export PREV_TAG=$({ echo $TRAVIS_TAG; git tag; } | sort -V | grep -B1 $TRAVIS_TAG | head -n 1)
+        - '[ "$PREV_TAG" != "$TRAVIS_TAG" ] && { echo -e "## Changelog\n\n"; git log --pretty=format:"%h %s" "${PREV_TAG}.." 2>/dev/null; } > RELEASELOG.md || true'
+        - git tag -a $TRAVIS_TAG -m "${TRAVIS_TAG}"
+        - git push --tags
+      deploy:
+        - provider: releases
+          file: README.md
+          release_notes_file: RELEASELOG.md
+          edge: true
+        - provider: cargo
+          edge: true
+          cleanup: true
+
+stages:
+  - name: test
+  - publish

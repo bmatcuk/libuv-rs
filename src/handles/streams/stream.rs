@@ -28,7 +28,9 @@ pub(crate) extern "C" fn uv_alloc_cb(
     let dataptr = StreamHandle::get_data(uv_handle!(handle));
     if !dataptr.is_null() {
         unsafe {
-            let mut new_buf = (*dataptr).alloc_cb.call(handle.into_inner(), suggested_size);
+            let mut new_buf = (*dataptr)
+                .alloc_cb
+                .call(handle.into_inner(), suggested_size);
             match new_buf.as_mut() {
                 Some(new_buf) => {
                     buf.copy_from_nonoverlapping(new_buf.inner(), 1);
@@ -68,7 +70,9 @@ extern "C" fn uv_read_cb(stream: *mut uv_stream_t, nread: isize, buf: *const uv:
             } else {
                 Ok(nread as _)
             };
-            (*dataptr).read_cb.call(stream.into_inner(), nread, buf.into_inner());
+            (*dataptr)
+                .read_cb
+                .call(stream.into_inner(), nread, buf.into_inner());
         }
     }
 }

@@ -104,16 +104,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut discover_msg = make_discover_msg()?;
     let send_addr = (Ipv4Addr::BROADCAST, 67).into();
-    send_socket.send(
-        Some(&send_addr),
-        &[discover_msg],
-        move |_, status| {
-            if let Err(e) = status {
-                eprintln!("Send error {}", e);
-            }
-            discover_msg.destroy();
-        },
-    )?;
+    send_socket.send(Some(&send_addr), &[discover_msg], move |_, status| {
+        if let Err(e) = status {
+            eprintln!("Send error {}", e);
+        }
+        discover_msg.destroy();
+    })?;
 
     r#loop.run(RunMode::Default)?;
 

@@ -6,7 +6,7 @@ const FIB_UNTIL: usize = 25;
 fn fib(i: usize) {
     fn fib_(i: u64) -> u64 {
         if i == 0 || i == 1 {
-            return 1
+            return 1;
         }
         fib_(i - 1) + fib_(i - 2)
     }

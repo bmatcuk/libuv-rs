@@ -70,6 +70,6 @@ impl FromInner<*mut addrinfo> for Vec<AddrInfo> {
             v.push(current.into_inner());
             unsafe { current = (*current).ai_next };
         }
-        return v
+        return v;
     }
 }

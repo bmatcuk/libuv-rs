@@ -1,6 +1,6 @@
 mod req_data;
-use req_data::*;
 use req_data::ReqData::*;
+use req_data::*;
 
 pub mod req;
 pub use req::*;

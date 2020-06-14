@@ -44,6 +44,9 @@ type SyncResult = crate::Result<usize>;
 type SyncErrResult = Result<usize, Box<dyn std::error::Error>>;
 
 /// Cross platform representation of a file handle.
+#[cfg(windows)]
+pub type File = *mut std::ffi::c_void;
+#[cfg(not(windows))]
 pub type File = i32;
 
 /// Cross platform representation of a socket handle.
@@ -53,9 +56,15 @@ pub type Socket = usize;
 pub type Socket = i32;
 
 /// Cross platform representation of a user id
+#[cfg(windows)]
+pub type Uid = u8;
+#[cfg(not(windows))]
 pub type Uid = u32;
 
 /// Cross platform representation of a group id
+#[cfg(windows)]
+pub type Gid = u8;
+#[cfg(not(windows))]
 pub type Gid = u32;
 
 /// Destroys the given FsReq and returns the result
@@ -91,8 +100,7 @@ impl crate::Loop {
 
     /// Equivalent to close(2).
     pub fn fs_close_sync(&self, file: File) -> SyncResult {
-        self._fs_close(file, ())
-            .and_then(destroy_req_return_result)
+        self._fs_close(file, ()).and_then(destroy_req_return_result)
     }
 
     /// Private implementation for fs_open()
@@ -146,12 +154,11 @@ impl crate::Loop {
         flags: FsOpenFlags,
         mode: FsModeFlags,
     ) -> Result<File, Box<dyn std::error::Error>> {
-        self._fs_open(path, flags, mode, ())
-            .map(|mut req| {
-                let file = req.file();
-                req.destroy();
-                return file as _;
-            })
+        self._fs_open(path, flags, mode, ()).map(|mut req| {
+            let file = req.file();
+            req.destroy();
+            return file as _;
+        })
     }
 
     /// Private implementation for fs_read()
@@ -788,8 +795,7 @@ impl crate::Loop {
     /// Note: For AIX, uv_fs_fsync returns UV_EBADF on file descriptors referencing non regular
     /// files.
     pub fn fs_fsync_sync(&self, file: File) -> SyncResult {
-        self._fs_fsync(file, ())
-            .and_then(destroy_req_return_result)
+        self._fs_fsync(file, ()).and_then(destroy_req_return_result)
     }
 
     /// Private implementation for fs_fdatasync()
@@ -1337,7 +1343,11 @@ impl crate::Loop {
     }
 
     /// Equivalent to readlink(2). The path can be read from FsReq::real_path()
-    pub fn fs_readlink<CB: Into<crate::FsCB<'static>>>(&self, path: &str, cb: CB) -> FsReqErrResult {
+    pub fn fs_readlink<CB: Into<crate::FsCB<'static>>>(
+        &self,
+        path: &str,
+        cb: CB,
+    ) -> FsReqErrResult {
         self._fs_readlink(path, cb)
     }
 
@@ -1387,7 +1397,11 @@ impl crate::Loop {
     ///
     /// Note: This function is not implemented on Windows XP and Windows Server 2003. On these
     /// systems, ENOSYS is returned.
-    pub fn fs_realpath<CB: Into<crate::FsCB<'static>>>(&self, path: &str, cb: CB) -> FsReqErrResult {
+    pub fn fs_realpath<CB: Into<crate::FsCB<'static>>>(
+        &self,
+        path: &str,
+        cb: CB,
+    ) -> FsReqErrResult {
         self._fs_realpath(path, cb)
     }
 

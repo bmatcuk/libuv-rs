@@ -16,7 +16,7 @@ pub struct InterfaceAddress {
 }
 
 impl TryFromInner<&uv_interface_address_t> for InterfaceAddress {
-    type Error = crate::Error;
+    type Error = Box<dyn std::error::Error>;
 
     fn try_from_inner(addr: &uv_interface_address_t) -> Result<InterfaceAddress, Self::Error> {
         let name = unsafe { CStr::from_ptr(addr.name) }
@@ -82,7 +82,7 @@ pub fn if_indexto_iid(ifindex: u32) -> crate::Result<String> {
 }
 
 /// Gets address information about the network interfaces on the system.
-pub fn interface_addresses() -> crate::Result<Vec<InterfaceAddress>> {
+pub fn interface_addresses() -> Result<Vec<InterfaceAddress>, Box<dyn std::error::Error>> {
     let mut addresses: *mut uv::uv_interface_address_t = unsafe { std::mem::zeroed() };
     let mut count: std::os::raw::c_int = 0;
     crate::uvret(unsafe { uv_interface_addresses(&mut addresses as _, &mut count as _) })?;

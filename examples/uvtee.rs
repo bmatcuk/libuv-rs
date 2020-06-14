@@ -17,15 +17,12 @@ fn alloc_buffer(_handle: Handle, suggested_size: usize) -> Option<Buf> {
 
 fn write_data(mut stream: StreamHandle, len: usize, buf: &ReadonlyBuf) -> libuv::Result<()> {
     let mut buf = Buf::new_from(buf, Some(len))?;
-    stream.write(
-        &[buf],
-        move |_, status| {
-            if let Err(e) = status {
-                eprintln!("error writing data: {}", e);
-            }
-            buf.destroy();
-        },
-    )?;
+    stream.write(&[buf], move |_, status| {
+        if let Err(e) = status {
+            eprintln!("error writing data: {}", e);
+        }
+        buf.destroy();
+    })?;
     Ok(())
 }
 
@@ -91,12 +88,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut file_pipe = r#loop.pipe(false)?;
     file_pipe.open(file)?;
 
-    stdin_pipe.read_start(
-        alloc_buffer,
-        move |stream, nread, buf| {
-            read_stdin(stream, &mut stdout_pipe, &mut file_pipe, nread, buf)
-        },
-    )?;
+    stdin_pipe.read_start(alloc_buffer, move |stream, nread, buf| {
+        read_stdin(stream, &mut stdout_pipe, &mut file_pipe, nread, buf)
+    })?;
 
     r#loop.run(RunMode::Default)?;
 
