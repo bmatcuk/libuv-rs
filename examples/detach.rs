@@ -1,3 +1,13 @@
+//! Run:
+//!
+//! ```bash
+//! cargo run --example detach
+//! ```
+//!
+//! It will spawn a new process, print the PID, and detach. You can check that the process was
+//! spawned by using `ps ax | grep PID`. It will run for 100 seconds, after which you should see
+//! the process disappear by re-running `ps`.
+
 extern crate libuv;
 use libuv::prelude::*;
 use libuv::{ProcessFlags, ProcessOptions};

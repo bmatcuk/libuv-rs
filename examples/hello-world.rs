@@ -1,3 +1,9 @@
+//! Run:
+//!
+//! ```bash
+//! cargo run --example hello-world
+//! ```
+
 extern crate libuv;
 use libuv::{Loop, RunMode};
 

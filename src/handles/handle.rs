@@ -238,7 +238,7 @@ pub trait HandleTrait: ToHandle {
     ///
     /// Warning: Be very careful when using this function. libuv assumes it’s in control of the
     /// file descriptor so any change to it may lead to malfunction.
-    fn get_fileno(&self) -> crate::Result<crate::File> {
+    fn get_fileno(&self) -> crate::Result<crate::OsFile> {
         let mut v: uv::uv_os_fd_t = 0 as _;
         crate::uvret(unsafe { uv_fileno(self.to_handle().inner(), &mut v as _) })?;
         Ok(v as _)

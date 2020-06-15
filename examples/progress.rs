@@ -1,3 +1,9 @@
+//! Run:
+//!
+//! ```bash
+//! cargo run --example progress
+//! ```
+
 extern crate libuv;
 use libuv::prelude::*;
 use libuv::AsyncHandle;

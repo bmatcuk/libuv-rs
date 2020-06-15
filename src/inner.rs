@@ -132,24 +132,22 @@ pub(crate) fn build_socketaddr(
     match unsafe { (*sockaddr).sa_family as _ } {
         AF_INET => {
             let sockaddr_in: *const uv::sockaddr_in = sockaddr as _;
-            let mut buf: Vec<std::os::raw::c_uchar> = Vec::with_capacity(16);
+            let mut buf: Vec<std::os::raw::c_char> = vec![0; 16];
             unsafe {
                 let port = u16::from_be((*sockaddr_in).sin_port) as _;
-                buf.set_len(16);
-                crate::uvret(uv_ip4_name(sockaddr_in, buf.as_mut_ptr() as _, 16))?;
-                let s = CStr::from_bytes_with_nul_unchecked(&buf).to_string_lossy();
+                crate::uvret(uv_ip4_name(sockaddr_in, buf.as_mut_ptr(), 16))?;
+                let s = CStr::from_ptr(buf.as_ptr()).to_string_lossy();
                 let addr = Ipv4Addr::from_str(s.as_ref())?;
                 Ok(SocketAddr::new(IpAddr::V4(addr), port))
             }
         }
         AF_INET6 => {
             let sockaddr_in6: *const uv::sockaddr_in6 = sockaddr as _;
-            let mut buf: Vec<std::os::raw::c_uchar> = Vec::with_capacity(46);
+            let mut buf: Vec<std::os::raw::c_char> = vec![0; 46];
             unsafe {
                 let port = u16::from_be((*sockaddr_in6).sin6_port) as _;
-                buf.set_len(46);
-                crate::uvret(uv_ip6_name(sockaddr_in6, buf.as_mut_ptr() as _, 46))?;
-                let s = CStr::from_bytes_with_nul_unchecked(&buf).to_string_lossy();
+                crate::uvret(uv_ip6_name(sockaddr_in6, buf.as_mut_ptr(), 46))?;
+                let s = CStr::from_ptr(buf.as_ptr()).to_string_lossy();
                 let addr = Ipv6Addr::from_str(s.as_ref())?;
                 Ok(SocketAddr::new(IpAddr::V6(addr), port))
             }

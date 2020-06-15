@@ -1,3 +1,5 @@
+//! This is part of the multi-echo-server example. See multi-echo-server.rs for documentation
+
 extern crate libuv;
 use libuv::prelude::*;
 use libuv::{getpid, Buf, HandleType, PipeHandle, ReadonlyBuf};

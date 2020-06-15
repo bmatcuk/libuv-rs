@@ -1,3 +1,9 @@
+//! Run:
+//!
+//! ```bash
+//! cargo run --example queue-work
+//! ```
+
 extern crate libuv;
 use libuv::prelude::*;
 

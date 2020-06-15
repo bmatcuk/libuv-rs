@@ -1,3 +1,15 @@
+//! Build:
+//!
+//! ```bash
+//! cargo build --example uvtee
+//! ```
+//!
+//! Then run as:
+//!
+//! ```bash
+//! cat existing_file_path | target/debug/examples/uvtee new_file_path
+//! ```
+
 extern crate libuv;
 use libuv::prelude::*;
 use libuv::{Buf, FsModeFlags, FsOpenFlags, PipeHandle, ReadonlyBuf};

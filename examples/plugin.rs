@@ -1,3 +1,15 @@
+//! You must build plugin-hello.rs first:
+//!
+//! ```bash
+//! cargo build --example plugin-hello
+//! ```
+//!
+//! Then run:
+//!
+//! ```bash
+//! cargo run --example plugin -- target/debug/examples/libplugin-hello.dylib
+//! ```
+
 extern crate libuv;
 use libuv::DLib;
 

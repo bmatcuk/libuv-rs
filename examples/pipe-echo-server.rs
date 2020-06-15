@@ -1,3 +1,17 @@
+//! Run:
+//!
+//! ```bash
+//! cargo run --example pipe-echo-server
+//! ```
+//!
+//! Then connect using:
+//!
+//! ```bash
+//! socat - /tmp/echo.sock
+//! ```
+//!
+//! Anything you type will be echoed back.
+
 extern crate libuv;
 use libuv::prelude::*;
 use libuv::{Buf, ReadonlyBuf, SignalHandle};

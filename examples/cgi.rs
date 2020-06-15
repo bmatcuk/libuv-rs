@@ -1,3 +1,16 @@
+//! To run this example, you'll need to compile cgi-tick first:
+//!
+//! ```bash
+//! cargo build --example cgi-tick
+//! cargo run --example cgi
+//! ```
+//!
+//! Then connect to localhost:7000:
+//!
+//! ```bash
+//! nc localhost 7000
+//! ```
+
 extern crate libuv;
 use libuv::prelude::*;
 use libuv::{

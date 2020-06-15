@@ -1,3 +1,9 @@
+//! Run:
+//!
+//! ```bash
+//! cargo run --example interfaces
+//! ```
+
 extern crate libuv;
 use libuv::interface_addresses;
 

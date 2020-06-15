@@ -1,3 +1,15 @@
+//! You must build proc-streams-test first:
+//!
+//! ```bash
+//! cargo build --example proc-streams-test
+//! ```
+//!
+//! Then run:
+//!
+//! ```bash
+//! cargo run --example proc-streams
+//! ```
+
 extern crate libuv;
 use libuv::prelude::*;
 use libuv::{exepath, ProcessHandle, ProcessOptions, StdioContainer, StdioFlags, StdioType};

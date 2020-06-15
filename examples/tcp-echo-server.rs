@@ -1,3 +1,17 @@
+//! Run:
+//!
+//! ```bash
+//! cargo run --example tcp-echo-server
+//! ```
+//!
+//! Then connect to localhost:7000
+//!
+//! ```bash
+//! nc localhost 7000
+//! ```
+//!
+//! Anything you type will be echoed.
+
 extern crate libuv;
 use libuv::prelude::*;
 use libuv::{Buf, ReadonlyBuf, TcpBindFlags};

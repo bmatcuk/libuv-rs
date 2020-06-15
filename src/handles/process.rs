@@ -156,12 +156,12 @@ pub struct ProcessOptions<'a> {
     /// Libuv can change the child process' user/group id. This happens only when the appropriate
     /// bits are set in the flags fields. This is not supported on windows; spawn() will fail and
     /// set the error to ENOTSUP.
-    pub uid: u32,
+    pub uid: crate::Uid,
 
     /// Libuv can change the child process' user/group id. This happens only when the appropriate
     /// bits are set in the flags fields. This is not supported on windows; spawn() will fail and
     /// set the error to ENOTSUP.
-    pub gid: u32,
+    pub gid: crate::Gid,
 }
 
 impl<'a> ProcessOptions<'a> {

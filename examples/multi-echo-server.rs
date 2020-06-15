@@ -1,3 +1,24 @@
+//! You'll need to compile multi-echo-server-worker before running this example:
+//!
+//! ```bash
+//! cargo build --example multi-echo-server-worker
+//! ```
+//!
+//! Then run:
+//!
+//! ```bash
+//! cargo run --example multi-echo-server
+//! ```
+//!
+//! Now you can connect to localhost:7000:
+//!
+//! ```bash
+//! nc localhost 7000
+//! ```
+//!
+//! Anything you type will be echoed back. You'll see that every time you connect, you'll get the
+//! next worker, round-robin style.
+
 extern crate libuv;
 use libuv::prelude::*;
 use libuv::{

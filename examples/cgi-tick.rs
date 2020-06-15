@@ -1,3 +1,5 @@
+//! This is part of the cgi example - see cgi.rs for documentation
+
 fn main() {
     for _ in 0..10 {
         println!("tick");

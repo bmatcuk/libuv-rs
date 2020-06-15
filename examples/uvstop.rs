@@ -1,3 +1,9 @@
+//! Run:
+//!
+//! ```bash
+//! cargo run --example uvstop
+//! ```
+
 extern crate libuv;
 use libuv::prelude::*;
 use libuv::{IdleHandle, PrepareHandle};

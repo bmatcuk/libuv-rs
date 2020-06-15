@@ -1,3 +1,11 @@
+//! Run:
+//!
+//! ```bash
+//! cargo run --example onchange -- file1 file2 ...
+//! ```
+//!
+//! Then "change" one of the watched files with `touch`
+
 extern crate libuv;
 use libuv::prelude::*;
 use libuv::{FsEvent, FsEventFlags, FsEventHandle};

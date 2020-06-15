@@ -1,3 +1,9 @@
+//! Run:
+//!
+//! ```bash
+//! cargo run --example spawn
+//! ```
+
 extern crate libuv;
 use libuv::prelude::*;
 use libuv::{ProcessHandle, ProcessOptions};

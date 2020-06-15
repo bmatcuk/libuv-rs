@@ -44,10 +44,13 @@ type SyncResult = crate::Result<usize>;
 type SyncErrResult = Result<usize, Box<dyn std::error::Error>>;
 
 /// Cross platform representation of a file handle.
-#[cfg(windows)]
-pub type File = *mut std::ffi::c_void;
-#[cfg(not(windows))]
 pub type File = i32;
+
+/// Platform dependent representation of a file handle.
+#[cfg(windows)]
+pub type OsFile = *mut std::ffi::c_void;
+#[cfg(not(windows))]
+pub type OsFile = i32;
 
 /// Cross platform representation of a socket handle.
 #[cfg(windows)]
@@ -154,10 +157,10 @@ impl crate::Loop {
         flags: FsOpenFlags,
         mode: FsModeFlags,
     ) -> Result<File, Box<dyn std::error::Error>> {
-        self._fs_open(path, flags, mode, ()).map(|mut req| {
-            let file = req.file();
+        self._fs_open(path, flags, mode, ()).and_then(|mut req| {
+            let file = req.result();
             req.destroy();
-            return file as _;
+            file.map(|f| f as _).map_err(|e| Box::new(e) as _)
         })
     }
 

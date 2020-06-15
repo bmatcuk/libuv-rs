@@ -1,3 +1,11 @@
+//! Run:
+//!
+//! ```bash
+//! cargo run --example queue-cancel
+//! ```
+//!
+//! Then Ctrl+C while it's running.
+
 extern crate libuv;
 use libuv::prelude::*;
 use libuv::{SignalHandle, WorkReq};

@@ -1,3 +1,9 @@
+//! Run:
+//!
+//! ```bash
+//! cargo run --example dns
+//! ```
+
 extern crate libuv;
 use libuv::prelude::*;
 use libuv::{AddrInfo, Buf, ConnectReq, GetAddrInfoReq, ReadonlyBuf};

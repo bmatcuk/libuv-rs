@@ -71,14 +71,6 @@ impl FsReq {
         }
     }
 
-    /// Returns the file handle from the request
-    pub fn file(&self) -> crate::File {
-        if self.request_type() == crate::FsType::OPEN {
-            return unsafe { uv_fs_get_result(self.req) as _ };
-        }
-        unsafe { (*self.req).file as _ }
-    }
-
     /// Returns the file stats
     pub fn stat(&self) -> crate::Stat {
         unsafe { uv_fs_get_statbuf(self.req) as *const uv::uv_stat_t }.into_inner()

@@ -1,3 +1,9 @@
+//! Run:
+//!
+//! ```bash
+//! cargo run --example udp-dhcp
+//! ```
+
 extern crate libuv;
 use libuv::prelude::*;
 use libuv::{Buf, ReadonlyBuf, UdpBindFlags, UdpHandle};

@@ -1,3 +1,9 @@
+//! Run:
+//!
+//! ```bash
+//! cargo run --example tty-gravity
+//! ```
+
 extern crate libuv;
 use libuv::prelude::*;
 use libuv::{Buf, TtyHandle, TtyMode};

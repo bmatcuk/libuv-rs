@@ -1,3 +1,11 @@
+//! Run:
+//!
+//! ```bash
+//! cargo run --example idle-basic
+//! ```
+//!
+//! This will run for a fairly long time.
+
 extern crate libuv;
 use libuv::prelude::*;
 use libuv::IdleHandle;

@@ -331,7 +331,7 @@ impl Buf {
             self.resize(other_len)?;
         }
 
-        let my_len = unsafe { (*self.buf).len };
+        let my_len = unsafe { (*self.buf).len as usize };
         let len = my_len.min(other_len);
         unsafe {
             (*self.buf)

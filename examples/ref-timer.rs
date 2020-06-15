@@ -1,3 +1,9 @@
+//! Run:
+//!
+//! ```bash
+//! cargo run --example ref-timer
+//! ```
+
 extern crate libuv;
 use libuv::prelude::*;
 use libuv::TimerHandle;

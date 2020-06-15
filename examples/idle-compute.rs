@@ -1,3 +1,13 @@
+//! Run:
+//!
+//! ```bash
+//! cargo run --example idle-compute
+//! ```
+//!
+//! The program waits for keyboard input - when you press enter, it will print what you have typed
+//! and the idle task will run. The intent of this example is to show that the idle task only runs
+//! when the loop executes, not continuously.
+
 extern crate libuv;
 use libuv::prelude::*;
 use libuv::{Buf, FsReq, IdleHandle};

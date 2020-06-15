@@ -1,3 +1,16 @@
+//! Run:
+//!
+//! ```bash
+//! cargo run --example signal
+//! ```
+//!
+//! Then send SIGUSR1 and SIGUSR2 to the process:
+//!
+//! ```bash
+//! kill -USR1 PID
+//! kill -USR2 PID
+//! ```
+
 extern crate libuv;
 use libuv::prelude::*;
 use libuv::{getpid, SignalHandle};
