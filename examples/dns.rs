@@ -81,7 +81,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         flags: 0,
         family: AF_INET,
         socktype: SOCK_STREAM,
-        protocol: IPPROTO_TCP,
+        protocol: IPPROTO_TCP as _,
         canonical_name: None,
         addr: None,
     };

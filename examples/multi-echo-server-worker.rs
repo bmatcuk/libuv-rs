@@ -52,7 +52,7 @@ fn on_new_connection(mut stream: StreamHandle, nread: libuv::Result<usize>, mut 
                 match pipe.accept(&mut client.to_stream()) {
                     Ok(_) => {
                         if let Ok(file) = pipe.get_fileno() {
-                            println!("Worker {}: Accepted fd {}", getpid(), file);
+                            println!("Worker {}: Accepted fd {:?}", getpid(), file);
                         }
                         let _ = client.read_start(alloc_buffer, echo_read);
                     }
