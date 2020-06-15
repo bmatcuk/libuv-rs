@@ -27,7 +27,7 @@ jobs:
         - git remote set-url origin https://${GITHUB_TOKEN}@github.com/bmatcuk/libuv-rs.git
         - export TRAVIS_TAG=$(grep '^version =' Cargo.toml | awk -F'"' '{print "v" $2}')
         - export PREV_TAG=$({ echo $TRAVIS_TAG; git tag; } | sort -V | grep -B1 $TRAVIS_TAG | head -n 1)
-        - '[ "$PREV_TAG" != "$TRAVIS_TAG" ] && { echo -e "## Changelog\n\n"; git log --pretty=format:"%h %s" "${PREV_TAG}.." 2>/dev/null; } > RELEASELOG.md || true'
+        - '[ "$PREV_TAG" != "$TRAVIS_TAG" ] && { echo -e "## Changelog\n\n"; git log --pretty=format:"%h %s" "${PREV_TAG}.." 2>/dev/null; } > RELEASELOG.md || echo "## First Release" > RELEASELOG.md'
         - git tag -a $TRAVIS_TAG -m "${TRAVIS_TAG}"
         - git push --tags
       deploy:
