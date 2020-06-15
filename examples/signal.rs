@@ -14,9 +14,12 @@
 extern crate libuv;
 use libuv::prelude::*;
 use libuv::{getpid, SignalHandle};
-use libuv_sys2::{SIGUSR1, SIGUSR2};
 use std::thread;
 
+#[cfg(not(windows))]
+use libuv_sys2::{SIGUSR1, SIGUSR2};
+
+#[cfg(not(windows))]
 fn signal_handler(mut handle: SignalHandle, signum: i32) {
     println!("Signal received {}", signum);
     if let Err(e) = handle.stop() {
@@ -25,6 +28,7 @@ fn signal_handler(mut handle: SignalHandle, signum: i32) {
 }
 
 // Two signals in one loop
+#[cfg(not(windows))]
 fn thread_worker1() {
     fn worker() -> Result<(), Box<dyn std::error::Error>> {
         let mut r#loop = Loop::new()?;
@@ -51,6 +55,7 @@ fn thread_worker1() {
 }
 
 // Two signal handlers, each in its own loop
+#[cfg(not(windows))]
 fn thread_worker2() {
     fn worker() -> Result<(), Box<dyn std::error::Error>> {
         let mut loop1 = Loop::new()?;
@@ -84,6 +89,7 @@ fn thread_worker2() {
     }
 }
 
+#[cfg(not(windows))]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("PID {}", getpid());
 
@@ -94,4 +100,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     thread2.join().unwrap();
 
     Ok(())
+}
+
+#[cfg(windows)]
+fn main() {
+    println!("This example cannot run on Windows.");
 }

@@ -12,6 +12,7 @@ authors = ["Bob Matcuk <bmatcuk@gmail.com>"]
 edition = "2018"
 
 [badges]
+travis-ci = { repository = "bmatcuk/libuv-rs" }
 maintenance = { status = "actively-developed" }
 
 [dependencies]
