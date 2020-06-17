@@ -74,16 +74,16 @@ impl ToReq for Req {
 pub trait ReqTrait: ToReq {
     /// Cancel a pending request. Fails if the request is executing or has finished executing.
     ///
-    /// Only cancellation of FsReq, GetAddrInfoReq, GetNameInfoReq and WorkReq requests is
-    /// currently supported.
+    /// Only cancellation of FsReq, GetAddrInfoReq, GetNameInfoReq, RandomReq and WorkReq requests
+    /// is currently supported.
     ///
     /// Cancelled requests have their callbacks invoked some time in the future. It’s not safe to
     /// free the memory associated with the request until the callback is called.
     ///
     /// Here is how cancellation is reported to the callback:
     ///   * A FsReq request has its req->result field set to UV_ECANCELED.
-    ///   * A WorkReq, GetAddrInfoReq or GetNameInfoReq request has its callback invoked with
-    ///     status == UV_ECANCELED.
+    ///   * A WorkReq, GetAddrInfoReq, GetNameInfoReq or RandomReq request has its callback invoked
+    ///     with status == UV_ECANCELED.
     fn cancel(&mut self) -> crate::Result<()> {
         crate::uvret(unsafe { uv_cancel(self.to_req().inner()) })
     }

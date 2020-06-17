@@ -3,8 +3,8 @@ use std::ffi::{CStr, CString};
 use uv::{
     uv_cpu_info, uv_cpu_info_t, uv_free_cpu_info, uv_get_constrained_memory, uv_get_free_memory,
     uv_get_process_title, uv_get_total_memory, uv_getrusage, uv_gettimeofday, uv_hrtime,
-    uv_loadavg, uv_resident_set_memory, uv_rusage_t, uv_set_process_title, uv_setup_args, uv_sleep,
-    uv_timeval64_t, uv_timeval_t, uv_uptime,
+    uv_library_shutdown, uv_loadavg, uv_resident_set_memory, uv_rusage_t, uv_set_process_title,
+    uv_setup_args, uv_sleep, uv_timeval64_t, uv_timeval_t, uv_uptime,
 };
 
 pub mod os;
@@ -159,6 +159,18 @@ pub fn setup_args() -> Result<Vec<String>, std::ffi::NulError> {
                 .into_owned()
         })
         .collect())
+}
+
+/// Release any global state that libuv is holding onto. Libuv will normally do so automatically
+/// when it is unloaded but it can be instructed to perform cleanup manually.
+///
+/// Warning: Only call shutdown() once.
+///
+/// Warning: Don’t call shutdown() when there are still event loops or I/O requests active.
+///
+/// Warning: Don’t call libuv functions after calling shutdown().
+pub fn shutdown() {
+    unsafe { uv_library_shutdown() };
 }
 
 /// Gets the title of the current process. You must call setup_args before calling this function.

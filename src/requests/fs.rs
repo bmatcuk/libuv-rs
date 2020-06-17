@@ -1,8 +1,8 @@
 use crate::{FromInner, Inner, IntoInner};
 use std::ffi::CStr;
 use uv::{
-    uv_fs_get_path, uv_fs_get_ptr, uv_fs_get_result, uv_fs_get_statbuf, uv_fs_get_type,
-    uv_fs_req_cleanup, uv_fs_t,
+    uv_fs_get_path, uv_fs_get_ptr, uv_fs_get_result, uv_fs_get_statbuf, uv_fs_get_system_error,
+    uv_fs_get_type, uv_fs_req_cleanup, uv_fs_t,
 };
 
 callbacks! {
@@ -69,6 +69,12 @@ impl FsReq {
         } else {
             Ok(result as _)
         }
+    }
+
+    /// Returns the platform specific error code - GetLastError() value on Windows and req.result()
+    /// on other platforms.
+    pub fn system_error(&self) -> i32 {
+        unsafe { uv_fs_get_system_error(self.req) }
     }
 
     /// Returns the file stats

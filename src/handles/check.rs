@@ -50,7 +50,8 @@ impl CheckHandle {
         Ok(CheckHandle { handle })
     }
 
-    /// Start the handle with the given callback.
+    /// Start the handle with the given callback. This function always succeeds, except when cb is
+    /// ().
     pub fn start<CB: Into<CheckCB<'static>>>(&mut self, cb: CB) -> crate::Result<()> {
         // uv_cb is either Some(uv_check_cb) or None
         let cb = cb.into();
@@ -67,7 +68,7 @@ impl CheckHandle {
         crate::uvret(unsafe { uv_check_start(self.handle, uv_cb) })
     }
 
-    /// Stop the handle, the callback will no longer be called.
+    /// Stop the handle, the callback will no longer be called. This function always succeeds.
     pub fn stop(&mut self) -> crate::Result<()> {
         crate::uvret(unsafe { uv_check_stop(self.handle) })
     }

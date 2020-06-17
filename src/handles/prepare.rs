@@ -51,7 +51,8 @@ impl PrepareHandle {
         Ok(PrepareHandle { handle })
     }
 
-    /// Start the handle with the given callback.
+    /// Start the handle with the given callback. This function always succeeds, except when cb is
+    /// ().
     pub fn start<CB: Into<PrepareCB<'static>>>(&mut self, cb: CB) -> crate::Result<()> {
         // uv_cb is either Some(uv_prepare_cb) or None
         let cb = cb.into();
@@ -68,7 +69,7 @@ impl PrepareHandle {
         crate::uvret(unsafe { uv_prepare_start(self.handle, uv_cb) })
     }
 
-    /// Stop the handle, the callback will no longer be called.
+    /// Stop the handle, the callback will no longer be called. This function always succeeds.
     pub fn stop(&mut self) -> crate::Result<()> {
         crate::uvret(unsafe { uv_prepare_stop(self.handle) })
     }
