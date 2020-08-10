@@ -1,4 +1,4 @@
-use crate::{FromInner, HandleTrait, Inner, IntoInner, ToHandle};
+use crate::{FromInner, HandleTrait, Inner, IntoInner, ToHandle, NREAD};
 use std::convert::{TryFrom, TryInto};
 use std::ffi::CString;
 use std::net::SocketAddr;
@@ -54,7 +54,7 @@ pub(crate) struct UdpDataFields<'a> {
 /// Callback for uv_udp_recv_start
 extern "C" fn uv_udp_recv_cb(
     handle: *mut uv_udp_t,
-    nread: i64,
+    nread: NREAD,
     buf: *const uv::uv_buf_t,
     addr: *const uv::sockaddr,
     flags: std::os::raw::c_uint,

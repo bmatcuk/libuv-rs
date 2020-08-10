@@ -106,6 +106,11 @@ macro_rules! use_c_callback {
     };
 }
 
+#[cfg(not(windows))]
+pub(crate) type NREAD = i64;
+#[cfg(windows)]
+pub(crate) type NREAD = isize;
+
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[inline]

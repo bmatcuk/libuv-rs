@@ -1,4 +1,4 @@
-use crate::{FromInner, Inner, IntoInner};
+use crate::{FromInner, Inner, IntoInner, NREAD};
 use uv::{
     uv_accept, uv_is_readable, uv_is_writable, uv_listen, uv_read_start, uv_read_stop, uv_shutdown,
     uv_stream_get_write_queue_size, uv_stream_set_blocking, uv_stream_t, uv_try_write, uv_write,
@@ -61,7 +61,7 @@ extern "C" fn uv_connection_cb(stream: *mut uv_stream_t, status: std::os::raw::c
 }
 
 /// Callback for uv_read_start
-extern "C" fn uv_read_cb(stream: *mut uv_stream_t, nread: i64, buf: *const uv::uv_buf_t) {
+extern "C" fn uv_read_cb(stream: *mut uv_stream_t, nread: NREAD, buf: *const uv::uv_buf_t) {
     let dataptr = StreamHandle::get_data(stream);
     if !dataptr.is_null() {
         unsafe {
