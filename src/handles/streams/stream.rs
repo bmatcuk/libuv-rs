@@ -22,7 +22,7 @@ pub(crate) struct StreamDataFields<'a> {
 /// Callback for uv_recv_start, uv_udp_recv_start
 pub(crate) extern "C" fn uv_alloc_cb(
     handle: *mut uv::uv_handle_t,
-    suggested_size: usize,
+    suggested_size: u64,
     buf: *mut uv::uv_buf_t,
 ) {
     let dataptr = StreamHandle::get_data(uv_handle!(handle));
@@ -30,7 +30,7 @@ pub(crate) extern "C" fn uv_alloc_cb(
         unsafe {
             let mut new_buf = (*dataptr)
                 .alloc_cb
-                .call(handle.into_inner(), suggested_size);
+                .call(handle.into_inner(), suggested_size as _);
             match new_buf.as_mut() {
                 Some(new_buf) => {
                     buf.copy_from_nonoverlapping(new_buf.inner(), 1);
@@ -61,18 +61,18 @@ extern "C" fn uv_connection_cb(stream: *mut uv_stream_t, status: std::os::raw::c
 }
 
 /// Callback for uv_read_start
-extern "C" fn uv_read_cb(stream: *mut uv_stream_t, nread: isize, buf: *const uv::uv_buf_t) {
+extern "C" fn uv_read_cb(stream: *mut uv_stream_t, nread: i64, buf: *const uv::uv_buf_t) {
     let dataptr = StreamHandle::get_data(stream);
     if !dataptr.is_null() {
         unsafe {
             let nread = if nread < 0 {
                 Err(crate::Error::from_inner(nread as uv::uv_errno_t))
             } else {
-                Ok(nread as _)
+                Ok(nread as usize)
             };
             (*dataptr)
                 .read_cb
-                .call(stream.into_inner(), nread, buf.into_inner());
+                .call(stream.into_inner(), nread as _, buf.into_inner());
         }
     }
 }
@@ -345,7 +345,7 @@ pub trait StreamTrait: ToStream {
 
     /// Returns the size of the write queue.
     fn get_write_queue_size(&self) -> usize {
-        unsafe { uv_stream_get_write_queue_size(self.to_stream().inner()) }
+        unsafe { uv_stream_get_write_queue_size(self.to_stream().inner()) as _ }
     }
 }
 

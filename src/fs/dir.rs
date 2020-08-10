@@ -17,7 +17,7 @@ impl Dir {
         let mut v = std::mem::ManuallyDrop::new(Vec::<uv::uv_dirent_t>::with_capacity(size));
         unsafe {
             (*self.dir).dirents = v.as_mut_ptr();
-            (*self.dir).nentries = v.capacity();
+            (*self.dir).nentries = v.capacity() as _;
         }
         self.capacity = v.capacity();
         self.len = v.len();

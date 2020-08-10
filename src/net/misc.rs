@@ -49,12 +49,12 @@ impl TryFromInner<&uv_interface_address_t> for InterfaceAddress {
 ///
 /// To get an interface identifier in a cross-platform compatible way, use if_indextoiid().
 pub fn if_indextoname(ifindex: u32) -> crate::Result<String> {
-    let mut size = UV_IF_NAMESIZE as usize;
-    let mut buf: Vec<std::os::raw::c_uchar> = Vec::with_capacity(size);
+    let mut size = UV_IF_NAMESIZE as u64;
+    let mut buf: Vec<std::os::raw::c_uchar> = Vec::with_capacity(size as _);
     crate::uvret(unsafe { uv_if_indextoname(ifindex, buf.as_mut_ptr() as _, &mut size as _) }).map(
         |_| {
             // size is the length of the string, *not* including the null
-            unsafe { buf.set_len(size + 1) };
+            unsafe { buf.set_len((size as usize) + 1) };
             unsafe { CStr::from_bytes_with_nul_unchecked(&buf) }
                 .to_string_lossy()
                 .into_owned()
@@ -68,12 +68,12 @@ pub fn if_indextoname(ifindex: u32) -> crate::Result<String> {
 ///
 /// See uv_if_indextoname for further details.
 pub fn if_indexto_iid(ifindex: u32) -> crate::Result<String> {
-    let mut size = UV_IF_NAMESIZE as usize;
-    let mut buf: Vec<std::os::raw::c_uchar> = Vec::with_capacity(size);
+    let mut size = UV_IF_NAMESIZE as u64;
+    let mut buf: Vec<std::os::raw::c_uchar> = Vec::with_capacity(size as _);
     crate::uvret(unsafe { uv_if_indextoiid(ifindex, buf.as_mut_ptr() as _, &mut size as _) }).map(
         |_| {
             // size is the length of the string, *not* including the null
-            unsafe { buf.set_len(size + 1) };
+            unsafe { buf.set_len((size as usize) + 1) };
             unsafe { CStr::from_bytes_with_nul_unchecked(&buf) }
                 .to_string_lossy()
                 .into_owned()

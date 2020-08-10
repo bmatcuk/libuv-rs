@@ -19,13 +19,13 @@ extern "C" fn uv_random_cb(
     req: *mut uv_random_t,
     status: std::os::raw::c_int,
     buf: *mut std::os::raw::c_void,
-    buflen: usize,
+    buflen: u64,
 ) {
     let dataptr = crate::Req::get_data(uv_handle!(req));
     if !dataptr.is_null() {
         unsafe {
             if let super::RandomData(d) = &mut *dataptr {
-                let buf = Vec::from_raw_parts(buf as _, buflen, buflen);
+                let buf = Vec::from_raw_parts(buf as _, buflen as _, buflen as _);
                 let status = if status < 0 {
                     Err(crate::Error::from_inner(status as uv::uv_errno_t))
                 } else {
@@ -144,7 +144,7 @@ impl crate::Loop {
                 self.into_inner(),
                 req.inner(),
                 buf.as_mut_ptr() as _,
-                buflen,
+                buflen as _,
                 flags as _,
                 Some(uv_random_cb as _),
             )
@@ -186,14 +186,14 @@ impl crate::Loop {
                 std::ptr::null_mut(),
                 std::ptr::null_mut(),
                 buf.as_mut_ptr() as _,
-                buflen,
+                buflen as _,
                 flags as _,
                 None::<
                     unsafe extern "C" fn(
                         *mut uv_random_t,
                         std::os::raw::c_int,
                         *mut std::os::raw::c_void,
-                        usize,
+                        u64,
                     ),
                 >,
             )

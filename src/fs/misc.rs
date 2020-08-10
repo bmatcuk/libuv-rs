@@ -10,12 +10,12 @@ pub fn chdir(dir: &str) -> Result<(), Box<dyn std::error::Error>> {
 
 /// Gets the current working directory.
 pub fn cwd() -> crate::Result<String> {
-    let mut size = 0usize;
+    let mut size = 0u64;
     unsafe { uv_cwd(std::ptr::null_mut(), &mut size as _) };
 
-    let mut buf: Vec<std::os::raw::c_uchar> = Vec::with_capacity(size);
+    let mut buf: Vec<std::os::raw::c_uchar> = Vec::with_capacity(size as _);
     crate::uvret(unsafe { uv_cwd(buf.as_mut_ptr() as _, &mut size as _) }).map(|_| {
-        unsafe { buf.set_len(size) };
+        unsafe { buf.set_len(size as _) };
         unsafe { CStr::from_bytes_with_nul_unchecked(&buf) }
             .to_string_lossy()
             .into_owned()
@@ -24,18 +24,18 @@ pub fn cwd() -> crate::Result<String> {
 
 /// Gets the executable path.
 pub fn exepath() -> crate::Result<String> {
-    let mut allocated = 32usize;
+    let mut allocated = 32u64;
     let mut size = allocated - 1;
     let mut buf: Vec<std::os::raw::c_uchar> = vec![];
     while size == allocated - 1 {
         // path didn't fit in old size - double our allocation and try again
         allocated *= 2;
         size = allocated;
-        buf.reserve(size - buf.len());
+        buf.reserve((size as usize) - buf.len());
 
         // after uv_exepath, size will be the length of the string, *not* including the null
         crate::uvret(unsafe { uv_exepath(buf.as_mut_ptr() as _, &mut size as _) })?;
-        unsafe { buf.set_len(size + 1) };
+        unsafe { buf.set_len((size as usize) + 1) };
     }
     Ok(unsafe { CStr::from_bytes_with_nul_unchecked(&buf) }
         .to_string_lossy()

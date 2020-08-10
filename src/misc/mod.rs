@@ -182,7 +182,7 @@ pub fn get_process_title() -> crate::Result<String> {
         size *= 2;
         buf.reserve(size - buf.len());
 
-        let result = crate::uvret(unsafe { uv_get_process_title(buf.as_mut_ptr() as _, size) });
+        let result = crate::uvret(unsafe { uv_get_process_title(buf.as_mut_ptr() as _, size as _) });
         if let Err(e) = result {
             if e != crate::Error::ENOBUFS {
                 return Err(e);
@@ -208,8 +208,8 @@ pub fn set_process_title(title: &str) -> Result<(), Box<dyn std::error::Error>> 
 
 /// Gets the resident set size (RSS) for the current process.
 pub fn resident_set_memory() -> crate::Result<usize> {
-    let mut rss = 0usize;
-    crate::uvret(unsafe { uv_resident_set_memory(&mut rss as _) }).map(|_| rss)
+    let mut rss = 0u64;
+    crate::uvret(unsafe { uv_resident_set_memory(&mut rss as _) }).map(|_| rss as _)
 }
 
 /// Gets the current system uptime.

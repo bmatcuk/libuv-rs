@@ -54,7 +54,7 @@ pub(crate) struct UdpDataFields<'a> {
 /// Callback for uv_udp_recv_start
 extern "C" fn uv_udp_recv_cb(
     handle: *mut uv_udp_t,
-    nread: isize,
+    nread: i64,
     buf: *const uv::uv_buf_t,
     addr: *const uv::sockaddr,
     flags: std::os::raw::c_uint,
@@ -67,7 +67,7 @@ extern "C" fn uv_udp_recv_cb(
                 let nread = if nread < 0 {
                     Err(crate::Error::from_inner(nread as uv::uv_errno_t))
                 } else {
-                    Ok(nread as _)
+                    Ok(nread as usize)
                 };
                 d.recv_cb.call(
                     handle.into_inner(),
@@ -373,12 +373,12 @@ impl UdpHandle {
 
     /// Returns the size of the send queue
     pub fn get_send_queue_size(&self) -> usize {
-        unsafe { uv_udp_get_send_queue_size(self.handle) }
+        unsafe { uv_udp_get_send_queue_size(self.handle) as _ }
     }
 
     /// Returns the count of the send queue
     pub fn get_send_queue_count(&self) -> usize {
-        unsafe { uv_udp_get_send_queue_count(self.handle) }
+        unsafe { uv_udp_get_send_queue_count(self.handle) as _ }
     }
 }
 

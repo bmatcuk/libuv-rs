@@ -960,7 +960,7 @@ impl crate::Loop {
                 out_file as _,
                 in_file as _,
                 offset,
-                len,
+                len as _,
                 uv_cb,
             )
         });
