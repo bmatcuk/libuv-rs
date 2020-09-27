@@ -6,7 +6,7 @@
 
 extern crate libuv;
 use libuv::prelude::*;
-use libuv::{Buf, ReadonlyBuf, UdpBindFlags, UdpHandle};
+use libuv::{Buf, ReadonlyBuf, UdpBindFlags, UdpHandle, UdpRecvFlags};
 use rand::prelude::*;
 use std::net::{Ipv4Addr, SocketAddr};
 
@@ -19,7 +19,7 @@ fn on_read(
     nread: libuv::Result<usize>,
     mut buf: ReadonlyBuf,
     addr: SocketAddr,
-    _flags: UdpBindFlags,
+    _flags: UdpRecvFlags,
 ) {
     match nread {
         Ok(_) => {
