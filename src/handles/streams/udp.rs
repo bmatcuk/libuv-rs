@@ -7,8 +7,8 @@ use uv::{
     uv_udp_getpeername, uv_udp_getsockname, uv_udp_init, uv_udp_init_ex, uv_udp_recv_start,
     uv_udp_recv_stop, uv_udp_send, uv_udp_set_broadcast, uv_udp_set_membership,
     uv_udp_set_multicast_interface, uv_udp_set_multicast_loop, uv_udp_set_multicast_ttl,
-    uv_udp_set_source_membership, uv_udp_set_ttl, uv_udp_t, uv_udp_try_send, AF_INET, AF_INET6,
-    AF_UNSPEC,
+    uv_udp_set_source_membership, uv_udp_set_ttl, uv_udp_t, uv_udp_try_send, uv_udp_using_recvmmsg,
+    AF_INET, AF_INET6, AF_UNSPEC,
 };
 
 bitflags! {
@@ -17,15 +17,43 @@ bitflags! {
         const AF_INET = AF_INET as _;
         const AF_INET6 = AF_INET6 as _;
         const AF_UNSPEC = AF_UNSPEC as _;
+
+        /// Indicates that recvmmsg should be used, if available.
+        const RECVMMSG = uv::uv_udp_flags_UV_UDP_RECVMMSG as _;
     }
 }
 
 bitflags! {
     /// Flags to UdpHandle::bind()
     pub struct UdpBindFlags: u32 {
+        /// Disables dual stack mode.
         const IPV6ONLY = uv::uv_udp_flags_UV_UDP_IPV6ONLY as _;
-        const PARTIAL = uv::uv_udp_flags_UV_UDP_PARTIAL as _;
+
+        /// Indicates if SO_REUSEADDR will be set when binding the handle in bind(). This sets the
+        /// SO_REUSEPORT socket flag on the BSDs and OS X. On other Unix platforms, it sets the
+        /// SO_REUSEADDR flag. What that means is that multiple threads or processes can bind to
+        /// the same address without error (provided they all set the flag) but only the last one
+        /// to bind will receive any traffic, in effect "stealing" the port from the previous
+        /// listener.
         const REUSEADDR = uv::uv_udp_flags_UV_UDP_REUSEADDR as _;
+    }
+}
+
+bitflags! {
+    /// Flags in RecvCB
+    pub struct UdpRecvFlags: u32 {
+        /// Indicates message was truncated because read buffer was too small. The remainder was
+        /// discarded by the OS. Used in receive callback.
+        const PARTIAL = uv::uv_udp_flags_UV_UDP_PARTIAL as _;
+
+        /// Indicates that the message was received by recvmmsg, so the buffer provided must not be
+        /// freed by the receive callback.
+        const MMSG_CHUNK = uv::uv_udp_flags_UV_UDP_MMSG_CHUNK as _;
+
+        /// Indicates that the buffer provided has been fully utilized by recvmmsg and that it
+        /// should now be freed by the receive callback. When this flag is set in the receive
+        /// callback, nread will always be 0 and addr will always be empty.
+        const MMSG_FREE = uv::uv_udp_flags_UV_UDP_MMSG_FREE as _;
     }
 }
 
@@ -41,7 +69,7 @@ callbacks! {
         nread: crate::Result<usize>,
         buf: crate::ReadonlyBuf,
         addr: SocketAddr,
-        flags: UdpBindFlags
+        flags: UdpRecvFlags
     );
 }
 
@@ -74,7 +102,7 @@ extern "C" fn uv_udp_recv_cb(
                     nread,
                     buf.into_inner(),
                     sockaddr,
-                    UdpBindFlags::from_bits_truncate(flags),
+                    UdpRecvFlags::from_bits_truncate(flags),
                 );
             }
         }
@@ -341,6 +369,10 @@ impl UdpHandle {
 
     /// Prepare for receiving data. If the socket has not previously been bound with bind() it is
     /// bound to 0.0.0.0 (the “all interfaces” IPv4 address) and a random port number.
+    ///
+    /// using_recvmmsg() can be used in the allocation callback to determine if a buffer sized for
+    /// use with recvmmsg should be allocated for the current handle/platform. The use of recvmmsg
+    /// requires a buffer larger than 2 * 64KB to be passed to the allocation callback.
     pub fn recv_start<ACB: Into<crate::AllocCB<'static>>, CB: Into<RecvCB<'static>>>(
         &mut self,
         alloc_cb: ACB,
@@ -379,6 +411,11 @@ impl UdpHandle {
     /// Returns the count of the send queue
     pub fn get_send_queue_count(&self) -> usize {
         unsafe { uv_udp_get_send_queue_count(self.handle) as _ }
+    }
+
+    /// Returns true if the UDP handle was created with the
+    pub fn using_mmsg(&self) -> bool {
+        unsafe { uv_udp_using_recvmmsg(self.handle) != 0 }
     }
 }
 

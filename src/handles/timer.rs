@@ -1,8 +1,8 @@
 use crate::{FromInner, HandleTrait, Inner, IntoInner};
 use std::convert::TryFrom;
 use uv::{
-    uv_timer_again, uv_timer_get_repeat, uv_timer_init, uv_timer_set_repeat, uv_timer_start,
-    uv_timer_stop, uv_timer_t,
+    uv_timer_again, uv_timer_get_due_in, uv_timer_get_repeat, uv_timer_init, uv_timer_set_repeat,
+    uv_timer_start, uv_timer_stop, uv_timer_t,
 };
 
 callbacks! {
@@ -113,6 +113,11 @@ impl TimerHandle {
     /// Get the timer repeat value.
     pub fn get_repeat(&self) -> u64 {
         unsafe { uv_timer_get_repeat(self.handle) }
+    }
+
+    /// Get the timer due value or 0 if it has expired. The time is relative to now().
+    pub fn due_in(&self) -> u64 {
+        unsafe { uv_timer_get_due_in(self.handle) }
     }
 }
 

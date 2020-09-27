@@ -22,7 +22,7 @@ pub fn cwd() -> crate::Result<String> {
     })
 }
 
-/// Gets the executable path.
+/// Gets the executable path. You must call setup_args before calling this function.
 pub fn exepath() -> crate::Result<String> {
     let mut allocated = 32u64;
     let mut size = allocated - 1;

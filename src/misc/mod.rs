@@ -136,9 +136,9 @@ impl FromInner<&uv_cpu_info_t> for CpuInfo {
     }
 }
 
-/// Store the program arguments. Required for getting / setting the process title. Libuv may take
-/// ownership of the memory that argv points to. This function should be called exactly once, at
-/// program start-up.
+/// Store the program arguments. Required for getting / setting the process title or the executable
+/// path. Libuv may take ownership of the memory that argv points to. This function should be
+/// called exactly once, at program start-up.
 pub fn setup_args() -> Result<Vec<String>, std::ffi::NulError> {
     // Get arguments, transform into CStrings and then into raw bytes
     let mut args = std::env::args()
@@ -173,7 +173,16 @@ pub fn shutdown() {
     unsafe { uv_library_shutdown() };
 }
 
-/// Gets the title of the current process. You must call setup_args before calling this function.
+/// Gets the title of the current process. You must call setup_args before calling this function on
+/// Unix and AIX systems. If setup_args has not been called on systems that require it, then
+/// ENOBUFS is returned.
+///
+/// Note On BSD systems, setup_args is needed for getting the initial process title. The process
+/// title returned will be an empty string until either setup_args or set_process_title is called.
+///
+/// This function is thread-safe on all supported platforms.
+///
+/// Returns an error if setup_args is needed but hasn’t been called.
 pub fn get_process_title() -> crate::Result<String> {
     let mut size = 16usize;
     let mut buf: Vec<std::os::raw::c_char> = vec![];
@@ -182,7 +191,8 @@ pub fn get_process_title() -> crate::Result<String> {
         size *= 2;
         buf.reserve(size - buf.len());
 
-        let result = crate::uvret(unsafe { uv_get_process_title(buf.as_mut_ptr() as _, size as _) });
+        let result =
+            crate::uvret(unsafe { uv_get_process_title(buf.as_mut_ptr() as _, size as _) });
         if let Err(e) = result {
             if e != crate::Error::ENOBUFS {
                 return Err(e);
@@ -197,10 +207,15 @@ pub fn get_process_title() -> crate::Result<String> {
         .into_owned())
 }
 
-/// Sets the current process title. You must call uv_setup_args before calling this function. On
-/// platforms with a fixed size buffer for the process title the contents of title will be copied
-/// to the buffer and truncated if larger than the available space. Other platforms will return
-/// ENOMEM if they cannot allocate enough space to duplicate the contents of title.
+/// Sets the current process title. You must call setup_args before calling this function on Unix
+/// and AIX systems. If setup_args has not been called on systems that require it, then ENOBUFS is
+/// returned. On platforms with a fixed size buffer for the process title the contents of title
+/// will be copied to the buffer and truncated if larger than the available space. Other platforms
+/// will return ENOMEM if they cannot allocate enough space to duplicate the contents of title.
+///
+/// This function is thread-safe on all supported platforms.
+///
+/// Returns an error if setup_args is needed but hasn’t been called.
 pub fn set_process_title(title: &str) -> Result<(), Box<dyn std::error::Error>> {
     let title = CString::new(title)?;
     crate::uvret(unsafe { uv_set_process_title(title.as_ptr()) }).map_err(|e| Box::new(e) as _)
@@ -250,12 +265,12 @@ pub fn loadavg() -> [f64; 3] {
     return avg;
 }
 
-/// Gets memory information (in bytes).
+/// Gets the amount of free memory available in the system, as reported by the kernel (in bytes).
 pub fn get_free_memory() -> u64 {
     unsafe { uv_get_free_memory() }
 }
 
-/// Gets memory information (in bytes).
+/// Gets the total amount of physical memory in the system (in bytes).
 pub fn get_total_memory() -> u64 {
     unsafe { uv_get_total_memory() }
 }

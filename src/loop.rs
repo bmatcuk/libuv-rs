@@ -2,9 +2,9 @@ use crate::{FromInner, HandleTrait, IntoInner};
 use uv::{
     uv_backend_fd, uv_backend_timeout, uv_default_loop, uv_handle_t, uv_loop_alive, uv_loop_close,
     uv_loop_configure, uv_loop_delete, uv_loop_fork, uv_loop_get_data, uv_loop_init, uv_loop_new,
-    uv_loop_option_UV_LOOP_BLOCK_SIGNAL, uv_loop_set_data, uv_loop_t, uv_now, uv_run, uv_run_mode,
-    uv_run_mode_UV_RUN_DEFAULT, uv_run_mode_UV_RUN_NOWAIT, uv_run_mode_UV_RUN_ONCE, uv_stop,
-    uv_update_time, uv_walk,
+    uv_loop_option_UV_LOOP_BLOCK_SIGNAL, uv_loop_option_UV_METRICS_IDLE_TIME, uv_loop_set_data,
+    uv_loop_t, uv_metrics_idle_time, uv_now, uv_run, uv_run_mode, uv_run_mode_UV_RUN_DEFAULT,
+    uv_run_mode_UV_RUN_NOWAIT, uv_run_mode_UV_RUN_ONCE, uv_stop, uv_update_time, uv_walk,
 };
 
 /// Mode used to run the loop.
@@ -140,6 +140,13 @@ impl Loop {
         })
     }
 
+    /// Accumulate the amount of idle time the event loop spends in the event provider.
+    ///
+    /// This option is necessary to use metrics_idle_time().
+    pub fn accumulate_idle_time(&mut self) -> crate::Result<()> {
+        crate::uvret(unsafe { uv_loop_configure(self.handle, uv_loop_option_UV_METRICS_IDLE_TIME) })
+    }
+
     /// Releases all internal loop resources. Call this function only when the loop has finished
     /// executing and all open handles and requests have been closed, or it will return
     /// Error::EBUSY.  After this function returns, the user can free the memory allocated for the
@@ -163,6 +170,18 @@ impl Loop {
     /// the loop.
     pub fn is_alive(&self) -> bool {
         unsafe { uv_loop_alive(self.handle) != 0 }
+    }
+
+    /// Retrieve the amount of time the event loop has been idle in the kernel’s event provider
+    /// (e.g. epoll_wait). The call is thread safe.
+    ///
+    /// The return value is the accumulated time spent idle in the kernel’s event provider starting
+    /// from when the loop was configured to collect the idle time.
+    ///
+    /// Note The event loop will not begin accumulating the event provider’s idle time until
+    /// calling accumulate_idle_time().
+    pub fn idle_time(&self) -> u64 {
+        unsafe { uv_metrics_idle_time(self.handle) }
     }
 
     /// Stop the event loop, causing run() to end as soon as possible. This will happen not sooner
