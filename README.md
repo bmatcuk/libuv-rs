@@ -15,6 +15,10 @@ libuv = "~1.0.0"
 
 [libuv-rs] uses semantic versioning.
 
+As of v2.0.1, libuv-rs supports the `skip-pkg-config` feature. This is passed
+to [libuv-sys2] to skip searching for a local install of [libuv] via pkg-config
+and, instead, causes [libuv-sys2] to build [libuv] from source.
+
 You'll want to make sure to familiarize yourself with [libuv] by reading
 [libuv's documentation]. You can then familiarize yourself with [libuv-rs] by
 reading the [examples] and [documentation].

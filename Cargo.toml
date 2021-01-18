@@ -1,6 +1,6 @@
 [package]
 name = "libuv"
-version = "2.0.0"
+version = "2.0.1"
 description = "A safe rust wrapper for libuv"
 homepage = "https://github.com/bmatcuk/libuv-rs"
 repository = "https://github.com/bmatcuk/libuv-rs"
@@ -11,13 +11,16 @@ license = "MIT"
 authors = ["Bob Matcuk <bmatcuk@gmail.com>"]
 edition = "2018"
 
+[features]
+skip-pkg-config = ["libuv-sys2/skip-pkg-config"]
+
 [badges]
 travis-ci = { repository = "bmatcuk/libuv-rs" }
 maintenance = { status = "actively-developed" }
 
 [dependencies]
 bitflags = "~1.2.1"
-libuv-sys2 = "~1.40.0"
+libuv-sys2 = "~1.40.1"
 
 [dev-dependencies]
 rand = "~0.7.3"
