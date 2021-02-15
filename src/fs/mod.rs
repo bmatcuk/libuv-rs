@@ -54,7 +54,7 @@ pub type OsFile = i32;
 
 /// Cross platform representation of a socket handle.
 #[cfg(windows)]
-pub type Socket = usize;
+pub type Socket = u64;
 #[cfg(not(windows))]
 pub type Socket = i32;
 

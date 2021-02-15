@@ -57,7 +57,7 @@ pub fn socketpair(
         ))?;
         socks.set_len(2);
     }
-    Ok((socks[0], socks[1]))
+    Ok((socks[0] as _, socks[1] as _))
 }
 
 /// TCP handles are used to represent both TCP streams and servers.
