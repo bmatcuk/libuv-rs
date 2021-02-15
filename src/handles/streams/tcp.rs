@@ -2,9 +2,9 @@ use crate::{FromInner, HandleTrait, Inner, IntoInner, ToHandle};
 use std::convert::{TryFrom, TryInto};
 use std::net::SocketAddr;
 use uv::{
-    uv_tcp_bind, uv_tcp_close_reset, uv_tcp_connect, uv_tcp_getpeername, uv_tcp_getsockname,
-    uv_tcp_init, uv_tcp_init_ex, uv_tcp_keepalive, uv_tcp_nodelay, uv_tcp_simultaneous_accepts,
-    uv_tcp_t, AF_INET, AF_INET6, AF_UNSPEC,
+    uv_socketpair, uv_tcp_bind, uv_tcp_close_reset, uv_tcp_connect, uv_tcp_getpeername,
+    uv_tcp_getsockname, uv_tcp_init, uv_tcp_init_ex, uv_tcp_keepalive, uv_tcp_nodelay, uv_tcp_open,
+    uv_tcp_simultaneous_accepts, uv_tcp_t, AF_INET, AF_INET6, AF_UNSPEC,
 };
 
 bitflags! {
@@ -22,6 +22,42 @@ bitflags! {
         /// Dual-stack support is disabled and only IPv6 is used.
         const IPV6ONLY = uv::uv_tcp_flags_UV_TCP_IPV6ONLY as _;
     }
+}
+
+bitflags! {
+    /// Flags to pipe()
+    pub struct SocketFlags: i32 {
+        /// Opens the specified socket handle for OVERLAPPED or FIONBIO/O_NONBLOCK I/O usage. This
+        /// is recommended for handles that will be used by libuv, and not usually recommended
+        /// otherwise.
+        const NONBLOCK_PIPE = uv::uv_stdio_flags_UV_NONBLOCK_PIPE as _;
+    }
+}
+
+/// Create a pair of connected sockets with the specified properties. The resulting handles can be
+/// passed to TcpHandle::open(), used with ProcessHandle::spawn(), or for any other purpose.
+///
+/// Valid values for flags0 and flags1 are:
+///
+/// Equivalent to socketpair(2) with a domain of AF_UNIX.
+pub fn socketpair(
+    socktype: u32,
+    protocol: u32,
+    flags0: SocketFlags,
+    flags1: SocketFlags,
+) -> crate::Result<(crate::Socket, crate::Socket)> {
+    let mut socks = Vec::with_capacity(2);
+    unsafe {
+        crate::uvret(uv_socketpair(
+            socktype as _,
+            protocol as _,
+            socks.as_mut_ptr(),
+            flags0.bits(),
+            flags1.bits(),
+        ))?;
+        socks.set_len(2);
+    }
+    Ok((socks[0], socks[1]))
 }
 
 /// TCP handles are used to represent both TCP streams and servers.
@@ -68,6 +104,16 @@ impl TcpHandle {
         crate::StreamHandle::initialize_data(uv_handle!(handle), super::NoAddlStreamData);
 
         Ok(TcpHandle { handle })
+    }
+
+    /// Open an existing file descriptor or SOCKET as a TCP handle.
+    ///
+    /// Changed in version 1.2.1: the file descriptor is set to non-blocking mode.
+    ///
+    /// Note The passed file descriptor or SOCKET is not checked for its type, but it’s required
+    /// that it represents a valid stream socket.
+    pub fn open(&mut self, socket: crate::Socket) -> crate::Result<()> {
+        crate::uvret(unsafe { uv_tcp_open(self.handle, socket) })
     }
 
     /// Enable TCP_NODELAY, which disables Nagle’s algorithm.

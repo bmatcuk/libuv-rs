@@ -1,6 +1,6 @@
 [package]
 name = "libuv"
-version = "2.1.0"
+version = "2.2.0"
 description = "A safe rust wrapper for libuv"
 homepage = "https://github.com/bmatcuk/libuv-rs"
 repository = "https://github.com/bmatcuk/libuv-rs"
