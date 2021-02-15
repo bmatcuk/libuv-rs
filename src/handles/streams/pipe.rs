@@ -3,9 +3,9 @@ use std::convert::{TryFrom, TryInto};
 use std::ffi::CString;
 use std::net::SocketAddr;
 use uv::{
-    uv_pipe_bind, uv_pipe_chmod, uv_pipe_connect, uv_pipe_getpeername, uv_pipe_getsockname,
-    uv_pipe_init, uv_pipe_open, uv_pipe_pending_count, uv_pipe_pending_instances,
-    uv_pipe_pending_type, uv_pipe_t,
+    uv_pipe, uv_pipe_bind, uv_pipe_chmod, uv_pipe_connect, uv_pipe_getpeername,
+    uv_pipe_getsockname, uv_pipe_init, uv_pipe_open, uv_pipe_pending_count,
+    uv_pipe_pending_instances, uv_pipe_pending_type, uv_pipe_t,
 };
 
 bitflags! {
@@ -14,6 +14,37 @@ bitflags! {
         const READABLE = uv::uv_poll_event_UV_READABLE as _;
         const WRITABLE = uv::uv_poll_event_UV_WRITABLE as _;
     }
+}
+
+bitflags! {
+    /// Flags to pipe()
+    pub struct PipeFlags: i32 {
+        /// Opens the specified socket handle for OVERLAPPED or FIONBIO/O_NONBLOCK I/O usage. This
+        /// is recommended for handles that will be used by libuv, and not usually recommended
+        /// otherwise.
+        const NONBLOCK_PIPE = uv::uv_stdio_flags_UV_NONBLOCK_PIPE as _;
+    }
+}
+
+/// Create a pair of connected pipe handles. Data may be written to fds.1 and read from fds.0. The
+/// resulting handles can be passed to PipeHandle::open(), used with ProcessHandle::spawn(), or for
+/// any other purpose.
+///
+/// Equivalent to pipe(2) with the O_CLOEXEC flag set.
+pub fn pipe(
+    read_flags: PipeFlags,
+    write_flags: PipeFlags,
+) -> crate::Result<(crate::File, crate::File)> {
+    let mut fds = Vec::with_capacity(2);
+    unsafe {
+        crate::uvret(uv_pipe(
+            fds.as_mut_ptr(),
+            read_flags.bits(),
+            write_flags.bits(),
+        ))?;
+        fds.set_len(2);
+    }
+    Ok((fds[0], fds[1]))
 }
 
 /// Pipe handles provide an abstraction over streaming files on Unix (including local domain

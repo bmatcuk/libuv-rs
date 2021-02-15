@@ -99,9 +99,9 @@ impl TcpHandle {
 
     /// Bind the handle to an address and port.
     ///
-    /// When the port is already taken, you can expect to see an EADDRINUSE error from either
-    /// bind(), listen() or connect(). That is, a successful call to this function does not
-    /// guarantee that the call to listen() or connect() will succeed as well.
+    /// When the port is already taken, you can expect to see an EADDRINUSE error from listen() or
+    /// connect(). That is, a successful call to this function does not guarantee that the call to
+    /// listen() or connect() will succeed as well.
     ///
     /// flags can contain IPV6ONLY, in which case dual-stack support is disabled and only IPv6 is
     /// used.

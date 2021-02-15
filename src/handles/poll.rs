@@ -124,7 +124,7 @@ impl PollHandle {
     /// free to ignore it, but it can help optimize the shutdown path because an extra read or
     /// write call might be avoided.
     ///
-    /// If an error happens while polling, status will a libuv::Error. The user should not close
+    /// If an error happens while polling, status will be a libuv::Error. The user should not close
     /// the socket while the handle is active. If the user does that anyway, the callback may be
     /// called reporting an error status, but this is not guaranteed.
     ///
@@ -133,6 +133,22 @@ impl PollHandle {
     ///
     /// Note: Though DISCONNECT can be set, it is unsupported on AIX and as such will not be set on
     /// the events field in the callback.
+    ///
+    /// Note: If one of the events READABLE or WRITABLE are set, the callback will be called again,
+    /// as long as the given fd/socket remains readable or writable accordingly. Particularly in
+    /// each of the following scenarios:
+    /// - The callback has been called because the socket became readable/writable and the callback
+    ///   did not conduct a read/write on this socket at all.
+    /// - The callback committed a read on the socket, and has not read all the available data
+    ///   (when READABLE is set).
+    /// - The callback committed a write on the socket, but it remained writable afterwards (when
+    ///   WRITABLE is set).
+    /// - The socket has already became readable/writable before calling start() on a poll handle
+    ///   associated with this socket, and since then the state of the socket did not changed.
+    ///
+    /// In all of the above listed scenarios, the socket remains readable or writable and hence the
+    /// callback will be called again (depending on the events set in the bitmask). This behaviour
+    /// is known as level triggering.
     pub fn start<CB: Into<PollCB<'static>>>(
         &mut self,
         events: PollEvents,
@@ -153,6 +169,9 @@ impl PollHandle {
     }
 
     /// Stop polling the file descriptor, the callback will no longer be called.
+    ///
+    /// Note: Calling stop() is effective immediately: any pending callback is also canceled, even
+    /// if the socket state change notification was already pending.
     pub fn stop(&mut self) -> crate::Result<()> {
         crate::uvret(unsafe { uv_poll_stop(self.handle) })
     }

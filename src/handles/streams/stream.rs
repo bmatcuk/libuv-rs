@@ -212,6 +212,8 @@ pub trait StreamTrait: ToStream {
 
     /// Read data from an incoming stream. The read_cb callback will be made several times until
     /// there is no more data to read or read_stop() is called.
+    ///
+    /// Will return EALREADY when called twice, and EINVAL when the stream is closing.
     fn read_start<ACB: Into<AllocCB<'static>>, RCB: Into<ReadCB<'static>>>(
         &mut self,
         alloc_cb: ACB,
