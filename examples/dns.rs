@@ -86,7 +86,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         addr: None,
     };
     r#loop.getaddrinfo(
-        Some("irc.freenode.net"),
+        Some("irc.libera.chat"),
         Some("6667"),
         Some(hints),
         on_resolved,

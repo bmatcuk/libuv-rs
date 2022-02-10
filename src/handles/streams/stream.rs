@@ -1,8 +1,8 @@
 use crate::{FromInner, Inner, IntoInner, NREAD};
 use uv::{
     uv_accept, uv_is_readable, uv_is_writable, uv_listen, uv_read_start, uv_read_stop, uv_shutdown,
-    uv_stream_get_write_queue_size, uv_stream_set_blocking, uv_stream_t, uv_try_write, uv_write,
-    uv_write2,
+    uv_stream_get_write_queue_size, uv_stream_set_blocking, uv_stream_t, uv_try_write,
+    uv_try_write2, uv_write, uv_write2,
 };
 
 callbacks! {
@@ -242,6 +242,10 @@ pub trait StreamTrait: ToStream {
     /// Stop reading data from the stream. The uv_read_cb callback will no longer be called.
     ///
     /// This function is idempotent and may be safely called on a stopped stream.
+    ///
+    /// This function will always succeed; hence, checking its return value is unnecessary. A
+    /// non-zero return indicates that finishing releasing resources may be pending on the next
+    /// input event on that TTY on Windows, and does not indicate failure.
     fn read_stop(&mut self) -> crate::Result<()> {
         crate::uvret(unsafe { uv_read_stop(self.to_stream().inner()) })
     }
@@ -274,8 +278,9 @@ pub trait StreamTrait: ToStream {
     /// Extended write function for sending handles over a pipe. The pipe must be initialized with
     /// ipc == 1.
     ///
-    /// Note: send_handle must be a TCP socket or pipe, which is a server or a connection
-    /// (listening or connected state). Bound sockets or pipes will be assumed to be servers.
+    /// Note: send_handle must be a TCP, pipe and UDP handle on Unix, or a TCP handle on Windows,
+    /// which is a server or a connection (listening or connected state). Bound sockets or pipes
+    /// will be assumed to be servers.
     ///
     /// Note: The memory pointed to by the buffers must remain valid until the callback gets
     /// called.
@@ -308,6 +313,29 @@ pub trait StreamTrait: ToStream {
     fn try_write(&mut self, bufs: &[impl crate::BufTrait]) -> crate::Result<i32> {
         let (bufs_ptr, bufs_len, bufs_capacity) = bufs.into_inner();
         let result = unsafe { uv_try_write(self.to_stream().inner(), bufs_ptr, bufs_len as _) };
+
+        unsafe { std::mem::drop(Vec::from_raw_parts(bufs_ptr, bufs_len, bufs_capacity)) };
+
+        crate::uvret(result).map(|_| result as _)
+    }
+
+    /// Same as try_write() and extended write function for sending handles over a pipe like write2.
+    ///
+    /// Try to send a handle is not supported on Windows, where it returns EAGAIN.
+    fn try_write2(
+        &mut self,
+        send_handle: &StreamHandle,
+        bufs: &[impl crate::BufTrait],
+    ) -> crate::Result<i32> {
+        let (bufs_ptr, bufs_len, bufs_capacity) = bufs.into_inner();
+        let result = unsafe {
+            uv_try_write2(
+                self.to_stream().inner(),
+                bufs_ptr,
+                bufs_len as _,
+                send_handle.to_stream().inner(),
+            )
+        };
 
         unsafe { std::mem::drop(Vec::from_raw_parts(bufs_ptr, bufs_len, bufs_capacity)) };
 

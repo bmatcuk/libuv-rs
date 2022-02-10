@@ -36,6 +36,12 @@ bitflags! {
         /// to bind will receive any traffic, in effect "stealing" the port from the previous
         /// listener.
         const REUSEADDR = uv::uv_udp_flags_UV_UDP_REUSEADDR as _;
+
+        /// Indicates if IP_RECVERR/IPV6_RECVERR will be set when binding the handle.  This sets
+        /// IP_RECVERR for IPv4 and IPV6_RECVERR for IPv6 UDP sockets on Linux. This stops the
+        /// Linux kernel from supressing some ICMP error messages and enables full ICMP error
+        /// reporting for faster failover.  This flag is no-op on platforms other than Linux.
+        const RECVERR = uv::uv_udp_flags_UV_UDP_LINUX_RECVERR as _;
     }
 }
 
@@ -373,6 +379,10 @@ impl UdpHandle {
     /// using_recvmmsg() can be used in the allocation callback to determine if a buffer sized for
     /// use with recvmmsg should be allocated for the current handle/platform. The use of recvmmsg
     /// requires a buffer larger than 2 * 64KB to be passed to the allocation callback.
+    ///
+    /// Note: When using recvmmsg, the number of messages received at a time is limited by the
+    /// number of max size dgrams that will fit into the buffer allocated in allocation callback,
+    /// and suggested_size in alloc_cb for udp_recv is always set to the size of 1 max size dgram.
     pub fn recv_start<ACB: Into<crate::AllocCB<'static>>, CB: Into<RecvCB<'static>>>(
         &mut self,
         alloc_cb: ACB,

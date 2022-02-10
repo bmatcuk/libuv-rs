@@ -280,7 +280,7 @@ pub fn get_total_memory() -> u64 {
 /// is not unusual for this value to be less than or greater than uv_get_total_memory().
 ///
 /// Note: This function currently only returns a non-zero value on Linux, based on cgroups if it is
-/// present.
+/// present, and on z/OS based on RLIMIT_MEMLIMIT.
 pub fn get_constrained_memory() -> u64 {
     unsafe { uv_get_constrained_memory() }
 }
