@@ -1,0 +1,43 @@
+name: Test and Release
+
+on:
+  push:
+    branches:
+      - master
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: Test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Build
+        run: cargo build -v
+      - name: Test
+        run: cargo test -v
+  publish:
+    name: Publish
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Publish
+        run: cargo publish --token="$CRATESIOTOKEN"
+        env:
+          CRATESIOTOKEN: ${{ secrets.CratesIOToken }}
+      - name: Release
+        shell: bash
+        run: scripts/release.sh
+        env:
+          GIT_USER_NAME: ${{ secrets.GitUserName }}
+          GIT_USER_EMAIL: ${{ secrets.GitUserEmail }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
