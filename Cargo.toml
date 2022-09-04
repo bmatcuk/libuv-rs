@@ -1,6 +1,6 @@
 [package]
 name = "libuv"
-version = "2.4.0"
+version = "2.5.0"
 description = "A safe rust wrapper for libuv"
 homepage = "https://github.com/bmatcuk/libuv-rs"
 repository = "https://github.com/bmatcuk/libuv-rs"
@@ -20,7 +20,7 @@ maintenance = { status = "actively-developed" }
 
 [dependencies]
 bitflags = "~1.2.1"
-libuv-sys2 = "~1.43.0"
+libuv-sys2 = "~1.44.2"
 
 [dev-dependencies]
 rand = "~0.7.3"

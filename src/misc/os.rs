@@ -1,8 +1,8 @@
 use crate::{FromInner, IntoInner};
 use std::ffi::CStr;
 use uv::{
-    uv_os_free_passwd, uv_os_get_passwd, uv_os_gethostname, uv_os_getpid, uv_os_getppid,
-    uv_os_getpriority, uv_os_setpriority, uv_os_uname, uv_passwd_t, uv_utsname_t,
+    uv_available_parallelism, uv_os_free_passwd, uv_os_get_passwd, uv_os_gethostname, uv_os_getpid,
+    uv_os_getppid, uv_os_getpriority, uv_os_setpriority, uv_os_uname, uv_passwd_t, uv_utsname_t,
     UV_MAXHOSTNAMESIZE,
 };
 
@@ -120,6 +120,21 @@ pub fn getpid() -> Pid {
 /// Returns the parent process ID.
 pub fn getppid() -> Pid {
     unsafe { uv_os_getppid() as _ }
+}
+
+/// Returns an estimate of the default amount of parallelism a program should use. Always returns a
+/// non-zero value.
+///
+/// On Linux, inspects the calling thread’s CPU affinity mask to determine if it has been pinned to
+/// specific CPUs.
+///
+/// On Windows, the available parallelism may be underreported on systems with more than 64 logical
+/// CPUs.
+///
+/// On other platforms, reports the number of CPUs that the operating system considers to be
+/// online.
+pub fn available_parallelism() -> u32 {
+    unsafe { uv_available_parallelism() as _ }
 }
 
 /// Retrieves the scheduling priority of the process specified by pid. The returned value of

@@ -37,9 +37,21 @@ extern "C" fn uv_exit_cb(
 bitflags! {
     /// Flags specifying how a stdio should be transmitted to the child process.
     pub struct StdioFlags: u32 {
+        /// No file descriptor will be provided (or redirected to `/dev/null` if it is fd 0, 1 or
+        /// 2).
         const IGNORE = uv::uv_stdio_flags_UV_IGNORE as _;
+
+        /// Open a new pipe into `data.stream`, per the flags below. The `data.stream` field must
+        /// point to a PipeHandle object that has been initialized with `new`, but not yet opened
+        /// or connected.
         const CREATE_PIPE = uv::uv_stdio_flags_UV_CREATE_PIPE as _;
+
+        /// The child process will be given a duplicate of the parent's file descriptor given by
+        /// `data.fd`.
         const INHERIT_FD = uv::uv_stdio_flags_UV_INHERIT_FD as _;
+
+        /// The child process will be given a duplicate of the parent's file descriptor being used
+        /// by the stream handle given by `data.stream`.
         const INHERIT_STREAM = uv::uv_stdio_flags_UV_INHERIT_STREAM as _;
 
         /// When UV_CREATE_PIPE is specified, UV_READABLE_PIPE and UV_WRITABLE_PIPE determine the

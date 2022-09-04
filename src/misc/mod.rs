@@ -227,7 +227,8 @@ pub fn resident_set_memory() -> crate::Result<usize> {
     crate::uvret(unsafe { uv_resident_set_memory(&mut rss as _) }).map(|_| rss as _)
 }
 
-/// Gets the current system uptime.
+/// Gets the current system uptime. Depending on the system full or fractional seconds are
+/// returned.
 pub fn uptime() -> crate::Result<f64> {
     let mut uptime = 0f64;
     crate::uvret(unsafe { uv_uptime(&mut uptime as _) }).map(|_| uptime)
