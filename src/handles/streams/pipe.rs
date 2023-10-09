@@ -96,7 +96,7 @@ impl PipeHandle {
             .map_err(|e| Box::new(e) as _)
     }
 
-    /// Connect to the Unix domain socket or the named pipe.
+    /// Connect to the Unix domain socket or the Windows named pipe.
     ///
     /// Note: Paths on Unix get truncated to sizeof(sockaddr_un.sun_path) bytes, typically between
     /// 92 and 108 bytes.

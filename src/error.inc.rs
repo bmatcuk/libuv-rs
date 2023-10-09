@@ -83,6 +83,7 @@ pub enum Error {
     ESRCH,
     ETIMEDOUT,
     ETXTBSY,
+    EUNATCH,
     EXDEV,
     UNKNOWN,
 }
@@ -172,6 +173,7 @@ impl crate::FromInner<uv::uv_errno_t> for Error {
             uv::uv_errno_t_UV_ESRCH => Error::ESRCH,
             uv::uv_errno_t_UV_ETIMEDOUT => Error::ETIMEDOUT,
             uv::uv_errno_t_UV_ETXTBSY => Error::ETXTBSY,
+            uv::uv_errno_t_UV_EUNATCH => Error::EUNATCH,
             uv::uv_errno_t_UV_EXDEV => Error::EXDEV,
             uv::uv_errno_t_UV_UNKNOWN => Error::UNKNOWN,
             _ => Error::UNKNOWN,
@@ -264,6 +266,7 @@ impl Error {
             Error::ESRCH => uv::uv_errno_t_UV_ESRCH,
             Error::ETIMEDOUT => uv::uv_errno_t_UV_ETIMEDOUT,
             Error::ETXTBSY => uv::uv_errno_t_UV_ETXTBSY,
+            Error::EUNATCH => uv::uv_errno_t_UV_EUNATCH,
             Error::EXDEV => uv::uv_errno_t_UV_EXDEV,
             Error::UNKNOWN => uv::uv_errno_t_UV_UNKNOWN,
         }
