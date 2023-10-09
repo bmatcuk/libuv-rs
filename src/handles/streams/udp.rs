@@ -39,7 +39,7 @@ bitflags! {
 
         /// Indicates if IP_RECVERR/IPV6_RECVERR will be set when binding the handle.  This sets
         /// IP_RECVERR for IPv4 and IPV6_RECVERR for IPv6 UDP sockets on Linux. This stops the
-        /// Linux kernel from supressing some ICMP error messages and enables full ICMP error
+        /// Linux kernel from suppressing some ICMP error messages and enables full ICMP error
         /// reporting for faster failover.  This flag is no-op on platforms other than Linux.
         const RECVERR = uv::uv_udp_flags_UV_UDP_LINUX_RECVERR as _;
     }

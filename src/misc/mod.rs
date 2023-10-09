@@ -1,10 +1,11 @@
 use crate::{FromInner, IntoInner};
 use std::ffi::{CStr, CString};
 use uv::{
-    uv_cpu_info, uv_cpu_info_t, uv_free_cpu_info, uv_get_constrained_memory, uv_get_free_memory,
-    uv_get_process_title, uv_get_total_memory, uv_getrusage, uv_gettimeofday, uv_hrtime,
-    uv_library_shutdown, uv_loadavg, uv_resident_set_memory, uv_rusage_t, uv_set_process_title,
-    uv_setup_args, uv_sleep, uv_timeval64_t, uv_timeval_t, uv_uptime,
+    uv_clock_gettime, uv_cpu_info, uv_cpu_info_t, uv_cpumask_size, uv_free_cpu_info,
+    uv_get_available_memory, uv_get_constrained_memory, uv_get_free_memory, uv_get_process_title,
+    uv_get_total_memory, uv_getrusage, uv_gettimeofday, uv_hrtime, uv_library_shutdown, uv_loadavg,
+    uv_resident_set_memory, uv_rusage_t, uv_set_process_title, uv_setup_args, uv_sleep,
+    uv_timespec64_t, uv_timeval64_t, uv_timeval_t, uv_uptime,
 };
 
 pub mod os;
@@ -136,6 +137,28 @@ impl FromInner<&uv_cpu_info_t> for CpuInfo {
     }
 }
 
+/// Clock source for clock_gettime().
+#[repr(u32)]
+pub enum ClockId {
+    Monotonic = uv::uv_clock_id_UV_CLOCK_MONOTONIC as _,
+    Realtime = uv::uv_clock_id_UV_CLOCK_REALTIME as _,
+}
+
+/// Y2K38-safe data type for storing times with nanosecond resolution.
+pub struct TimeSpec64 {
+    pub sec: i64,
+    pub nsec: i32,
+}
+
+impl FromInner<uv_timespec64_t> for TimeSpec64 {
+    fn from_inner(timespec: uv_timespec64_t) -> TimeSpec64 {
+        TimeSpec64 {
+            sec: timespec.tv_sec,
+            nsec: timespec.tv_nsec,
+        }
+    }
+}
+
 /// Store the program arguments. Required for getting / setting the process title or the executable
 /// path. Libuv may take ownership of the memory that argv points to. This function should be
 /// called exactly once, at program start-up.
@@ -223,7 +246,7 @@ pub fn set_process_title(title: &str) -> Result<(), Box<dyn std::error::Error>> 
 
 /// Gets the resident set size (RSS) for the current process.
 pub fn resident_set_memory() -> crate::Result<usize> {
-    let mut rss = 0u64;
+    let mut rss = 0usize;
     crate::uvret(unsafe { uv_resident_set_memory(&mut rss as _) }).map(|_| rss as _)
 }
 
@@ -257,6 +280,12 @@ pub fn cpu_info() -> crate::Result<Vec<CpuInfo>> {
     Ok(result)
 }
 
+/// Returns the maximum size of the mask used for process/thread affinities, or ENOTSUP if
+/// affinities are not supported on the current platform.
+pub fn cpumask_size() -> i32 {
+    unsafe { uv_cpumask_size() }
+}
+
 /// Gets the load average. See: https://en.wikipedia.org/wiki/Load_(computing)
 ///
 /// Note: Returns [0,0,0] on Windows (i.e., it’s not implemented).
@@ -267,18 +296,20 @@ pub fn loadavg() -> [f64; 3] {
 }
 
 /// Gets the amount of free memory available in the system, as reported by the kernel (in bytes).
+/// Returns 0 when unknown.
 pub fn get_free_memory() -> u64 {
     unsafe { uv_get_free_memory() }
 }
 
-/// Gets the total amount of physical memory in the system (in bytes).
+/// Gets the total amount of physical memory in the system (in bytes). Returns 0 when unknown.
 pub fn get_total_memory() -> u64 {
     unsafe { uv_get_total_memory() }
 }
 
-/// Gets the amount of memory available to the process (in bytes) based on limits imposed by the
-/// OS. If there is no such constraint, or the constraint is unknown, 0 is returned. Note that it
-/// is not unusual for this value to be less than or greater than uv_get_total_memory().
+/// Gets the total amount of memory available to the process (in bytes) based on limits imposed by
+/// the OS. If there is no such constraint, or the constraint is unknown, 0 is returned. If there
+/// is a constraining mechanism, but there is no constraint set, `UINT64_MAX` is returned. Note
+/// that it is not unusual for this value to be less than or greater than get_total_memory().
 ///
 /// Note: This function currently only returns a non-zero value on Linux, based on cgroups if it is
 /// present, and on z/OS based on RLIMIT_MEMLIMIT.
@@ -286,7 +317,18 @@ pub fn get_constrained_memory() -> u64 {
     unsafe { uv_get_constrained_memory() }
 }
 
-/// Returns the current high-resolution real time. This is expressed in nanoseconds. It is relative
+/// Gets the amount of free memory that is still available to the process (in bytes). This differs
+/// from get_free_memory() in that it takes into account any limits imposed by the OS. If there is
+/// no such constraint, or the constraint is unknown, the amount returned will be identical to
+/// get_free_memory().
+///
+/// Note: This function currently only returns a value that is different from what
+/// get_free_memory() reports on Linux, based on cgroups if it is present.
+pub fn get_available_memory() -> u64 {
+    unsafe { uv_get_available_memory() }
+}
+
+/// Returns the current high-resolution timestamp. This is expressed in nanoseconds. It is relative
 /// to an arbitrary time in the past. It is not related to the time of day and therefore not
 /// subject to clock drift. The primary use is for measuring performance between intervals.
 ///
@@ -294,6 +336,18 @@ pub fn get_constrained_memory() -> u64 {
 /// in nanoseconds.
 pub fn hrtime() -> u64 {
     unsafe { uv_hrtime() }
+}
+
+/// Obtain the current system time from a high-resolution real-time or monotonic clock source.
+///
+/// The real-time clock counts from the UNIX epoch (1970-01-01) and is subject to time adjustments;
+/// it can jump back in time.
+///
+/// The monotonic clock counts from an arbitrary point in the past and never jumps back in time.
+pub fn clock_gettime(clock_id: ClockId) -> crate::Result<TimeSpec64> {
+    let mut timespec: uv_timespec64_t = unsafe { std::mem::zeroed() };
+    crate::uvret(unsafe { uv_clock_gettime(clock_id as _, &mut timespec as _) })
+        .map(|_| timespec.into_inner())
 }
 
 /// Cross-platform implementation of gettimeofday(2). The timezone argument to gettimeofday() is

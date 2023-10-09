@@ -10,7 +10,7 @@ pub fn chdir(dir: &str) -> Result<(), Box<dyn std::error::Error>> {
 
 /// Gets the current working directory.
 pub fn cwd() -> crate::Result<String> {
-    let mut size = 0u64;
+    let mut size = 0usize;
     unsafe { uv_cwd(std::ptr::null_mut(), &mut size as _) };
 
     let mut buf: Vec<std::os::raw::c_uchar> = Vec::with_capacity(size as _);
@@ -24,7 +24,7 @@ pub fn cwd() -> crate::Result<String> {
 
 /// Gets the executable path. You must call setup_args before calling this function.
 pub fn exepath() -> crate::Result<String> {
-    let mut allocated = 32u64;
+    let mut allocated = 32usize;
     let mut size = allocated - 1;
     let mut buf: Vec<std::os::raw::c_uchar> = vec![];
     while size == allocated - 1 {

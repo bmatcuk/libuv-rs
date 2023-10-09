@@ -3,8 +3,9 @@ use uv::{
     uv_backend_fd, uv_backend_timeout, uv_default_loop, uv_handle_t, uv_loop_alive, uv_loop_close,
     uv_loop_configure, uv_loop_delete, uv_loop_fork, uv_loop_get_data, uv_loop_init, uv_loop_new,
     uv_loop_option_UV_LOOP_BLOCK_SIGNAL, uv_loop_option_UV_METRICS_IDLE_TIME, uv_loop_set_data,
-    uv_loop_t, uv_metrics_idle_time, uv_now, uv_run, uv_run_mode, uv_run_mode_UV_RUN_DEFAULT,
-    uv_run_mode_UV_RUN_NOWAIT, uv_run_mode_UV_RUN_ONCE, uv_stop, uv_update_time, uv_walk,
+    uv_loop_t, uv_metrics_idle_time, uv_metrics_info, uv_metrics_t, uv_now, uv_run, uv_run_mode,
+    uv_run_mode_UV_RUN_DEFAULT, uv_run_mode_UV_RUN_NOWAIT, uv_run_mode_UV_RUN_ONCE, uv_stop,
+    uv_update_time, uv_walk,
 };
 
 /// Mode used to run the loop.
@@ -31,6 +32,29 @@ impl IntoInner<uv_run_mode> for RunMode {
             RunMode::Default => uv_run_mode_UV_RUN_DEFAULT,
             RunMode::Once => uv_run_mode_UV_RUN_ONCE,
             RunMode::NoWait => uv_run_mode_UV_RUN_NOWAIT,
+        }
+    }
+}
+
+/// The struct that contains event loop metrics. It is recommended to retrieve these metrics in a
+/// PrepareCB in order to make sure there are no inconsistencies with the metrics counters.
+pub struct Metrics {
+    /// Number of event loop iterations.
+    pub loop_count: u64,
+
+    /// Number of events that have been processed by the event handler.
+    pub events: u64,
+
+    /// Number of events that were waiting to be processed when the event provider was called.
+    pub events_waiting: u64,
+}
+
+impl FromInner<uv_metrics_t> for Metrics {
+    fn from_inner(metrics: uv_metrics_t) -> Metrics {
+        Metrics {
+            loop_count: metrics.loop_count,
+            events: metrics.events,
+            events_waiting: metrics.events_waiting,
         }
     }
 }
@@ -182,6 +206,13 @@ impl Loop {
     /// calling accumulate_idle_time().
     pub fn idle_time(&self) -> u64 {
         unsafe { uv_metrics_idle_time(self.handle) }
+    }
+
+    /// The current set of event loop metrics.
+    pub fn metrics_info(&self) -> crate::Result<Metrics> {
+        let mut metrics: uv_metrics_t = unsafe { std::mem::zeroed() };
+        crate::uvret(unsafe { uv_metrics_info(self.handle, &mut metrics as _) })
+            .map(|_| metrics.into_inner())
     }
 
     /// Stop the event loop, causing run() to end as soon as possible. This will happen not sooner

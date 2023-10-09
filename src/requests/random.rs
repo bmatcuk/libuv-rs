@@ -19,7 +19,7 @@ extern "C" fn uv_random_cb(
     req: *mut uv_random_t,
     status: std::os::raw::c_int,
     buf: *mut std::os::raw::c_void,
-    buflen: u64,
+    buflen: usize,
 ) {
     let dataptr = crate::Req::get_data(uv_handle!(req));
     if !dataptr.is_null() {
@@ -191,7 +191,7 @@ impl crate::Loop {
                         *mut uv_random_t,
                         std::os::raw::c_int,
                         *mut std::os::raw::c_void,
-                        u64,
+                        usize,
                     ),
                 >,
             )

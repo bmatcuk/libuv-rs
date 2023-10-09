@@ -168,7 +168,7 @@ impl FsEventHandle {
     /// Get the path being monitored by the handle.
     pub fn getpath(&self) -> crate::Result<String> {
         // retrieve the size of the buffer we need to allocate
-        let mut size = 0u64;
+        let mut size = 0usize;
         let result = crate::uvret(unsafe {
             uv_fs_event_getpath(self.handle, std::ptr::null_mut(), &mut size as _)
         });

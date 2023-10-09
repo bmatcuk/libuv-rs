@@ -22,7 +22,7 @@ pub(crate) struct StreamDataFields<'a> {
 /// Callback for uv_recv_start, uv_udp_recv_start
 pub(crate) extern "C" fn uv_alloc_cb(
     handle: *mut uv::uv_handle_t,
-    suggested_size: u64,
+    suggested_size: usize,
     buf: *mut uv::uv_buf_t,
 ) {
     let dataptr = StreamHandle::get_data(uv_handle!(handle));

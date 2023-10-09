@@ -1,6 +1,11 @@
 //! All file operations are run on the threadpool. See Thread pool work scheduling for information
 //! on the threadpool size.
 //!
+//! Starting with libuv v1.45.0, some file operations on Linux are handed off to io_uring
+//! <https://en.wikipedia.org/wiki/Io_uring> when possible. Apart from a (sometimes significant)
+//! increase in throughput there should be no change in observable behavior. Libuv reverts to using
+//! its threadpool when the necessary kernel features are unavailable or unsuitable.
+//!
 //! Note: Uses utf-8 encoding on Windows
 
 include!("./fs_copy_flags.inc.rs");

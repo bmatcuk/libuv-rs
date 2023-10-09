@@ -126,7 +126,9 @@ impl PollHandle {
     ///
     /// If an error happens while polling, status will be a libuv::Error. The user should not close
     /// the socket while the handle is active. If the user does that anyway, the callback may be
-    /// called reporting an error status, but this is not guaranteed.
+    /// called reporting an error status, but this is not guaranteed. If status == EBADF polling is
+    /// discontinued for the file handle and no further events will be reported. The user should
+    /// then call close() on the handle.
     ///
     /// Note: Calling start() on a handle that is already active is fine. Doing so will update the
     /// events mask that is being watched for.

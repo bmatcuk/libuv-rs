@@ -168,6 +168,8 @@ pub trait HandleTrait: ToHandle {
     ///
     /// In-progress requests, like ConnectRequest or WriteRequest, are cancelled and have their
     /// callbacks called asynchronously with status=UV_ECANCELED.
+    ///
+    /// cb can be Nil in cases where no cleanup or deallocation is necessary.
     fn close<CB: Into<CloseCB<'static>>>(&mut self, cb: CB) {
         let handle = self.to_handle().inner();
 

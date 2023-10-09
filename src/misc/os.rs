@@ -101,7 +101,7 @@ pub fn get_passwd() -> crate::Result<User> {
 
 /// Returns the hostname
 pub fn gethostname() -> crate::Result<String> {
-    let mut size = UV_MAXHOSTNAMESIZE as u64;
+    let mut size = UV_MAXHOSTNAMESIZE as usize;
     let mut buf: Vec<std::os::raw::c_uchar> = Vec::with_capacity(size as _);
     crate::uvret(unsafe { uv_os_gethostname(buf.as_mut_ptr() as _, &mut size as _) }).map(|_| {
         // size is the length of the string, *not* including the null
