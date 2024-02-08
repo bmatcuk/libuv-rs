@@ -103,6 +103,10 @@ bitflags! {
         /// Hide the subprocess GUI window that would normally be created. This option is only
         /// meaningful on Windows systems. On Unix it is silently ignored.
         const WINDOWS_HIDE_GUI = uv::uv_process_flags_UV_PROCESS_WINDOWS_HIDE_GUI as _;
+
+        /// On Windows, if the path to the program to execute has a directory component, search for
+        /// the exact file name before trying variants with extensions like '.exe' or '.cmd'.
+        const WINDOWS_FILE_PATH_EXACT_NAME = uv::uv_process_flags_UV_PROCESS_WINDOWS_FILE_PATH_EXACT_NAME as _;
     }
 }
 
