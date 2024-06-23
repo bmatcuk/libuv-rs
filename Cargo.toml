@@ -13,6 +13,7 @@ edition = "2018"
 
 [features]
 skip-pkg-config = ["libuv-sys2/skip-pkg-config"]
+sys = []
 
 [badges]
 travis-ci = { repository = "bmatcuk/libuv-rs" }
