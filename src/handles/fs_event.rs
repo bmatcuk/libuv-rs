@@ -136,6 +136,8 @@ impl FsEventHandle {
     /// Start the handle with the given callback, which will watch the specified path for changes.
     ///
     /// Note: Currently the only supported flag is RECURSIVE and only on OSX and Windows.
+    /// Note: On macOS, events collected by the OS immediately before calling start might be
+    /// reported to the callback.
     pub fn start<CB: Into<FsEventCB<'static>>>(
         &mut self,
         path: &str,

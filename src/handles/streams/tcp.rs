@@ -21,6 +21,15 @@ bitflags! {
     pub struct TcpBindFlags: u32 {
         /// Dual-stack support is disabled and only IPv6 is used.
         const IPV6ONLY = uv::uv_tcp_flags_UV_TCP_IPV6ONLY as _;
+
+        /// Enable REUSEPORT socket option when binding the handle. This allows completely
+        /// duplicate bindings by multiple processes or threads if they all set REUSEPORT before
+        /// binding the port. Incoming connections are distributed across the participating
+        /// listener sockets.
+        ///
+        /// This flag is available only on Linux 3.9+, DragonFlyBSD 3.6+, FreeBSD 12.0+, Solaris
+        /// 11.4, and AIX 7.2.5+ for now.
+        const REUSEPORT = uv::uv_tcp_flags_UV_TCP_REUSEPORT as _;
     }
 }
 
@@ -127,6 +136,8 @@ impl TcpHandle {
     /// After delay has been reached, 10 successive probes, each spaced 1 second from the previous
     /// one, will still happen. If the connection is still lost at the end of this procedure, then
     /// the handle is destroyed with a ETIMEDOUT error passed to the corresponding callback.
+    ///
+    /// If `delay` is less than 1 then EINVAL is returned.
     pub fn keepalive(&mut self, enable: bool, delay: u32) -> crate::Result<()> {
         crate::uvret(unsafe { uv_tcp_keepalive(self.handle, if enable { 1 } else { 0 }, delay) })
     }
@@ -145,12 +156,14 @@ impl TcpHandle {
 
     /// Bind the handle to an address and port.
     ///
-    /// When the port is already taken, you can expect to see an EADDRINUSE error from listen() or
-    /// connect(). That is, a successful call to this function does not guarantee that the call to
-    /// listen() or connect() will succeed as well.
+    /// When the port is already taken, you can expect to see an EADDRINUSE error from listen or
+    /// connect unless you specify REUSEPORT in `flags` for all the binding sockets. That is, a
+    /// successful call to this function does not guarantee that the call to listen or connect will
+    /// succeed as well.
     ///
-    /// flags can contain IPV6ONLY, in which case dual-stack support is disabled and only IPv6 is
-    /// used.
+    /// Note: REUSEPORT flag is available only on Linux 3.9+, DragonFlyBSD 3.6+, FreeBSD 12.0+,
+    /// Solaris 11.4, and AIX 7.2.5+ at the moment. On other platforms this function will return an
+    /// ENOTSUP error.
     pub fn bind(
         &mut self,
         addr: &SocketAddr,

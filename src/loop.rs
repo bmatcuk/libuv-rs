@@ -2,10 +2,10 @@ use crate::{FromInner, HandleTrait, IntoInner};
 use uv::{
     uv_backend_fd, uv_backend_timeout, uv_default_loop, uv_handle_t, uv_loop_alive, uv_loop_close,
     uv_loop_configure, uv_loop_delete, uv_loop_fork, uv_loop_get_data, uv_loop_init, uv_loop_new,
-    uv_loop_option_UV_LOOP_BLOCK_SIGNAL, uv_loop_option_UV_METRICS_IDLE_TIME, uv_loop_set_data,
-    uv_loop_t, uv_metrics_idle_time, uv_metrics_info, uv_metrics_t, uv_now, uv_run, uv_run_mode,
-    uv_run_mode_UV_RUN_DEFAULT, uv_run_mode_UV_RUN_NOWAIT, uv_run_mode_UV_RUN_ONCE, uv_stop,
-    uv_update_time, uv_walk,
+    uv_loop_option_UV_LOOP_BLOCK_SIGNAL, uv_loop_option_UV_LOOP_USE_IO_URING_SQPOLL,
+    uv_loop_option_UV_METRICS_IDLE_TIME, uv_loop_set_data, uv_loop_t, uv_metrics_idle_time,
+    uv_metrics_info, uv_metrics_t, uv_now, uv_run, uv_run_mode, uv_run_mode_UV_RUN_DEFAULT,
+    uv_run_mode_UV_RUN_NOWAIT, uv_run_mode_UV_RUN_ONCE, uv_stop, uv_update_time, uv_walk,
 };
 
 /// Mode used to run the loop.
@@ -169,6 +169,13 @@ impl Loop {
     /// This option is necessary to use metrics_idle_time().
     pub fn accumulate_idle_time(&mut self) -> crate::Result<()> {
         crate::uvret(unsafe { uv_loop_configure(self.handle, uv_loop_option_UV_METRICS_IDLE_TIME) })
+    }
+
+    /// Enable SQPOLL io_uring instance to handle asynchronous file system operations.
+    pub fn enable_io_uring_sqpoll(&mut self) -> crate::Result<()> {
+        crate::uvret(unsafe {
+            uv_loop_configure(self.handle, uv_loop_option_UV_LOOP_USE_IO_URING_SQPOLL)
+        })
     }
 
     /// Releases all internal loop resources. Call this function only when the loop has finished

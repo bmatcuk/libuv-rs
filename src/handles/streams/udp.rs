@@ -29,12 +29,13 @@ bitflags! {
         /// Disables dual stack mode.
         const IPV6ONLY = uv::uv_udp_flags_UV_UDP_IPV6ONLY as _;
 
-        /// Indicates if SO_REUSEADDR will be set when binding the handle in bind(). This sets the
-        /// SO_REUSEPORT socket flag on the BSDs and OS X. On other Unix platforms, it sets the
-        /// SO_REUSEADDR flag. What that means is that multiple threads or processes can bind to
-        /// the same address without error (provided they all set the flag) but only the last one
-        /// to bind will receive any traffic, in effect "stealing" the port from the previous
-        /// listener.
+        /// Indicates if SO_REUSEADDR will be set when binding the handle. This sets the
+        /// SO_REUSEPORT socket flag on the BSDs (except for DragonFlyBSD), OS X, and other
+        /// platforms where SO_REUSEPORTs don't have the capability of load balancing, as the
+        /// opposite of what REUSEPORT would do. On other Unix platforms, it sets the SO_REUSEADDR
+        /// flag. What that means is that multiple threads or processes can bind to the same
+        /// address without error (provided they all set the flag) but only the last one to bind
+        /// will receive any traffic, in effect "stealing" the port from the previous listener.
         const REUSEADDR = uv::uv_udp_flags_UV_UDP_REUSEADDR as _;
 
         /// Indicates if IP_RECVERR/IPV6_RECVERR will be set when binding the handle.  This sets
@@ -42,6 +43,16 @@ bitflags! {
         /// Linux kernel from suppressing some ICMP error messages and enables full ICMP error
         /// reporting for faster failover.  This flag is no-op on platforms other than Linux.
         const RECVERR = uv::uv_udp_flags_UV_UDP_LINUX_RECVERR as _;
+
+        /// Indicates if SO_REUSEPORT will be set when binding the handle. This sets the
+        /// SO_REUSEPORT socket option on supported platforms. Unlike UV_UDP_REUSEADDR, this flag
+        /// will make multiple threads or processes that are binding to the same address and port
+        /// "share" the port, which means incoming datagrams are distributed across the receiving
+        /// sockets among threads or processes.
+        ///
+        /// This flag is available only on Linux 3.9+, DragonFlyBSD 3.6+, FreeBSD 12.0+, Solaris
+        /// 11.4, and AIX 7.2.5+ for now.
+        const REUSEPORT = uv::uv_udp_flags_UV_UDP_REUSEPORT as _;
     }
 }
 

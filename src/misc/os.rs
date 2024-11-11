@@ -1,8 +1,9 @@
 use crate::{FromInner, IntoInner};
 use std::ffi::CStr;
 use uv::{
-    uv_available_parallelism, uv_os_free_passwd, uv_os_get_passwd, uv_os_gethostname, uv_os_getpid,
-    uv_os_getppid, uv_os_getpriority, uv_os_setpriority, uv_os_uname, uv_passwd_t, uv_utsname_t,
+    uv_available_parallelism, uv_group_t, uv_os_free_group, uv_os_free_passwd, uv_os_get_group,
+    uv_os_get_passwd, uv_os_get_passwd2, uv_os_gethostname, uv_os_getpid, uv_os_getppid,
+    uv_os_getpriority, uv_os_setpriority, uv_os_uname, uv_passwd_t, uv_utsname_t,
     UV_MAXHOSTNAMESIZE,
 };
 
@@ -55,6 +56,40 @@ impl FromInner<uv_passwd_t> for User {
     }
 }
 
+/// Data type for group file information.
+pub struct Group {
+    pub groupname: String,
+    pub gid: Option<crate::Gid>,
+    pub members: Vec<String>,
+}
+
+impl FromInner<uv_group_t> for Group {
+    fn from_inner(group: uv_group_t) -> Group {
+        let groupname = unsafe { CStr::from_ptr(group.groupname) }
+            .to_string_lossy()
+            .into_owned();
+        let gid = if group.gid >= 0 {
+            Some(group.gid as _)
+        } else {
+            None
+        };
+        let mut members = Vec::new();
+        let mut members_ptr = group.members;
+        unsafe {
+            while let Some(member_ptr) = members_ptr.as_ref() {
+                let member = CStr::from_ptr(*member_ptr).to_string_lossy().into_owned();
+                members.push(member);
+                members_ptr = members_ptr.offset(1);
+            }
+        }
+        Group {
+            groupname,
+            gid,
+            members,
+        }
+    }
+}
+
 /// Data type for operating system name and version information.
 pub struct SystemInfo {
     pub sysname: String,
@@ -96,6 +131,30 @@ pub fn get_passwd() -> crate::Result<User> {
 
     let result = passwd.into_inner();
     unsafe { uv_os_free_passwd(&mut passwd as _) };
+    Ok(result)
+}
+
+/// Gets a subset of the password file entry for the provided uid. The populated data includes the
+/// username, euid, gid, shell, and home directory. On non-Windows systems, all data comes from
+/// getpwuid_r(3). On Windows, uid, gid, and shell are set to None and have no meaning.
+pub fn get_passwd2(uid: crate::Uid) -> crate::Result<User> {
+    let mut passwd: uv_passwd_t = unsafe { std::mem::zeroed() };
+    crate::uvret(unsafe { uv_os_get_passwd2(&mut passwd as _, uid) })?;
+
+    let result = passwd.into_inner();
+    unsafe { uv_os_free_passwd(&mut passwd as _) };
+    Ok(result)
+}
+
+/// Gets a subset of the group file entry for the provided uid. The populated data includes the
+/// group name, gid, and members. On non-Windows systems, all data comes from getgrgid_r(3). On
+/// Windows, uid and gid are set to None and have no meaning.
+pub fn get_group(gid: crate::Gid) -> crate::Result<Group> {
+    let mut group: uv_group_t = unsafe { std::mem::zeroed() };
+    crate::uvret(unsafe { uv_os_get_group(&mut group as _, gid) })?;
+
+    let result = group.into_inner();
+    unsafe { uv_os_free_group(&mut group as _) };
     Ok(result)
 }
 

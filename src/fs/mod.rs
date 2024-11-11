@@ -4,7 +4,10 @@
 //! Starting with libuv v1.45.0, some file operations on Linux are handed off to io_uring
 //! <https://en.wikipedia.org/wiki/Io_uring> when possible. Apart from a (sometimes significant)
 //! increase in throughput there should be no change in observable behavior. Libuv reverts to using
-//! its threadpool when the necessary kernel features are unavailable or unsuitable.
+//! its threadpool when the necessary kernel features are unavailable or unsuitable. Starting with
+//! libuv v1.49.0 this behavior was reverted and Libuv on Linux by default will be using the
+//! threadpool again. In order to enable io_uring the Loop instance must be configured with the
+//! ENABLE_IO_URING_SQPOLL option.
 //!
 //! Note: Uses utf-8 encoding on Windows
 
@@ -1384,7 +1387,7 @@ impl crate::Loop {
         result.map(|_| req)
     }
 
-    /// Equivalent to realpath(3) on Unix. Windows uses GetFinalPathNameByHandle. The path can be
+    /// Equivalent to realpath(3) on Unix. Windows uses GetFinalPathNameByHandleW. The path can be
     /// read from FsReq::real_path()
     ///
     /// Warning: This function has certain platform-specific caveats that were discovered when used
@@ -1413,7 +1416,7 @@ impl crate::Loop {
         self._fs_realpath(path, cb)
     }
 
-    /// Equivalent to realpath(3) on Unix. Windows uses GetFinalPathNameByHandle.
+    /// Equivalent to realpath(3) on Unix. Windows uses GetFinalPathNameByHandleW.
     ///
     /// Warning: This function has certain platform-specific caveats that were discovered when used
     /// in Node.
