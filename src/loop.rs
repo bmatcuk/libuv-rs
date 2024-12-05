@@ -109,6 +109,14 @@ impl Loop {
         Ok(r#loop)
     }
 
+    // connect to an existing libuv instance
+    pub unsafe fn from_external(handle: *mut uv_loop_t) -> Self {
+        Self {
+            handle,
+            should_drop: false,
+        }
+    }
+
     /// Returns the initialized default loop.
     ///
     /// This function is just a convenient way for having a global loop throughout an application,
