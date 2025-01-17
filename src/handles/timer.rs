@@ -28,6 +28,16 @@ extern "C" fn uv_timer_cb(handle: *mut uv_timer_t) {
 }
 
 /// Timer handles are used to schedule callbacks to be called in the future.
+///
+/// Timers are either single-shot or repeating. Repeating timers do not adjust for overhead but are
+/// rearmed relative to the event loop's idea of "now".
+///
+/// Libuv updates its idea of "now" right before executing timer callbacks, and right after waking
+/// up from waiting for I/O. See also Loop.update_time
+///
+/// Example: a repeating timer with a 50 ms interval whose callback takes 17 ms to complete, runs
+/// again 33 ms later. If other tasks take longer than 33 ms, the timer callback runs as soon as
+/// possible.
 #[derive(Clone, Copy)]
 pub struct TimerHandle {
     handle: *mut uv_timer_t,
@@ -98,10 +108,6 @@ impl TimerHandle {
     /// Set the repeat interval value in milliseconds. The timer will be scheduled to run on the
     /// given interval, regardless of the callback execution duration, and will follow normal timer
     /// semantics in the case of a time-slice overrun.
-    ///
-    /// For example, if a 50ms repeating timer first runs for 17ms, it will be scheduled to run
-    /// again 33ms later. If other tasks consume more than the 33ms following the first timer
-    /// callback, then the callback will run as soon as possible.
     ///
     /// Note: If the repeat value is set from a timer callback it does not immediately take effect.
     /// If the timer was non-repeating before, it will have been stopped. If it was repeating, then

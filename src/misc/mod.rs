@@ -3,9 +3,9 @@ use std::ffi::{CStr, CString};
 use uv::{
     uv_clock_gettime, uv_cpu_info, uv_cpu_info_t, uv_cpumask_size, uv_free_cpu_info,
     uv_get_available_memory, uv_get_constrained_memory, uv_get_free_memory, uv_get_process_title,
-    uv_get_total_memory, uv_getrusage, uv_gettimeofday, uv_hrtime, uv_library_shutdown, uv_loadavg,
-    uv_resident_set_memory, uv_rusage_t, uv_set_process_title, uv_setup_args, uv_sleep,
-    uv_timespec64_t, uv_timeval64_t, uv_timeval_t, uv_uptime,
+    uv_get_total_memory, uv_getrusage, uv_getrusage_thread, uv_gettimeofday, uv_hrtime,
+    uv_library_shutdown, uv_loadavg, uv_resident_set_memory, uv_rusage_t, uv_set_process_title,
+    uv_setup_args, uv_sleep, uv_timespec64_t, uv_timeval64_t, uv_timeval_t, uv_uptime,
 };
 
 pub mod os;
@@ -264,6 +264,15 @@ pub fn uptime() -> crate::Result<f64> {
 pub fn getrusage() -> crate::Result<ResourceUsage> {
     let mut usage: uv_rusage_t = unsafe { std::mem::zeroed() };
     crate::uvret(unsafe { uv_getrusage(&mut usage as _) }).map(|_| usage.into_inner())
+}
+
+/// Gets the resource usage measurements for the calling thread.
+///
+/// Note: Not supported on all platforms. May return ENOTSUP. On macOS and Windows not all fields
+/// are set, the unsupported fields are filled with zeroes. See ResourceUsage for more details.
+pub fn getrusage_thread() -> crate::Result<ResourceUsage> {
+    let mut usage: uv_rusage_t = unsafe { std::mem::zeroed() };
+    crate::uvret(unsafe { uv_getrusage_thread(&mut usage as _) }).map(|_| usage.into_inner())
 }
 
 /// Gets information about the CPUs on the system.

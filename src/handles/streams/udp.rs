@@ -3,12 +3,12 @@ use std::convert::{TryFrom, TryInto};
 use std::ffi::CString;
 use std::net::SocketAddr;
 use uv::{
-    uv_udp_bind, uv_udp_connect, uv_udp_get_send_queue_count, uv_udp_get_send_queue_size,
+    uv_buf_t, uv_udp_bind, uv_udp_connect, uv_udp_get_send_queue_count, uv_udp_get_send_queue_size,
     uv_udp_getpeername, uv_udp_getsockname, uv_udp_init, uv_udp_init_ex, uv_udp_recv_start,
     uv_udp_recv_stop, uv_udp_send, uv_udp_set_broadcast, uv_udp_set_membership,
     uv_udp_set_multicast_interface, uv_udp_set_multicast_loop, uv_udp_set_multicast_ttl,
-    uv_udp_set_source_membership, uv_udp_set_ttl, uv_udp_t, uv_udp_try_send, uv_udp_using_recvmmsg,
-    AF_INET, AF_INET6, AF_UNSPEC,
+    uv_udp_set_source_membership, uv_udp_set_ttl, uv_udp_t, uv_udp_try_send, uv_udp_try_send2,
+    uv_udp_using_recvmmsg, AF_INET, AF_INET6, AF_UNSPEC,
 };
 
 bitflags! {
@@ -378,6 +378,68 @@ impl UdpHandle {
         let result = unsafe { uv_udp_try_send(self.handle, bufs_ptr, bufs_len as _, sockaddr_ptr) };
 
         unsafe { std::mem::drop(Vec::from_raw_parts(bufs_ptr, bufs_len, bufs_capacity)) };
+
+        crate::uvret(result)
+            .map(|_| result as _)
+            .map_err(|e| Box::new(e) as _)
+    }
+
+    /// Like try_send, but can send multiple datagrams. Lightweight abstraction around sendmmsg(2),
+    /// with a sendmsg(2) fallback loop for platforms that do not support the former. The handle
+    /// must be fully initialized; call bind first.
+    ///
+    /// Note: the lesser of the addrs length, or bufs length will be sent.
+    ///
+    /// Returns number of datagrams sent. Zero only if the length of either input was zero. Error
+    /// is only returned if the first datagram fails, otherwise returns a positive send count.
+    /// EAGAIN when datagrams cannot be sent right now; fall back to uv_udp_send.
+    pub fn try_send2(
+        &self,
+        addrs: &[&SocketAddr],
+        bufs: &[&[impl crate::BufTrait]],
+    ) -> Result<i32, Box<dyn std::error::Error>> {
+        let len = addrs.len().min(bufs.len());
+        let mut bufs_vec: Vec<*mut uv_buf_t> = Vec::with_capacity(len);
+        let mut bufs_len_vec: Vec<u32> = Vec::with_capacity(len);
+        let mut bufs_capacity_vec: Vec<usize> = Vec::with_capacity(len);
+        let mut addrs_vec: Vec<uv::sockaddr> = Vec::with_capacity(len);
+        let mut addrs_ptr_vec: Vec<*mut uv::sockaddr> = Vec::with_capacity(len);
+        for idx in 0..len {
+            let mut buf: std::mem::ManuallyDrop<Vec<uv::uv_buf_t>> = std::mem::ManuallyDrop::new(
+                bufs[idx]
+                    .iter()
+                    .map(|b| unsafe { *b.readonly().inner() }.clone())
+                    .collect(),
+            );
+            bufs_vec.push(buf.as_mut_ptr());
+            bufs_len_vec.push(buf.len() as _);
+            bufs_capacity_vec.push(buf.capacity());
+
+            addrs_vec.push(unsafe { std::mem::zeroed() });
+            crate::fill_sockaddr(&mut addrs_vec[idx], addrs[idx])?;
+            addrs_ptr_vec.push(&mut addrs_vec[idx]);
+        }
+
+        let result = unsafe {
+            uv_udp_try_send2(
+                self.handle,
+                len as _,
+                bufs_vec.as_mut_ptr(),
+                bufs_len_vec.as_mut_ptr(),
+                addrs_ptr_vec.as_mut_ptr(),
+                0,
+            )
+        };
+
+        unsafe {
+            for idx in 0..len {
+                std::mem::drop(Vec::from_raw_parts(
+                    bufs_vec[idx],
+                    bufs_len_vec[idx] as _,
+                    bufs_capacity_vec[idx],
+                ));
+            }
+        }
 
         crate::uvret(result)
             .map(|_| result as _)
