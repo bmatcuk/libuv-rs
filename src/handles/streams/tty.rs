@@ -12,10 +12,14 @@ pub enum TtyMode {
     Normal = uv::uv_tty_mode_t_UV_TTY_MODE_NORMAL as _,
 
     /// Raw input mode (On Windows, ENABLE_WINDOW_INPUT is also enabled)
+    /// May become equivalent to RawVT in future libuv versions.
     Raw = uv::uv_tty_mode_t_UV_TTY_MODE_RAW as _,
 
     /// Binary-safe I/O mode for IPC (Unix-only)
     IO = uv::uv_tty_mode_t_UV_TTY_MODE_IO as _,
+
+    /// Raw input mode. On Windows ENABLE_WINDOW_TERMINAL_INPUT is also set.
+    RawVT = uv::uv_tty_mode_t_UV_TTY_MODE_RAW_VT as _,
 }
 
 /// Console virtual terminal mode type
