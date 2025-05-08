@@ -4,6 +4,11 @@ extern crate bitflags;
 #[macro_use]
 extern crate libuv_sys2 as uv;
 
+#[cfg(feature = "sys")]
+pub mod sys {
+    pub use super::uv::*;
+}
+
 macro_rules! callbacks {
     ($($v:vis $Name:ident($($($a:ident: $T:ty),+)?)$( -> $TReturn:ty)?);+;) => {
         $(__callback! {
