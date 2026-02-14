@@ -7,7 +7,7 @@
 //! its threadpool when the necessary kernel features are unavailable or unsuitable. Starting with
 //! libuv v1.49.0 this behavior was reverted and Libuv on Linux by default will be using the
 //! threadpool again. In order to enable io_uring the Loop instance must be configured with the
-//! ENABLE_IO_URING_SQPOLL option.
+//! USE_IO_URING_SQPOLL option.
 //!
 //! Note: Uses utf-8 encoding on Windows
 

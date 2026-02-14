@@ -10,7 +10,8 @@ pub struct StatFs {
     pub bavail: u64,
     pub files: u64,
     pub ffree: u64,
-    pub spare: [u64; 4usize],
+    pub frsize: u64,
+    pub spare: [u64; 3usize],
 }
 
 impl FromInner<*mut uv_statfs_t> for StatFs {
@@ -24,6 +25,7 @@ impl FromInner<*mut uv_statfs_t> for StatFs {
                 bavail: (*statfs).f_bavail,
                 files: (*statfs).f_files,
                 ffree: (*statfs).f_ffree,
+                frsize: (*statfs).f_frsize,
                 spare: (*statfs).f_spare,
             }
         }

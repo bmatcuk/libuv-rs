@@ -3,8 +3,9 @@ use std::convert::{TryFrom, TryInto};
 use std::net::SocketAddr;
 use uv::{
     uv_socketpair, uv_tcp_bind, uv_tcp_close_reset, uv_tcp_connect, uv_tcp_getpeername,
-    uv_tcp_getsockname, uv_tcp_init, uv_tcp_init_ex, uv_tcp_keepalive, uv_tcp_nodelay, uv_tcp_open,
-    uv_tcp_simultaneous_accepts, uv_tcp_t, AF_INET, AF_INET6, AF_UNSPEC,
+    uv_tcp_getsockname, uv_tcp_init, uv_tcp_init_ex, uv_tcp_keepalive, uv_tcp_keepalive_ex,
+    uv_tcp_nodelay, uv_tcp_open, uv_tcp_simultaneous_accepts, uv_tcp_t, AF_INET, AF_INET6,
+    AF_UNSPEC,
 };
 
 bitflags! {
@@ -140,6 +141,21 @@ impl TcpHandle {
     /// If `delay` is less than 1 then EINVAL is returned.
     pub fn keepalive(&mut self, enable: bool, delay: u32) -> crate::Result<()> {
         crate::uvret(unsafe { uv_tcp_keepalive(self.handle, if enable { 1 } else { 0 }, delay) })
+    }
+
+    /// Enable / disable TCP keep-alive with all socket options: TCP_KEEPIDLE, TCP_KEEPINTVL and
+    /// TCP_KEEPCNT. idle is the value for TCP_KEEPIDLE, intvl is the value for TCP_KEEPINTVL, cnt
+    /// is the value for TCP_KEEPCNT, ignored when on false.
+    ///
+    /// With TCP keep-alive enabled, idle is the time (in seconds) the connection needs to remain
+    /// idle before TCP starts sending keep-alive probes. intvl is the time (in seconds) between
+    /// individual keep-alive probes. TCP will drop the connection after sending cnt probes without
+    /// getting any replies from the peer, then the handle is destroyed with a ETIMEDOUT error
+    /// passed to the corresponding callback.
+    ///
+    /// If one of idle, intvl, or cnt is less than 1, EINVAL is returned.
+    pub fn keepalive_ex(&mut self, on: bool, idle: u32, intvl: u32, cnt: u32) -> crate::Result<()> {
+        crate::uvret(unsafe { uv_tcp_keepalive_ex(self.handle, if on { 1 } else { 0 }, idle, intvl, cnt) })
     }
 
     /// Enable / disable simultaneous asynchronous accept requests that are queued by the operating
