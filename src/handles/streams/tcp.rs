@@ -185,9 +185,9 @@ impl TcpHandle {
         addr: &SocketAddr,
         flags: TcpBindFlags,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let mut sockaddr: uv::sockaddr = unsafe { std::mem::zeroed() };
-        crate::fill_sockaddr(&mut sockaddr, addr)?;
-        crate::uvret(unsafe { uv_tcp_bind(self.handle, &sockaddr as _, flags.bits()) })
+        let mut sockaddr: uv::sockaddr_storage = unsafe { std::mem::zeroed() };
+        crate::fill_sockaddr(&mut sockaddr as _, addr)?;
+        crate::uvret(unsafe { uv_tcp_bind(self.handle, uv_handle!(&sockaddr), flags.bits()) })
             .map_err(|e| Box::new(e) as _)
     }
 
@@ -236,14 +236,14 @@ impl TcpHandle {
         cb: CB,
     ) -> Result<crate::ConnectReq, Box<dyn std::error::Error>> {
         let mut req = crate::ConnectReq::new(cb)?;
-        let mut sockaddr: uv::sockaddr = unsafe { std::mem::zeroed() };
+        let mut sockaddr: uv::sockaddr_storage = unsafe { std::mem::zeroed() };
         crate::fill_sockaddr(&mut sockaddr, addr)?;
 
         let result = crate::uvret(unsafe {
             uv_tcp_connect(
                 req.inner(),
                 self.handle,
-                &sockaddr as _,
+                uv_handle!(&sockaddr),
                 Some(crate::uv_connect_cb),
             )
         });

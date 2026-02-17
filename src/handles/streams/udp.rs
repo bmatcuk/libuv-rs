@@ -184,9 +184,9 @@ impl UdpHandle {
         addr: &SocketAddr,
         flags: UdpBindFlags,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let mut sockaddr: uv::sockaddr = unsafe { std::mem::zeroed() };
+        let mut sockaddr: uv::sockaddr_storage = unsafe { std::mem::zeroed() };
         crate::fill_sockaddr(&mut sockaddr, addr)?;
-        crate::uvret(unsafe { uv_udp_bind(self.handle, &sockaddr as _, flags.bits()) })
+        crate::uvret(unsafe { uv_udp_bind(self.handle, uv_handle!(&sockaddr), flags.bits()) })
             .map_err(|e| Box::new(e) as _)
     }
 
@@ -197,9 +197,9 @@ impl UdpHandle {
     /// ENOTCONN error.
     pub fn connect(&mut self, addr: Option<&SocketAddr>) -> Result<(), Box<dyn std::error::Error>> {
         if let Some(addr) = addr {
-            let mut sockaddr: uv::sockaddr = unsafe { std::mem::zeroed() };
+            let mut sockaddr: uv::sockaddr_storage = unsafe { std::mem::zeroed() };
             crate::fill_sockaddr(&mut sockaddr, addr)?;
-            crate::uvret(unsafe { uv_udp_connect(self.handle, &sockaddr as _) })
+            crate::uvret(unsafe { uv_udp_connect(self.handle, uv_handle!(&sockaddr)) })
         } else {
             crate::uvret(unsafe { uv_udp_connect(self.handle, std::ptr::null()) })
         }
@@ -332,11 +332,11 @@ impl UdpHandle {
         cb: CB,
     ) -> Result<crate::UdpSendReq, Box<dyn std::error::Error>> {
         let mut req = crate::UdpSendReq::new(bufs, cb)?;
-        let mut sockaddr: uv::sockaddr = unsafe { std::mem::zeroed() };
+        let mut sockaddr: uv::sockaddr_storage = unsafe { std::mem::zeroed() };
         let mut sockaddr_ptr: *const uv::sockaddr = std::ptr::null();
         if let Some(addr) = addr {
             crate::fill_sockaddr(&mut sockaddr, addr)?;
-            sockaddr_ptr = &sockaddr as _;
+            sockaddr_ptr = uv_handle!(&sockaddr);
         }
 
         let result = crate::uvret(unsafe {
@@ -368,11 +368,11 @@ impl UdpHandle {
         bufs: &[impl crate::BufTrait],
     ) -> Result<i32, Box<dyn std::error::Error>> {
         let (bufs_ptr, bufs_len, bufs_capacity) = bufs.into_inner();
-        let mut sockaddr: uv::sockaddr = unsafe { std::mem::zeroed() };
+        let mut sockaddr: uv::sockaddr_storage = unsafe { std::mem::zeroed() };
         let mut sockaddr_ptr: *const uv::sockaddr = std::ptr::null();
         if let Some(addr) = addr {
             crate::fill_sockaddr(&mut sockaddr, addr)?;
-            sockaddr_ptr = &sockaddr as _;
+            sockaddr_ptr = uv_handle!(&sockaddr);
         }
 
         let result = unsafe { uv_udp_try_send(self.handle, bufs_ptr, bufs_len as _, sockaddr_ptr) };
@@ -402,7 +402,7 @@ impl UdpHandle {
         let mut bufs_vec: Vec<*mut uv_buf_t> = Vec::with_capacity(len);
         let mut bufs_len_vec: Vec<u32> = Vec::with_capacity(len);
         let mut bufs_capacity_vec: Vec<usize> = Vec::with_capacity(len);
-        let mut addrs_vec: Vec<uv::sockaddr> = Vec::with_capacity(len);
+        let mut addrs_vec: Vec<uv::sockaddr_storage> = Vec::with_capacity(len);
         let mut addrs_ptr_vec: Vec<*mut uv::sockaddr> = Vec::with_capacity(len);
         for idx in 0..len {
             let mut buf: std::mem::ManuallyDrop<Vec<uv::uv_buf_t>> = std::mem::ManuallyDrop::new(
@@ -417,7 +417,7 @@ impl UdpHandle {
 
             addrs_vec.push(unsafe { std::mem::zeroed() });
             crate::fill_sockaddr(&mut addrs_vec[idx], addrs[idx])?;
-            addrs_ptr_vec.push(&mut addrs_vec[idx]);
+            addrs_ptr_vec.push(uv_handle!(&mut addrs_vec[idx]));
         }
 
         let result = unsafe {

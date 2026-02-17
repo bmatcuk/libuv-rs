@@ -147,7 +147,7 @@ impl crate::Loop {
         flags: u32,
         cb: CB,
     ) -> Result<GetNameInfoReq, Box<dyn std::error::Error>> {
-        let mut sockaddr: uv::sockaddr = unsafe { std::mem::zeroed() };
+        let mut sockaddr: uv::sockaddr_storage = unsafe { std::mem::zeroed() };
         crate::fill_sockaddr(&mut sockaddr, addr)?;
 
         let cb = cb.into();
@@ -158,7 +158,7 @@ impl crate::Loop {
                 self.into_inner(),
                 req.inner(),
                 uv_cb,
-                &sockaddr as _,
+                uv_handle!(&sockaddr),
                 flags as _,
             )
         });

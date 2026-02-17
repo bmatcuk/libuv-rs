@@ -104,7 +104,7 @@ where
 
 /// Fill a uv::sockaddr from a SocketAddr
 pub(crate) fn fill_sockaddr(
-    sockaddr: *mut uv::sockaddr,
+    sockaddr: *mut uv::sockaddr_storage,
     addr: &SocketAddr,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let s = addr.ip().to_string();
