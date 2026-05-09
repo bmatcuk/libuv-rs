@@ -1,4 +1,3 @@
-#[allow(non_camel_case_types)]
 bitflags! {
     pub struct FsCopyFlags: i32 {
         const EXCL = uv::UV_FS_COPYFILE_EXCL as _;

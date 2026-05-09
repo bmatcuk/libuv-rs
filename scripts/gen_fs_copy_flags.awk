@@ -9,7 +9,6 @@ END {
   indent = "    ";
   ntypes = asorti(types);
 
-  print "#[allow(non_camel_case_types)]";
   print "bitflags! {"
   print indent "pub struct FsCopyFlags: i32 {";
   for (i = 1; i <= ntypes; i++)

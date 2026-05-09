@@ -184,7 +184,7 @@ impl<'a> ProcessOptions<'a> {
     /// Constructs a new ProcessOptions object. The args slice must have at least one member: the
     /// path to the program to execute. Any additional members of the slice will be passed as
     /// command line arguments.
-    pub fn new(args: &'a [&'a str]) -> ProcessOptions {
+    pub fn new(args: &'a [&'a str]) -> ProcessOptions<'a> {
         assert!(
             args.len() > 0,
             "ProcessOptions args slice must contain at least one str"

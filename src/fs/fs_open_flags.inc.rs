@@ -1,4 +1,3 @@
-#[allow(non_camel_case_types)]
 bitflags! {
     pub struct FsOpenFlags: i32 {
         const APPEND = uv::UV_FS_O_APPEND as _;
