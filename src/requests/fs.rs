@@ -108,7 +108,7 @@ impl FsReq {
     pub fn real_path(&self) -> Option<String> {
         match self.request_type() {
             crate::FsType::READLINK | crate::FsType::REALPATH => {
-                let ptr: *const i8 = unsafe { uv_fs_get_ptr(self.req) } as _;
+                let ptr: *const std::os::raw::c_char = unsafe { uv_fs_get_ptr(self.req) } as _;
                 Some(unsafe { CStr::from_ptr(ptr).to_string_lossy().into_owned() })
             }
             _ => None,
