@@ -10,7 +10,7 @@ Include [libuv-rs] as a dependency in your Cargo.toml:
 
 ```toml
 [dependencies]
-libuv = "~1.0.0"
+libuv = "~2.0.0"
 ```
 
 [libuv-rs] uses semantic versioning.
@@ -18,6 +18,12 @@ libuv = "~1.0.0"
 As of v2.0.1, libuv-rs supports the `skip-pkg-config` feature. This is passed
 to [libuv-sys2] to skip searching for a local install of [libuv] via pkg-config
 and, instead, causes [libuv-sys2] to build [libuv] from source.
+
+As of v2.14.0, libuv-rs supports the `std` feature (enabled by default) to use
+the standard library. This can be disabled to use core and alloc instead. Note
+that with std disabled, we don't have access to the command arguments so
+`setup_args` will be omitted. As a result, `get_process_title` and
+`set_process_title` will also be omitted.
 
 You'll want to make sure to familiarize yourself with [libuv] by reading
 [libuv's documentation]. You can then familiarize yourself with [libuv-rs] by

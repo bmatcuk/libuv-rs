@@ -1,4 +1,5 @@
-use std::ffi::CStr;
+use alloc::string::String;
+use core::ffi::CStr;
 use uv::{uv_version, uv_version_string};
 
 /// Returns the libuv version packed into a single integer. 8 bits are used for each component,

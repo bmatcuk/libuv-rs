@@ -1,4 +1,5 @@
 use crate::{FromInner, Inner, IntoInner};
+use alloc::boxed::Box;
 use uv::uv_connect_t;
 
 callbacks! {
@@ -11,7 +12,7 @@ pub(crate) struct ConnectDataFields<'a> {
 }
 
 /// Callback for uv_tcp_connect
-pub(crate) extern "C" fn uv_connect_cb(req: *mut uv_connect_t, status: std::os::raw::c_int) {
+pub(crate) extern "C" fn uv_connect_cb(req: *mut uv_connect_t, status: core::ffi::c_int) {
     let dataptr = crate::Req::get_data(uv_handle!(req));
     if !dataptr.is_null() {
         unsafe {
@@ -40,8 +41,8 @@ pub struct ConnectReq {
 impl ConnectReq {
     /// Create a new connect request
     pub fn new<CB: Into<ConnectCB<'static>>>(cb: CB) -> crate::Result<ConnectReq> {
-        let layout = std::alloc::Layout::new::<uv_connect_t>();
-        let req = unsafe { std::alloc::alloc(layout) as *mut uv_connect_t };
+        let layout = core::alloc::Layout::new::<uv_connect_t>();
+        let req = unsafe { alloc::alloc::alloc(layout) as *mut uv_connect_t };
         if req.is_null() {
             return Err(crate::Error::ENOMEM);
         }
@@ -63,8 +64,8 @@ impl ConnectReq {
     pub fn destroy(&mut self) {
         crate::Req::free_data(uv_handle!(self.req));
 
-        let layout = std::alloc::Layout::new::<uv_connect_t>();
-        unsafe { std::alloc::dealloc(self.req as _, layout) };
+        let layout = core::alloc::Layout::new::<uv_connect_t>();
+        unsafe { alloc::alloc::dealloc(self.req as _, layout) };
     }
 }
 

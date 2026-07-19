@@ -1,5 +1,6 @@
 use crate::{FromInner, HandleTrait, Inner, IntoInner};
-use std::convert::TryFrom;
+use alloc::boxed::Box;
+use core::convert::TryFrom;
 use uv::{uv_async_init, uv_async_send, uv_async_t};
 
 callbacks! {
@@ -40,8 +41,8 @@ impl AsyncHandle {
         r#loop: &crate::Loop,
         cb: CB,
     ) -> crate::Result<AsyncHandle> {
-        let layout = std::alloc::Layout::new::<uv_async_t>();
-        let handle = unsafe { std::alloc::alloc(layout) as *mut uv_async_t };
+        let layout = core::alloc::Layout::new::<uv_async_t>();
+        let handle = unsafe { alloc::alloc::alloc(layout) as *mut uv_async_t };
         if handle.is_null() {
             return Err(crate::Error::ENOMEM);
         }
@@ -56,7 +57,7 @@ impl AsyncHandle {
         let ret = unsafe { uv_async_init(r#loop.into_inner(), handle, uv_cb) };
         if ret < 0 {
             crate::Handle::free_data(uv_handle!(handle));
-            unsafe { std::alloc::dealloc(handle as _, layout) };
+            unsafe { alloc::alloc::dealloc(handle as _, layout) };
             return Err(crate::Error::from_inner(ret as uv::uv_errno_t));
         }
 

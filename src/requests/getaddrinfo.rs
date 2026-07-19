@@ -1,5 +1,7 @@
 use crate::{FromInner, Inner, IntoInner};
-use std::ffi::CString;
+use alloc::boxed::Box;
+use alloc::ffi::CString;
+use alloc::vec::Vec;
 use uv::{addrinfo, uv_freeaddrinfo, uv_getaddrinfo, uv_getaddrinfo_t};
 
 callbacks! {
@@ -48,8 +50,8 @@ pub struct GetAddrInfoReq {
 impl GetAddrInfoReq {
     /// Create a new GetAddrInfo request
     pub fn new<CB: Into<GetAddrInfoCB<'static>>>(cb: CB) -> crate::Result<GetAddrInfoReq> {
-        let layout = std::alloc::Layout::new::<uv_getaddrinfo_t>();
-        let req = unsafe { std::alloc::alloc(layout) as *mut uv_getaddrinfo_t };
+        let layout = core::alloc::Layout::new::<uv_getaddrinfo_t>();
+        let req = unsafe { alloc::alloc::alloc(layout) as *mut uv_getaddrinfo_t };
         if req.is_null() {
             return Err(crate::Error::ENOMEM);
         }
@@ -70,9 +72,9 @@ impl GetAddrInfoReq {
             // unsafe { uv_freeaddrinfo((*self.req).addrinfo) };
             crate::Req::free_data(uv_handle!(self.req));
 
-            let layout = std::alloc::Layout::new::<uv_getaddrinfo_t>();
-            unsafe { std::alloc::dealloc(self.req as _, layout) };
-            self.req = std::ptr::null_mut();
+            let layout = core::alloc::Layout::new::<uv_getaddrinfo_t>();
+            unsafe { alloc::alloc::dealloc(self.req as _, layout) };
+            self.req = core::ptr::null_mut();
         }
     }
 
@@ -128,7 +130,7 @@ impl crate::Loop {
         service: Option<&str>,
         hints: Option<crate::AddrInfo>,
         cb: CB,
-    ) -> Result<GetAddrInfoReq, Box<dyn std::error::Error>> {
+    ) -> Result<GetAddrInfoReq, Box<dyn core::error::Error>> {
         let cb = cb.into();
         let uv_cb = use_c_callback!(uv_getaddrinfo_cb, cb);
         let node = node.map(CString::new).transpose()?;
@@ -143,17 +145,17 @@ impl crate::Loop {
                 if let Some(node) = node.as_ref() {
                     node.as_ptr()
                 } else {
-                    std::ptr::null()
+                    core::ptr::null()
                 },
                 if let Some(service) = service.as_ref() {
                     service.as_ptr()
                 } else {
-                    std::ptr::null()
+                    core::ptr::null()
                 },
                 if let Some(hints) = hints.as_ref() {
                     hints as _
                 } else {
-                    std::ptr::null()
+                    core::ptr::null()
                 },
             )
         })
@@ -176,7 +178,7 @@ impl crate::Loop {
         service: Option<&str>,
         hints: Option<crate::AddrInfo>,
         cb: CB,
-    ) -> Result<GetAddrInfoReq, Box<dyn std::error::Error>> {
+    ) -> Result<GetAddrInfoReq, Box<dyn core::error::Error>> {
         self._getaddrinfo(node, service, hints, cb)
     }
 
@@ -193,7 +195,7 @@ impl crate::Loop {
         node: Option<&str>,
         service: Option<&str>,
         hints: Option<crate::AddrInfo>,
-    ) -> Result<Vec<crate::AddrInfo>, Box<dyn std::error::Error>> {
+    ) -> Result<Vec<crate::AddrInfo>, Box<dyn core::error::Error>> {
         self._getaddrinfo(node, service, hints, ())
             .map(|req| req.addrinfos())
     }

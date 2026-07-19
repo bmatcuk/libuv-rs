@@ -1,4 +1,5 @@
 use crate::{FromInner, Inner, IntoInner};
+use alloc::boxed::Box;
 use uv::{uv_queue_work, uv_work_t};
 
 callbacks! {
@@ -56,8 +57,8 @@ impl WorkReq {
         work_cb: CB,
         after_work_cb: ACB,
     ) -> crate::Result<WorkReq> {
-        let layout = std::alloc::Layout::new::<uv_work_t>();
-        let req = unsafe { std::alloc::alloc(layout) as *mut uv_work_t };
+        let layout = core::alloc::Layout::new::<uv_work_t>();
+        let req = unsafe { alloc::alloc::alloc(layout) as *mut uv_work_t };
         if req.is_null() {
             return Err(crate::Error::ENOMEM);
         }
@@ -83,8 +84,8 @@ impl WorkReq {
     pub fn destroy(&mut self) {
         crate::Req::free_data(uv_handle!(self.req));
 
-        let layout = std::alloc::Layout::new::<uv_work_t>();
-        unsafe { std::alloc::dealloc(self.req as _, layout) };
+        let layout = core::alloc::Layout::new::<uv_work_t>();
+        unsafe { alloc::alloc::dealloc(self.req as _, layout) };
     }
 }
 

@@ -1,7 +1,11 @@
 use crate::{FromInner, HandleTrait, Inner, IntoInner};
-use std::borrow::Cow;
-use std::convert::TryFrom;
-use std::ffi::{CStr, CString};
+use alloc::borrow::Cow;
+use alloc::boxed::Box;
+use alloc::ffi::CString;
+use alloc::string::String;
+use alloc::vec::Vec;
+use core::convert::TryFrom;
+use core::ffi::CStr;
 use uv::{
     uv_fs_event_getpath, uv_fs_event_init, uv_fs_event_start, uv_fs_event_stop, uv_fs_event_t,
 };
@@ -61,9 +65,9 @@ pub(crate) struct FsEventDataFields<'a> {
 /// Callback for uv_fs_event_start
 extern "C" fn uv_fs_event_cb(
     handle: *mut uv_fs_event_t,
-    filename: *const std::os::raw::c_char,
-    events: std::os::raw::c_int,
-    status: std::os::raw::c_int,
+    filename: *const core::ffi::c_char,
+    events: core::ffi::c_int,
+    status: core::ffi::c_int,
 ) {
     let dataptr = crate::Handle::get_data(uv_handle!(handle));
     if !dataptr.is_null() {
@@ -116,15 +120,15 @@ pub struct FsEventHandle {
 impl FsEventHandle {
     /// Create and initialize a fs event handle
     pub fn new(r#loop: &crate::Loop) -> crate::Result<FsEventHandle> {
-        let layout = std::alloc::Layout::new::<uv_fs_event_t>();
-        let handle = unsafe { std::alloc::alloc(layout) as *mut uv_fs_event_t };
+        let layout = core::alloc::Layout::new::<uv_fs_event_t>();
+        let handle = unsafe { alloc::alloc::alloc(layout) as *mut uv_fs_event_t };
         if handle.is_null() {
             return Err(crate::Error::ENOMEM);
         }
 
         let ret = unsafe { uv_fs_event_init(r#loop.into_inner(), handle) };
         if ret < 0 {
-            unsafe { std::alloc::dealloc(handle as _, layout) };
+            unsafe { alloc::alloc::dealloc(handle as _, layout) };
             return Err(crate::Error::from_inner(ret as uv::uv_errno_t));
         }
 
@@ -143,7 +147,7 @@ impl FsEventHandle {
         path: &str,
         flags: FsEventFlags,
         cb: CB,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    ) -> Result<(), Box<dyn core::error::Error>> {
         let path = CString::new(path)?;
 
         // uv_cb is either Some(fs_event_cb) or None
@@ -172,7 +176,7 @@ impl FsEventHandle {
         // retrieve the size of the buffer we need to allocate
         let mut size = 0usize;
         let result = crate::uvret(unsafe {
-            uv_fs_event_getpath(self.handle, std::ptr::null_mut(), &mut size as _)
+            uv_fs_event_getpath(self.handle, core::ptr::null_mut(), &mut size as _)
         });
         if let Err(e) = result {
             if e != crate::Error::ENOBUFS {
@@ -181,7 +185,7 @@ impl FsEventHandle {
         }
 
         // On ENOBUFS, size is the length of the required buffer, *including* the null
-        let mut buf: Vec<std::os::raw::c_uchar> = Vec::with_capacity(size as _);
+        let mut buf: Vec<core::ffi::c_uchar> = Vec::with_capacity(size as _);
         crate::uvret(unsafe {
             uv_fs_event_getpath(self.handle, buf.as_mut_ptr() as _, &mut size as _)
         })

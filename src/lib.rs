@@ -1,3 +1,7 @@
+#![cfg_attr(not(feature = "std"), no_std)]
+
+extern crate alloc;
+
 #[macro_use]
 extern crate bitflags;
 
@@ -108,10 +112,10 @@ macro_rules! use_c_callback {
 
 pub(crate) type NREAD = isize;
 
-pub type Result<T> = std::result::Result<T, Error>;
+pub type Result<T> = core::result::Result<T, Error>;
 
 #[inline]
-fn uvret(code: ::std::os::raw::c_int) -> Result<()> {
+fn uvret(code: core::ffi::c_int) -> Result<()> {
     if code < 0 {
         Err(Error::from_inner(code as uv::uv_errno_t))
     } else {

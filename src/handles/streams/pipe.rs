@@ -1,7 +1,9 @@
 use crate::{FromInner, HandleTrait, Inner, IntoInner, ToHandle};
-use std::convert::{TryFrom, TryInto};
-use std::ffi::CString;
-use std::net::SocketAddr;
+use alloc::boxed::Box;
+use alloc::ffi::CString;
+use alloc::vec::Vec;
+use core::convert::{TryFrom, TryInto};
+use core::net::SocketAddr;
 use uv::{
     uv_pipe, uv_pipe_bind, uv_pipe_chmod, uv_pipe_connect, uv_pipe_getpeername,
     uv_pipe_getsockname, uv_pipe_init, uv_pipe_open, uv_pipe_pending_count,
@@ -60,15 +62,15 @@ impl PipeHandle {
     /// Only a connected pipe that will be passing the handles should have this flag set, not the
     /// listening pipe that accept() is called on.
     pub fn new(r#loop: &crate::Loop, ipc: bool) -> crate::Result<PipeHandle> {
-        let layout = std::alloc::Layout::new::<uv_pipe_t>();
-        let handle = unsafe { std::alloc::alloc(layout) as *mut uv_pipe_t };
+        let layout = core::alloc::Layout::new::<uv_pipe_t>();
+        let handle = unsafe { alloc::alloc::alloc(layout) as *mut uv_pipe_t };
         if handle.is_null() {
             return Err(crate::Error::ENOMEM);
         }
 
         let ret = unsafe { uv_pipe_init(r#loop.into_inner(), handle, if ipc { 1 } else { 0 }) };
         if ret < 0 {
-            unsafe { std::alloc::dealloc(handle as _, layout) };
+            unsafe { alloc::alloc::dealloc(handle as _, layout) };
             return Err(crate::Error::from_inner(ret as uv::uv_errno_t));
         }
 
@@ -90,7 +92,7 @@ impl PipeHandle {
     ///
     /// Note: Paths on Unix get truncated to sizeof(sockaddr_un.sun_path) bytes, typically between
     /// 92 and 108 bytes.
-    pub fn bind(&mut self, name: &str) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn bind(&mut self, name: &str) -> Result<(), Box<dyn core::error::Error>> {
         let name = CString::new(name)?;
         crate::uvret(unsafe { uv_pipe_bind(self.handle, name.as_ptr()) })
             .map_err(|e| Box::new(e) as _)
@@ -104,7 +106,7 @@ impl PipeHandle {
         &mut self,
         name: &str,
         cb: CB,
-    ) -> Result<crate::ConnectReq, Box<dyn std::error::Error>> {
+    ) -> Result<crate::ConnectReq, Box<dyn core::error::Error>> {
         let req = crate::ConnectReq::new(cb)?;
         let name = CString::new(name)?;
         unsafe {
@@ -119,10 +121,9 @@ impl PipeHandle {
     }
 
     /// Get the name of the Unix domain socket or the named pipe.
-    pub fn getsockname(&self) -> Result<SocketAddr, Box<dyn std::error::Error>> {
-        let mut sockaddr: uv::sockaddr_storage = unsafe { std::mem::zeroed() };
-        let mut sockaddr_len: std::os::raw::c_int =
-            std::mem::size_of::<uv::sockaddr_storage>() as _;
+    pub fn getsockname(&self) -> Result<SocketAddr, Box<dyn core::error::Error>> {
+        let mut sockaddr: uv::sockaddr_storage = unsafe { core::mem::zeroed() };
+        let mut sockaddr_len: core::ffi::c_int = core::mem::size_of::<uv::sockaddr_storage>() as _;
         crate::uvret(unsafe {
             uv_pipe_getsockname(
                 self.handle,
@@ -135,10 +136,9 @@ impl PipeHandle {
     }
 
     /// Get the name of the Unix domain socket or the named pipe to which the handle is connected.
-    pub fn getpeername(&self) -> Result<SocketAddr, Box<dyn std::error::Error>> {
-        let mut sockaddr: uv::sockaddr_storage = unsafe { std::mem::zeroed() };
-        let mut sockaddr_len: std::os::raw::c_int =
-            std::mem::size_of::<uv::sockaddr_storage>() as _;
+    pub fn getpeername(&self) -> Result<SocketAddr, Box<dyn core::error::Error>> {
+        let mut sockaddr: uv::sockaddr_storage = unsafe { core::mem::zeroed() };
+        let mut sockaddr_len: core::ffi::c_int = core::mem::size_of::<uv::sockaddr_storage>() as _;
         crate::uvret(unsafe {
             uv_pipe_getpeername(
                 self.handle,

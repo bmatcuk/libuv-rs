@@ -1,8 +1,10 @@
 include!("./handle_types.inc.rs");
 
 use crate::{FromInner, Inner, IntoInner};
-use std::alloc::Layout;
-use std::ffi::CStr;
+use alloc::boxed::Box;
+use alloc::string::String;
+use core::alloc::Layout;
+use core::ffi::CStr;
 use uv::{
     uv_close, uv_fileno, uv_handle_get_data, uv_handle_get_loop, uv_handle_get_type,
     uv_handle_set_data, uv_handle_t, uv_handle_type_name, uv_has_ref, uv_is_active, uv_is_closing,
@@ -20,8 +22,8 @@ impl HandleType {
     }
 }
 
-impl std::fmt::Display for HandleType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for HandleType {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.write_str(&self.name())
     }
 }
@@ -75,7 +77,7 @@ pub(crate) extern "C" fn uv_close_cb(handle: *mut uv_handle_t) {
     let handle_obj: Handle = handle.into_inner();
     let layout: Option<Layout> = handle_obj.get_type().into_inner();
     if let Some(layout) = layout {
-        unsafe { std::alloc::dealloc(handle as _, layout) };
+        unsafe { alloc::alloc::dealloc(handle as _, layout) };
     }
 }
 
@@ -104,8 +106,8 @@ impl Handle {
     /// Free the handle's data.
     pub(crate) fn free_data(handle: *mut uv_handle_t) {
         let ptr = Handle::get_data(handle);
-        std::mem::drop(unsafe { Box::from_raw(ptr) });
-        unsafe { uv_handle_set_data(handle, std::ptr::null_mut()) };
+        core::mem::drop(unsafe { Box::from_raw(ptr) });
+        unsafe { uv_handle_set_data(handle, core::ptr::null_mut()) };
     }
 }
 

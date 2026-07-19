@@ -1,5 +1,7 @@
 use crate::{FromInner, Inner, IntoInner};
-use std::ffi::CStr;
+use alloc::boxed::Box;
+use alloc::string::String;
+use core::ffi::CStr;
 use uv::{
     uv_fs_get_path, uv_fs_get_ptr, uv_fs_get_result, uv_fs_get_statbuf, uv_fs_get_system_error,
     uv_fs_get_type, uv_fs_req_cleanup, uv_fs_t,
@@ -39,8 +41,8 @@ pub struct FsReq {
 impl FsReq {
     /// Create a new fs request
     pub fn new<CB: Into<FsCB<'static>>>(cb: CB) -> crate::Result<FsReq> {
-        let layout = std::alloc::Layout::new::<uv_fs_t>();
-        let req = unsafe { std::alloc::alloc(layout) as *mut uv_fs_t };
+        let layout = core::alloc::Layout::new::<uv_fs_t>();
+        let req = unsafe { alloc::alloc::alloc(layout) as *mut uv_fs_t };
         if req.is_null() {
             return Err(crate::Error::ENOMEM);
         }
@@ -108,7 +110,7 @@ impl FsReq {
     pub fn real_path(&self) -> Option<String> {
         match self.request_type() {
             crate::FsType::READLINK | crate::FsType::REALPATH => {
-                let ptr: *const std::os::raw::c_char = unsafe { uv_fs_get_ptr(self.req) } as _;
+                let ptr: *const core::ffi::c_char = unsafe { uv_fs_get_ptr(self.req) } as _;
                 Some(unsafe { CStr::from_ptr(ptr).to_string_lossy().into_owned() })
             }
             _ => None,
@@ -130,9 +132,9 @@ impl FsReq {
             crate::Req::free_data(uv_handle!(self.req));
             unsafe { uv_fs_req_cleanup(self.req) };
 
-            let layout = std::alloc::Layout::new::<uv_fs_t>();
-            unsafe { std::alloc::dealloc(self.req as _, layout) };
-            self.req = std::ptr::null_mut();
+            let layout = core::alloc::Layout::new::<uv_fs_t>();
+            unsafe { alloc::alloc::dealloc(self.req as _, layout) };
+            self.req = core::ptr::null_mut();
         }
     }
 }

@@ -1,4 +1,5 @@
 use crate::{FromInner, IntoInner};
+use alloc::vec::Vec;
 use uv::uv_dir_t;
 
 /// Data type used for streaming directory iteration. Used by opendir(), readdir(), and closedir().
@@ -14,7 +15,7 @@ impl Dir {
     pub fn reserve(&mut self, size: usize) {
         self.free_entries();
 
-        let mut v = std::mem::ManuallyDrop::new(Vec::<uv::uv_dirent_t>::with_capacity(size));
+        let mut v = core::mem::ManuallyDrop::new(Vec::<uv::uv_dirent_t>::with_capacity(size));
         unsafe {
             (*self.dir).dirents = v.as_mut_ptr();
             (*self.dir).nentries = v.capacity() as _;
@@ -27,12 +28,12 @@ impl Dir {
     pub fn free_entries(&mut self) {
         unsafe {
             if !(*self.dir).dirents.is_null() {
-                std::mem::drop(Vec::from_raw_parts(
+                core::mem::drop(Vec::from_raw_parts(
                     (*self.dir).dirents,
                     self.len,
                     self.capacity,
                 ));
-                (*self.dir).dirents = std::ptr::null_mut();
+                (*self.dir).dirents = core::ptr::null_mut();
                 (*self.dir).nentries = 0;
                 self.capacity = 0;
                 self.len = 0;
@@ -58,7 +59,7 @@ impl Dir {
     /// Create an iterator over the directory entries
     pub fn entries(&self) -> Vec<crate::Dirent> {
         let v = unsafe {
-            std::mem::ManuallyDrop::new(Vec::<uv::uv_dirent_t>::from_raw_parts(
+            core::mem::ManuallyDrop::new(Vec::<uv::uv_dirent_t>::from_raw_parts(
                 (*self.dir).dirents,
                 self.len,
                 self.capacity,

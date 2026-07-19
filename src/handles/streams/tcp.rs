@@ -1,6 +1,8 @@
 use crate::{FromInner, HandleTrait, Inner, IntoInner, ToHandle};
-use std::convert::{TryFrom, TryInto};
-use std::net::SocketAddr;
+use alloc::boxed::Box;
+use alloc::vec::Vec;
+use core::convert::{TryFrom, TryInto};
+use core::net::SocketAddr;
 use uv::{
     uv_socketpair, uv_tcp_bind, uv_tcp_close_reset, uv_tcp_connect, uv_tcp_getpeername,
     uv_tcp_getsockname, uv_tcp_init, uv_tcp_init_ex, uv_tcp_keepalive, uv_tcp_keepalive_ex,
@@ -79,15 +81,15 @@ pub struct TcpHandle {
 impl TcpHandle {
     /// Initialize the handle. No socket is created as of yet.
     pub fn new(r#loop: &crate::Loop) -> crate::Result<TcpHandle> {
-        let layout = std::alloc::Layout::new::<uv_tcp_t>();
-        let handle = unsafe { std::alloc::alloc(layout) as *mut uv_tcp_t };
+        let layout = core::alloc::Layout::new::<uv_tcp_t>();
+        let handle = unsafe { alloc::alloc::alloc(layout) as *mut uv_tcp_t };
         if handle.is_null() {
             return Err(crate::Error::ENOMEM);
         }
 
         let ret = unsafe { uv_tcp_init(r#loop.into_inner(), handle) };
         if ret < 0 {
-            unsafe { std::alloc::dealloc(handle as _, layout) };
+            unsafe { alloc::alloc::dealloc(handle as _, layout) };
             return Err(crate::Error::from_inner(ret as uv::uv_errno_t));
         }
 
@@ -99,15 +101,15 @@ impl TcpHandle {
     /// Initialize the handle with the specified flags. A socket will be created for the given
     /// domain. If the specified domain is AF_UNSPEC no socket is created, just like new().
     pub fn new_ex(r#loop: &crate::Loop, flags: TcpFlags) -> crate::Result<TcpHandle> {
-        let layout = std::alloc::Layout::new::<uv_tcp_t>();
-        let handle = unsafe { std::alloc::alloc(layout) as *mut uv_tcp_t };
+        let layout = core::alloc::Layout::new::<uv_tcp_t>();
+        let handle = unsafe { alloc::alloc::alloc(layout) as *mut uv_tcp_t };
         if handle.is_null() {
             return Err(crate::Error::ENOMEM);
         }
 
         let ret = unsafe { uv_tcp_init_ex(r#loop.into_inner(), handle, flags.bits()) };
         if ret < 0 {
-            unsafe { std::alloc::dealloc(handle as _, layout) };
+            unsafe { alloc::alloc::dealloc(handle as _, layout) };
             return Err(crate::Error::from_inner(ret as uv::uv_errno_t));
         }
 
@@ -155,7 +157,9 @@ impl TcpHandle {
     ///
     /// If one of idle, intvl, or cnt is less than 1, EINVAL is returned.
     pub fn keepalive_ex(&mut self, on: bool, idle: u32, intvl: u32, cnt: u32) -> crate::Result<()> {
-        crate::uvret(unsafe { uv_tcp_keepalive_ex(self.handle, if on { 1 } else { 0 }, idle, intvl, cnt) })
+        crate::uvret(unsafe {
+            uv_tcp_keepalive_ex(self.handle, if on { 1 } else { 0 }, idle, intvl, cnt)
+        })
     }
 
     /// Enable / disable simultaneous asynchronous accept requests that are queued by the operating
@@ -184,18 +188,17 @@ impl TcpHandle {
         &mut self,
         addr: &SocketAddr,
         flags: TcpBindFlags,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let mut sockaddr: uv::sockaddr_storage = unsafe { std::mem::zeroed() };
+    ) -> Result<(), Box<dyn core::error::Error>> {
+        let mut sockaddr: uv::sockaddr_storage = unsafe { core::mem::zeroed() };
         crate::fill_sockaddr(&mut sockaddr as _, addr)?;
         crate::uvret(unsafe { uv_tcp_bind(self.handle, uv_handle!(&sockaddr), flags.bits()) })
             .map_err(|e| Box::new(e) as _)
     }
 
     /// Get the current address to which the handle is bound.
-    pub fn getsockname(&self) -> Result<SocketAddr, Box<dyn std::error::Error>> {
-        let mut sockaddr: uv::sockaddr_storage = unsafe { std::mem::zeroed() };
-        let mut sockaddr_len: std::os::raw::c_int =
-            std::mem::size_of::<uv::sockaddr_storage>() as _;
+    pub fn getsockname(&self) -> Result<SocketAddr, Box<dyn core::error::Error>> {
+        let mut sockaddr: uv::sockaddr_storage = unsafe { core::mem::zeroed() };
+        let mut sockaddr_len: core::ffi::c_int = core::mem::size_of::<uv::sockaddr_storage>() as _;
         crate::uvret(unsafe {
             uv_tcp_getsockname(
                 self.handle,
@@ -208,10 +211,9 @@ impl TcpHandle {
     }
 
     /// Get the address of the peer connected to the handle.
-    pub fn getpeername(&self) -> Result<SocketAddr, Box<dyn std::error::Error>> {
-        let mut sockaddr: uv::sockaddr_storage = unsafe { std::mem::zeroed() };
-        let mut sockaddr_len: std::os::raw::c_int =
-            std::mem::size_of::<uv::sockaddr_storage>() as _;
+    pub fn getpeername(&self) -> Result<SocketAddr, Box<dyn core::error::Error>> {
+        let mut sockaddr: uv::sockaddr_storage = unsafe { core::mem::zeroed() };
+        let mut sockaddr_len: core::ffi::c_int = core::mem::size_of::<uv::sockaddr_storage>() as _;
         crate::uvret(unsafe {
             uv_tcp_getpeername(
                 self.handle,
@@ -234,9 +236,9 @@ impl TcpHandle {
         &mut self,
         addr: &SocketAddr,
         cb: CB,
-    ) -> Result<crate::ConnectReq, Box<dyn std::error::Error>> {
+    ) -> Result<crate::ConnectReq, Box<dyn core::error::Error>> {
         let mut req = crate::ConnectReq::new(cb)?;
-        let mut sockaddr: uv::sockaddr_storage = unsafe { std::mem::zeroed() };
+        let mut sockaddr: uv::sockaddr_storage = unsafe { core::mem::zeroed() };
         crate::fill_sockaddr(&mut sockaddr, addr)?;
 
         let result = crate::uvret(unsafe {

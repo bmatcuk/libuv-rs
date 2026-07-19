@@ -1,8 +1,12 @@
 //! Internal utilities
-use std::ffi::{CStr, CString};
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
-use std::str::FromStr;
-use std::string::ToString;
+use alloc::boxed::Box;
+use alloc::ffi::CString;
+use alloc::string::ToString;
+use alloc::vec;
+use alloc::vec::Vec;
+use core::ffi::CStr;
+use core::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
+use core::str::FromStr;
 use uv::{uv_ip4_addr, uv_ip4_name, uv_ip6_addr, uv_ip6_name, AF_INET, AF_INET6};
 
 /// An internal version of From<T>
@@ -66,7 +70,7 @@ impl<T, U> TryFromInner<U> for T
 where
     U: IntoInner<T>,
 {
-    type Error = std::convert::Infallible;
+    type Error = core::convert::Infallible;
 
     fn try_from_inner(value: U) -> Result<Self, Self::Error> {
         Ok(U::into_inner(value))
@@ -106,7 +110,7 @@ where
 pub(crate) fn fill_sockaddr(
     sockaddr: *mut uv::sockaddr_storage,
     addr: &SocketAddr,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn core::error::Error>> {
     let s = addr.ip().to_string();
     let s = CString::new(s)?;
     match addr {
@@ -126,13 +130,13 @@ pub(crate) fn fill_sockaddr(
 /// Create a SocketAddr from a uv::sockaddr_storage
 pub(crate) fn build_socketaddr(
     sockaddr: *const uv::sockaddr,
-) -> Result<SocketAddr, Box<dyn std::error::Error>> {
+) -> Result<SocketAddr, Box<dyn core::error::Error>> {
     // sockaddr_in/sockaddr_in6 port are in network byte order, which is big endian. So, we need to
     // make sure to convert to "native endianness" (ne).
     match unsafe { (*sockaddr).sa_family as _ } {
         AF_INET => {
             let sockaddr_in: *const uv::sockaddr_in = sockaddr as _;
-            let mut buf: Vec<std::os::raw::c_char> = vec![0; 16];
+            let mut buf: Vec<core::ffi::c_char> = vec![0; 16];
             unsafe {
                 let port = u16::from_be((*sockaddr_in).sin_port) as _;
                 crate::uvret(uv_ip4_name(sockaddr_in, buf.as_mut_ptr(), 16))?;
@@ -143,7 +147,7 @@ pub(crate) fn build_socketaddr(
         }
         AF_INET6 => {
             let sockaddr_in6: *const uv::sockaddr_in6 = sockaddr as _;
-            let mut buf: Vec<std::os::raw::c_char> = vec![0; 46];
+            let mut buf: Vec<core::ffi::c_char> = vec![0; 46];
             unsafe {
                 let port = u16::from_be((*sockaddr_in6).sin6_port) as _;
                 crate::uvret(uv_ip6_name(sockaddr_in6, buf.as_mut_ptr(), 46))?;

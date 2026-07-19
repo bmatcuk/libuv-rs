@@ -1,5 +1,6 @@
 use crate::{FromInner, HandleTrait, Inner, IntoInner};
-use std::convert::TryFrom;
+use alloc::boxed::Box;
+use core::convert::TryFrom;
 use uv::{uv_poll_init, uv_poll_init_socket, uv_poll_start, uv_poll_stop, uv_poll_t};
 
 bitflags! {
@@ -23,8 +24,8 @@ pub(crate) struct PollDataFields<'a> {
 
 extern "C" fn uv_poll_cb(
     handle: *mut uv_poll_t,
-    status: std::os::raw::c_int,
-    events: std::os::raw::c_int,
+    status: core::ffi::c_int,
+    events: core::ffi::c_int,
 ) {
     let dataptr = crate::Handle::get_data(uv_handle!(handle));
     if !dataptr.is_null() {
@@ -77,15 +78,15 @@ pub struct PollHandle {
 impl PollHandle {
     /// Create and initialize a new poll handle using a file descriptor
     pub fn new(r#loop: &crate::Loop, fd: crate::File) -> crate::Result<PollHandle> {
-        let layout = std::alloc::Layout::new::<uv_poll_t>();
-        let handle = unsafe { std::alloc::alloc(layout) as *mut uv_poll_t };
+        let layout = core::alloc::Layout::new::<uv_poll_t>();
+        let handle = unsafe { alloc::alloc::alloc(layout) as *mut uv_poll_t };
         if handle.is_null() {
             return Err(crate::Error::ENOMEM);
         }
 
         let ret = unsafe { uv_poll_init(r#loop.into_inner(), handle, fd) };
         if ret < 0 {
-            unsafe { std::alloc::dealloc(handle as _, layout) };
+            unsafe { alloc::alloc::dealloc(handle as _, layout) };
             return Err(crate::Error::from_inner(ret as uv::uv_errno_t));
         }
 
@@ -97,15 +98,15 @@ impl PollHandle {
     /// Create and initialize a new poll handle using a socket descriptor. On Unix this is
     /// identical to new(). On windows it takes a SOCKET handle.
     pub fn new_socket(r#loop: &crate::Loop, socket: crate::Socket) -> crate::Result<PollHandle> {
-        let layout = std::alloc::Layout::new::<uv_poll_t>();
-        let handle = unsafe { std::alloc::alloc(layout) as *mut uv_poll_t };
+        let layout = core::alloc::Layout::new::<uv_poll_t>();
+        let handle = unsafe { alloc::alloc::alloc(layout) as *mut uv_poll_t };
         if handle.is_null() {
             return Err(crate::Error::ENOMEM);
         }
 
         let ret = unsafe { uv_poll_init_socket(r#loop.into_inner(), handle, socket as _) };
         if ret < 0 {
-            unsafe { std::alloc::dealloc(handle as _, layout) };
+            unsafe { alloc::alloc::dealloc(handle as _, layout) };
             return Err(crate::Error::from_inner(ret as uv::uv_errno_t));
         }
 

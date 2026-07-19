@@ -1,5 +1,6 @@
 use crate::{FromInner, HandleTrait, Inner, IntoInner};
-use std::convert::TryFrom;
+use alloc::boxed::Box;
+use core::convert::TryFrom;
 use uv::{
     uv_timer_again, uv_timer_get_due_in, uv_timer_get_repeat, uv_timer_init, uv_timer_set_repeat,
     uv_timer_start, uv_timer_stop, uv_timer_t,
@@ -46,15 +47,15 @@ pub struct TimerHandle {
 impl TimerHandle {
     /// Create and initialize a new timer handle
     pub fn new(r#loop: &crate::Loop) -> crate::Result<TimerHandle> {
-        let layout = std::alloc::Layout::new::<uv_timer_t>();
-        let handle = unsafe { std::alloc::alloc(layout) as *mut uv_timer_t };
+        let layout = core::alloc::Layout::new::<uv_timer_t>();
+        let handle = unsafe { alloc::alloc::alloc(layout) as *mut uv_timer_t };
         if handle.is_null() {
             return Err(crate::Error::ENOMEM);
         }
 
         let ret = unsafe { uv_timer_init(r#loop.into_inner(), handle) };
         if ret < 0 {
-            unsafe { std::alloc::dealloc(handle as _, layout) };
+            unsafe { alloc::alloc::dealloc(handle as _, layout) };
             return Err(crate::Error::from_inner(ret as uv::uv_errno_t));
         }
 

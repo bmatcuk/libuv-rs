@@ -1,5 +1,5 @@
 use crate::{FromInner, HandleTrait, Inner, IntoInner, ToHandle};
-use std::convert::{TryFrom, TryInto};
+use core::convert::{TryFrom, TryInto};
 use uv::{
     uv_tty_get_vterm_state, uv_tty_get_winsize, uv_tty_init, uv_tty_reset_mode, uv_tty_set_mode,
     uv_tty_set_vterm_state, uv_tty_t,
@@ -52,15 +52,15 @@ impl TtyHandle {
     ///
     /// Note: If reopening the TTY fails, libuv falls back to blocking writes.
     pub fn new(r#loop: &crate::Loop, fd: i32) -> crate::Result<TtyHandle> {
-        let layout = std::alloc::Layout::new::<uv_tty_t>();
-        let handle = unsafe { std::alloc::alloc(layout) as *mut uv_tty_t };
+        let layout = core::alloc::Layout::new::<uv_tty_t>();
+        let handle = unsafe { alloc::alloc::alloc(layout) as *mut uv_tty_t };
         if handle.is_null() {
             return Err(crate::Error::ENOMEM);
         }
 
         let ret = unsafe { uv_tty_init(r#loop.into_inner(), handle, fd, 0) };
         if ret < 0 {
-            unsafe { std::alloc::dealloc(handle as _, layout) };
+            unsafe { alloc::alloc::dealloc(handle as _, layout) };
             return Err(crate::Error::from_inner(ret as uv::uv_errno_t));
         }
 
@@ -85,8 +85,8 @@ impl TtyHandle {
 
     /// Gets the current Window size.
     pub fn get_winsize(&self) -> crate::Result<(i32, i32)> {
-        let mut width: std::os::raw::c_int = 0;
-        let mut height: std::os::raw::c_int = 0;
+        let mut width: core::ffi::c_int = 0;
+        let mut height: core::ffi::c_int = 0;
         crate::uvret(unsafe { uv_tty_get_winsize(self.handle, &mut width as _, &mut height as _) })
             .map(|_| (width as _, height as _))
     }

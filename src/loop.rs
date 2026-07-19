@@ -1,4 +1,5 @@
 use crate::{FromInner, HandleTrait, IntoInner};
+use alloc::boxed::Box;
 use uv::{
     uv_backend_fd, uv_backend_timeout, uv_default_loop, uv_handle_t, uv_loop_alive, uv_loop_close,
     uv_loop_configure, uv_loop_delete, uv_loop_fork, uv_loop_get_data, uv_loop_init, uv_loop_new,
@@ -66,7 +67,7 @@ pub(crate) struct LoopData {
 }
 
 /// Callback for uv_walk
-extern "C" fn uv_walk_cb(handle: *mut uv_handle_t, _: *mut ::std::os::raw::c_void) {
+extern "C" fn uv_walk_cb(handle: *mut uv_handle_t, _: *mut ::core::ffi::c_void) {
     let handle: crate::Handle = handle.into_inner();
     let r#loop = handle.get_loop();
     let dataptr = r#loop.get_data();
@@ -149,8 +150,8 @@ impl Loop {
     /// Free the loop's data.
     fn free_data(&mut self) {
         let ptr = self.get_data();
-        std::mem::drop(unsafe { Box::from_raw(ptr) });
-        unsafe { uv_loop_set_data(self.handle, std::ptr::null_mut()) };
+        core::mem::drop(unsafe { Box::from_raw(ptr) });
+        unsafe { uv_loop_set_data(self.handle, core::ptr::null_mut()) };
     }
 
     /// Block a signal when polling for new events. The second argument to configure() is the
@@ -217,7 +218,7 @@ impl Loop {
 
     /// The current set of event loop metrics.
     pub fn metrics_info(&self) -> crate::Result<Metrics> {
-        let mut metrics: uv_metrics_t = unsafe { std::mem::zeroed() };
+        let mut metrics: uv_metrics_t = unsafe { core::mem::zeroed() };
         crate::uvret(unsafe { uv_metrics_info(self.handle, &mut metrics as _) })
             .map(|_| metrics.into_inner())
     }
@@ -272,7 +273,7 @@ impl Loop {
             unsafe { (*dataptr).walk_cb = Some(cb) };
         }
 
-        unsafe { uv_walk(self.handle, Some(uv_walk_cb), std::ptr::null_mut()) };
+        unsafe { uv_walk(self.handle, Some(uv_walk_cb), core::ptr::null_mut()) };
     }
 
     /// Reinitialize any kernel state necessary in the child process after a fork(2) system call.
@@ -340,7 +341,7 @@ impl Drop for Loop {
                 self.free_data();
                 unsafe { uv_loop_delete(self.handle) };
             }
-            self.handle = std::ptr::null_mut();
+            self.handle = core::ptr::null_mut();
         }
     }
 }

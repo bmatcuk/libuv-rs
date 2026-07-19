@@ -1,4 +1,6 @@
 use crate::{FromInner, Inner, IntoInner};
+use alloc::boxed::Box;
+use alloc::vec::Vec;
 use uv::uv_write_t;
 
 callbacks! {
@@ -14,7 +16,7 @@ pub(crate) struct WriteDataFields<'a> {
 }
 
 /// Callback for uv_write/uv_write2
-pub(crate) extern "C" fn uv_write_cb(req: *mut uv_write_t, status: std::os::raw::c_int) {
+pub(crate) extern "C" fn uv_write_cb(req: *mut uv_write_t, status: core::ffi::c_int) {
     let dataptr = crate::Req::get_data(uv_handle!(req));
     if !dataptr.is_null() {
         unsafe {
@@ -53,8 +55,8 @@ impl WriteReq {
         bufs: &[impl crate::BufTrait],
         cb: CB,
     ) -> crate::Result<WriteReq> {
-        let layout = std::alloc::Layout::new::<uv_write_t>();
-        let req = unsafe { std::alloc::alloc(layout) as *mut uv_write_t };
+        let layout = core::alloc::Layout::new::<uv_write_t>();
+        let req = unsafe { alloc::alloc::alloc(layout) as *mut uv_write_t };
         if req.is_null() {
             return Err(crate::Error::ENOMEM);
         }
@@ -93,7 +95,11 @@ impl WriteReq {
                     // This will destroy the Vec<uv_buf_t>, but will not actually deallocate the
                     // uv_buf_t's themselves. That's up to the user to do.
                     unsafe {
-                        std::mem::drop(Vec::from_raw_parts(d.bufs_ptr, d.bufs_len, d.bufs_capacity))
+                        core::mem::drop(Vec::from_raw_parts(
+                            d.bufs_ptr,
+                            d.bufs_len,
+                            d.bufs_capacity,
+                        ))
                     };
                 }
             }
@@ -101,8 +107,8 @@ impl WriteReq {
 
         crate::Req::free_data(uv_handle!(self.req));
 
-        let layout = std::alloc::Layout::new::<uv_write_t>();
-        unsafe { std::alloc::dealloc(self.req as _, layout) };
+        let layout = core::alloc::Layout::new::<uv_write_t>();
+        unsafe { alloc::alloc::dealloc(self.req as _, layout) };
     }
 }
 
@@ -110,7 +116,7 @@ impl FromInner<*mut uv_write_t> for WriteReq {
     fn from_inner(req: *mut uv_write_t) -> WriteReq {
         WriteReq {
             req,
-            bufs_ptr: std::ptr::null(),
+            bufs_ptr: core::ptr::null(),
         }
     }
 }

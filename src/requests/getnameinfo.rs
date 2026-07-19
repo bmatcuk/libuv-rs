@@ -1,6 +1,8 @@
 use crate::{FromInner, Inner, IntoInner};
-use std::ffi::CStr;
-use std::net::SocketAddr;
+use alloc::boxed::Box;
+use alloc::string::String;
+use core::ffi::CStr;
+use core::net::SocketAddr;
 use uv::{uv_getnameinfo, uv_getnameinfo_t};
 
 callbacks! {
@@ -21,8 +23,8 @@ pub(crate) struct GetNameInfoDataFields<'a> {
 extern "C" fn uv_getnameinfo_cb(
     req: *mut uv_getnameinfo_t,
     status: i32,
-    hostname: *const std::os::raw::c_char,
-    service: *const std::os::raw::c_char,
+    hostname: *const core::ffi::c_char,
+    service: *const core::ffi::c_char,
 ) {
     let dataptr = crate::Req::get_data(uv_handle!(req));
     if !dataptr.is_null() {
@@ -54,8 +56,8 @@ pub struct GetNameInfoReq {
 impl GetNameInfoReq {
     /// Create a new GetNameInfo request
     pub fn new<CB: Into<GetNameInfoCB<'static>>>(cb: CB) -> crate::Result<GetNameInfoReq> {
-        let layout = std::alloc::Layout::new::<uv_getnameinfo_t>();
-        let req = unsafe { std::alloc::alloc(layout) as *mut uv_getnameinfo_t };
+        let layout = core::alloc::Layout::new::<uv_getnameinfo_t>();
+        let req = unsafe { alloc::alloc::alloc(layout) as *mut uv_getnameinfo_t };
         if req.is_null() {
             return Err(crate::Error::ENOMEM);
         }
@@ -100,9 +102,9 @@ impl GetNameInfoReq {
         if !self.req.is_null() {
             crate::Req::free_data(uv_handle!(self.req));
 
-            let layout = std::alloc::Layout::new::<uv_getnameinfo_t>();
-            unsafe { std::alloc::dealloc(self.req as _, layout) };
-            self.req = std::ptr::null_mut();
+            let layout = core::alloc::Layout::new::<uv_getnameinfo_t>();
+            unsafe { alloc::alloc::dealloc(self.req as _, layout) };
+            self.req = core::ptr::null_mut();
         }
     }
 }
@@ -146,8 +148,8 @@ impl crate::Loop {
         addr: &SocketAddr,
         flags: u32,
         cb: CB,
-    ) -> Result<GetNameInfoReq, Box<dyn std::error::Error>> {
-        let mut sockaddr: uv::sockaddr_storage = unsafe { std::mem::zeroed() };
+    ) -> Result<GetNameInfoReq, Box<dyn core::error::Error>> {
+        let mut sockaddr: uv::sockaddr_storage = unsafe { core::mem::zeroed() };
         crate::fill_sockaddr(&mut sockaddr, addr)?;
 
         let cb = cb.into();
@@ -179,7 +181,7 @@ impl crate::Loop {
         addr: &SocketAddr,
         flags: u32,
         cb: CB,
-    ) -> Result<GetNameInfoReq, Box<dyn std::error::Error>> {
+    ) -> Result<GetNameInfoReq, Box<dyn core::error::Error>> {
         self._getnameinfo(addr, flags, cb)
     }
 
@@ -192,7 +194,7 @@ impl crate::Loop {
         &self,
         addr: &SocketAddr,
         flags: u32,
-    ) -> Result<(String, String), Box<dyn std::error::Error>> {
+    ) -> Result<(String, String), Box<dyn core::error::Error>> {
         self._getnameinfo(addr, flags, ()).map(|mut req| {
             let res = (req.host(), req.service());
             req.destroy();

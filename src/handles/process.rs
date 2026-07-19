@@ -1,6 +1,8 @@
 use crate::{FromInner, HandleTrait, Inner, IntoInner};
-use std::convert::TryFrom;
-use std::ffi::CString;
+use alloc::boxed::Box;
+use alloc::ffi::CString;
+use alloc::vec::Vec;
+use core::convert::TryFrom;
 use uv::uv_stdio_container_s__bindgen_ty_1 as uv_stdio_container_data;
 use uv::{
     uv_disable_stdio_inheritance, uv_kill, uv_process_get_pid, uv_process_kill,
@@ -21,7 +23,7 @@ pub(crate) struct ProcessDataFields<'a> {
 extern "C" fn uv_exit_cb(
     handle: *mut uv_process_t,
     exit_status: i64,
-    term_signal: std::os::raw::c_int,
+    term_signal: core::ffi::c_int,
 ) {
     let dataptr = crate::Handle::get_data(uv_handle!(handle));
     if !dataptr.is_null() {
@@ -213,8 +215,8 @@ pub struct ProcessHandle {
 impl ProcessHandle {
     /// Create a new process handle
     pub fn new() -> crate::Result<ProcessHandle> {
-        let layout = std::alloc::Layout::new::<uv_process_t>();
-        let handle = unsafe { std::alloc::alloc(layout) as *mut uv_process_t };
+        let layout = core::alloc::Layout::new::<uv_process_t>();
+        let handle = unsafe { alloc::alloc::alloc(layout) as *mut uv_process_t };
         if handle.is_null() {
             return Err(crate::Error::ENOMEM);
         }
@@ -247,7 +249,7 @@ impl ProcessHandle {
         &mut self,
         r#loop: &crate::Loop,
         options: ProcessOptions,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    ) -> Result<(), Box<dyn core::error::Error>> {
         let exit_cb_uv = use_c_callback!(uv_exit_cb, options.exit_cb);
         let dataptr = crate::Handle::get_data(uv_handle!(self.handle));
         if !dataptr.is_null() {
@@ -270,8 +272,8 @@ impl ProcessHandle {
             .args
             .iter()
             .map(|a| CString::new(*a).map(|s| s.into_raw()))
-            .chain(std::iter::once(Ok(std::ptr::null_mut())))
-            .collect::<Result<Vec<*mut std::os::raw::c_char>, std::ffi::NulError>>()?;
+            .chain(core::iter::once(Ok(core::ptr::null_mut())))
+            .collect::<Result<Vec<*mut core::ffi::c_char>, alloc::ffi::NulError>>()?;
 
         // env is similar to args except that it is Option'al.
         let mut env = options
@@ -279,8 +281,8 @@ impl ProcessHandle {
             .map(|env| {
                 env.iter()
                     .map(|e| CString::new(*e).map(|s| s.into_raw()))
-                    .chain(std::iter::once(Ok(std::ptr::null_mut())))
-                    .collect::<Result<Vec<*mut std::os::raw::c_char>, std::ffi::NulError>>()
+                    .chain(core::iter::once(Ok(core::ptr::null_mut())))
+                    .collect::<Result<Vec<*mut core::ffi::c_char>, alloc::ffi::NulError>>()
             })
             .transpose()?;
 
@@ -303,8 +305,8 @@ impl ProcessHandle {
             args: args.as_mut_ptr(),
             env: env
                 .as_mut()
-                .map_or(std::ptr::null_mut(), |e| e.as_mut_ptr()),
-            cwd: cwd.map_or(std::ptr::null(), |s| s.as_ptr()),
+                .map_or(core::ptr::null_mut(), |e| e.as_mut_ptr()),
+            cwd: cwd.map_or(core::ptr::null(), |s| s.as_ptr()),
             flags: options.flags.bits(),
             stdio_count: options.stdio.len() as _,
             stdio: stdio.as_mut_ptr(),
@@ -328,7 +330,7 @@ impl ProcessHandle {
             .take(args.len() - 1)
             .map(|a| unsafe { CString::from_raw(*a) })
             .collect();
-        std::mem::drop(args);
+        core::mem::drop(args);
 
         // env is the same as args except it's Option'al
         let env: Option<Vec<CString>> = env.map(|env| {
@@ -337,7 +339,7 @@ impl ProcessHandle {
                 .map(|e| unsafe { CString::from_raw(*e) })
                 .collect()
         });
-        std::mem::drop(env);
+        core::mem::drop(env);
 
         result
     }
@@ -404,7 +406,7 @@ impl crate::Loop {
     pub fn spawn_process(
         &self,
         options: ProcessOptions,
-    ) -> Result<ProcessHandle, Box<dyn std::error::Error>> {
+    ) -> Result<ProcessHandle, Box<dyn core::error::Error>> {
         let mut process = ProcessHandle::new()?;
         process.spawn(self, options)?;
         Ok(process)

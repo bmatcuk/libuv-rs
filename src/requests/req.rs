@@ -1,7 +1,9 @@
 include!("./req_types.inc.rs");
 
 use crate::{FromInner, Inner, IntoInner};
-use std::ffi::CStr;
+use alloc::boxed::Box;
+use alloc::string::String;
+use core::ffi::CStr;
 use uv::{
     uv_cancel, uv_req_get_data, uv_req_get_type, uv_req_set_data, uv_req_t, uv_req_type_name,
 };
@@ -17,8 +19,8 @@ impl ReqType {
     }
 }
 
-impl std::fmt::Display for ReqType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for ReqType {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.write_str(&self.name())
     }
 }
@@ -44,8 +46,8 @@ impl Req {
     /// Free the request's data.
     pub(crate) fn free_data(req: *mut uv_req_t) {
         let ptr = Req::get_data(req);
-        std::mem::drop(unsafe { Box::from_raw(ptr) });
-        unsafe { uv_req_set_data(req, std::ptr::null_mut()) };
+        core::mem::drop(unsafe { Box::from_raw(ptr) });
+        unsafe { uv_req_set_data(req, core::ptr::null_mut()) };
     }
 }
 

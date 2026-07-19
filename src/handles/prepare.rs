@@ -1,5 +1,6 @@
 use crate::{FromInner, HandleTrait, Inner, IntoInner};
-use std::convert::TryFrom;
+use alloc::boxed::Box;
+use core::convert::TryFrom;
 use uv::{uv_prepare_init, uv_prepare_start, uv_prepare_stop, uv_prepare_t};
 
 callbacks! {
@@ -34,15 +35,15 @@ pub struct PrepareHandle {
 impl PrepareHandle {
     /// Create and initialize a new prepare handle
     pub fn new(r#loop: &crate::Loop) -> crate::Result<PrepareHandle> {
-        let layout = std::alloc::Layout::new::<uv_prepare_t>();
-        let handle = unsafe { std::alloc::alloc(layout) as *mut uv_prepare_t };
+        let layout = core::alloc::Layout::new::<uv_prepare_t>();
+        let handle = unsafe { alloc::alloc::alloc(layout) as *mut uv_prepare_t };
         if handle.is_null() {
             return Err(crate::Error::ENOMEM);
         }
 
         let ret = unsafe { uv_prepare_init(r#loop.into_inner(), handle) };
         if ret < 0 {
-            unsafe { std::alloc::dealloc(handle as _, layout) };
+            unsafe { alloc::alloc::dealloc(handle as _, layout) };
             return Err(crate::Error::from_inner(ret as uv::uv_errno_t));
         }
 

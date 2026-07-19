@@ -1,7 +1,9 @@
 use crate::{FromInner, Inner, IntoInner};
-use std::borrow::Cow;
-use std::ffi::CStr;
-use std::ops::{
+use alloc::borrow::Cow;
+use alloc::boxed::Box;
+use alloc::vec::Vec;
+use core::ffi::CStr;
+use core::ops::{
     Bound, Index, Range, RangeBounds, RangeFrom, RangeFull, RangeInclusive, RangeTo,
     RangeToInclusive,
 };
@@ -11,14 +13,14 @@ use uv::{uv_buf_init, uv_buf_t};
 #[derive(Debug)]
 pub struct EmptyBufError;
 
-impl std::fmt::Display for EmptyBufError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for EmptyBufError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.write_str("The Buf is empty.")
     }
 }
 
-impl std::error::Error for EmptyBufError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+impl core::error::Error for EmptyBufError {
+    fn source(&self) -> Option<&(dyn core::error::Error + 'static)> {
         None
     }
 }
@@ -27,7 +29,7 @@ impl std::error::Error for EmptyBufError {
 fn calc_alloc_size_alignment(size: usize) -> crate::Result<(usize, usize)> {
     // this assumes layout.size() <= layout.align() - this is loosely based on the
     // experimental Rust features to create a Layout for an array
-    let layout = std::alloc::Layout::new::<std::os::raw::c_char>();
+    let layout = core::alloc::Layout::new::<core::ffi::c_char>();
     let alloc_size = layout
         .align()
         .checked_mul(size)
@@ -36,9 +38,9 @@ fn calc_alloc_size_alignment(size: usize) -> crate::Result<(usize, usize)> {
 }
 
 /// Creates a Layout for the given size
-fn layout(size: usize) -> crate::Result<std::alloc::Layout> {
+fn layout(size: usize) -> crate::Result<core::alloc::Layout> {
     let (alloc_size, align) = calc_alloc_size_alignment(size)?;
-    std::alloc::Layout::from_size_align(alloc_size, align).or(Err(crate::Error::ENOMEM))
+    core::alloc::Layout::from_size_align(alloc_size, align).or(Err(crate::Error::ENOMEM))
 }
 
 /// Readonly buffer data type.
@@ -64,7 +66,7 @@ impl ReadonlyBuf {
             if self.is_allocated() {
                 let len = (*self.buf).len as _;
                 if let Ok(layout) = layout(len) {
-                    std::alloc::dealloc((*self.buf).base as _, layout);
+                    alloc::alloc::dealloc((*self.buf).base as _, layout);
                 }
             }
         }
@@ -93,13 +95,13 @@ impl ReadonlyBuf {
     /// Convert data in the Buf to a &str. Returns an error if the Buf is empty or the data is not
     /// valid utf8. Data does _not_ need to be null-terminated because only the first `len` bytes
     /// will be used to create the string.
-    pub fn to_str(&self, len: usize) -> Result<&str, Box<dyn std::error::Error>> {
+    pub fn to_str(&self, len: usize) -> Result<&str, Box<dyn core::error::Error>> {
         let ptr: *const uv_buf_t = self.inner();
         unsafe {
             if (*ptr).base.is_null() {
                 Err(Box::new(EmptyBufError))
             } else {
-                Ok(std::str::from_utf8(std::slice::from_raw_parts(
+                Ok(core::str::from_utf8(core::slice::from_raw_parts(
                     (*ptr).base as _,
                     len,
                 ))?)
@@ -168,7 +170,7 @@ where
         panic!("index {} out of range for Buf of length {}", end, len);
     }
 
-    unsafe { std::slice::from_raw_parts((*buf.buf).base.add(start) as *const u8, end - start) }
+    unsafe { core::slice::from_raw_parts((*buf.buf).base.add(start) as *const u8, end - start) }
 }
 
 impl Index<Range<usize>> for ReadonlyBuf {
@@ -226,9 +228,9 @@ pub struct Buf {
 }
 
 impl Buf {
-    fn alloc(size: usize) -> crate::Result<*mut std::os::raw::c_char> {
+    fn alloc(size: usize) -> crate::Result<*mut core::ffi::c_char> {
         let layout = layout(size)?;
-        let ptr = unsafe { std::alloc::alloc(layout) as *mut std::os::raw::c_char };
+        let ptr = unsafe { alloc::alloc::alloc(layout) as *mut core::ffi::c_char };
         if ptr.is_null() {
             Err(crate::Error::ENOMEM)
         } else {
@@ -237,12 +239,12 @@ impl Buf {
     }
 
     /// Create a new Buf with the given string
-    pub fn new(s: &str) -> Result<Buf, Box<dyn std::error::Error>> {
+    pub fn new(s: &str) -> Result<Buf, Box<dyn core::error::Error>> {
         Buf::new_from_bytes(s.as_bytes())
     }
 
     /// Create a new Buf from the given byte slice
-    pub fn new_from_bytes(bytes: &[u8]) -> Result<Buf, Box<dyn std::error::Error>> {
+    pub fn new_from_bytes(bytes: &[u8]) -> Result<Buf, Box<dyn core::error::Error>> {
         let len = bytes.len();
         let buflen = len + 1;
         let base = Buf::alloc(buflen)?;
@@ -273,7 +275,7 @@ impl Buf {
                 return Buf::with_capacity(s);
             }
             return Ok(Buf {
-                buf: std::ptr::null_mut(),
+                buf: core::ptr::null_mut(),
             });
         }
 
@@ -300,7 +302,8 @@ impl Buf {
             if len != size {
                 let (alloc_size, _) = calc_alloc_size_alignment(size)?;
                 let layout = layout(len)?;
-                let ptr = unsafe { std::alloc::realloc((*self.buf).base as _, layout, alloc_size) };
+                let ptr =
+                    unsafe { alloc::alloc::realloc((*self.buf).base as _, layout, alloc_size) };
                 if ptr.is_null() {
                     return Err(crate::Error::ENOMEM);
                 }
@@ -348,8 +351,8 @@ impl Buf {
             if self.is_allocated() {
                 let len = (*self.buf).len as _;
                 if let Ok(layout) = layout(len) {
-                    std::alloc::dealloc((*self.buf).base as _, layout);
-                    (*self.buf).base = std::ptr::null_mut();
+                    alloc::alloc::dealloc((*self.buf).base as _, layout);
+                    (*self.buf).base = core::ptr::null_mut();
                     (*self.buf).len = 0;
                 }
             }
@@ -358,7 +361,7 @@ impl Buf {
 
     /// Deallocates the Buf struct, leaving the internal buffer alone. This is used by alloc_cb.
     pub(crate) fn destroy_container(&mut self) {
-        std::mem::drop(unsafe { Box::from_raw(self.buf) });
+        core::mem::drop(unsafe { Box::from_raw(self.buf) });
     }
 
     /// Deallocates the internal buffer *and* the Buf
@@ -392,8 +395,8 @@ impl From<Buf> for ReadonlyBuf {
     }
 }
 
-impl std::convert::TryFrom<&str> for Buf {
-    type Error = Box<dyn std::error::Error>;
+impl core::convert::TryFrom<&str> for Buf {
+    type Error = Box<dyn core::error::Error>;
 
     fn try_from(s: &str) -> Result<Self, Self::Error> {
         Buf::new(s)
@@ -425,7 +428,7 @@ where
         // functions like uv_write, uv_udf_send, etc expect an array of uv_buf_t objects, *not* an
         // array of pointers. So, we need to create a Vec of copies of the data from the
         // dereferenced pointers.
-        let mut bufs: std::mem::ManuallyDrop<Vec<uv::uv_buf_t>> = std::mem::ManuallyDrop::new(
+        let mut bufs: core::mem::ManuallyDrop<Vec<uv::uv_buf_t>> = core::mem::ManuallyDrop::new(
             bufs.iter()
                 .map(|b| unsafe { *b.readonly().inner() }.clone())
                 .collect(),

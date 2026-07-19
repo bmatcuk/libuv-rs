@@ -1,4 +1,6 @@
 use crate::{FromInner, Inner, IntoInner, NREAD};
+use alloc::boxed::Box;
+use alloc::vec::Vec;
 use uv::{
     uv_accept, uv_is_readable, uv_is_writable, uv_listen, uv_read_start, uv_read_stop, uv_shutdown,
     uv_stream_get_write_queue_size, uv_stream_set_blocking, uv_stream_t, uv_try_write,
@@ -37,7 +39,7 @@ pub(crate) extern "C" fn uv_alloc_cb(
                     new_buf.destroy_container();
                 }
                 None => {
-                    (*buf).base = std::ptr::null_mut();
+                    (*buf).base = core::ptr::null_mut();
                     (*buf).len = 0;
                 }
             }
@@ -46,7 +48,7 @@ pub(crate) extern "C" fn uv_alloc_cb(
 }
 
 /// Callback for uv_listen
-extern "C" fn uv_connection_cb(stream: *mut uv_stream_t, status: std::os::raw::c_int) {
+extern "C" fn uv_connection_cb(stream: *mut uv_stream_t, status: core::ffi::c_int) {
     let dataptr = StreamHandle::get_data(stream);
     if !dataptr.is_null() {
         unsafe {
@@ -102,7 +104,7 @@ impl StreamHandle {
         {
             return d;
         }
-        std::ptr::null_mut()
+        core::ptr::null_mut()
     }
 }
 
@@ -314,7 +316,7 @@ pub trait StreamTrait: ToStream {
         let (bufs_ptr, bufs_len, bufs_capacity) = bufs.into_inner();
         let result = unsafe { uv_try_write(self.to_stream().inner(), bufs_ptr, bufs_len as _) };
 
-        unsafe { std::mem::drop(Vec::from_raw_parts(bufs_ptr, bufs_len, bufs_capacity)) };
+        unsafe { core::mem::drop(Vec::from_raw_parts(bufs_ptr, bufs_len, bufs_capacity)) };
 
         crate::uvret(result).map(|_| result as _)
     }
@@ -337,7 +339,7 @@ pub trait StreamTrait: ToStream {
             )
         };
 
-        unsafe { std::mem::drop(Vec::from_raw_parts(bufs_ptr, bufs_len, bufs_capacity)) };
+        unsafe { core::mem::drop(Vec::from_raw_parts(bufs_ptr, bufs_len, bufs_capacity)) };
 
         crate::uvret(result).map(|_| result as _)
     }

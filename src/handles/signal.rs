@@ -1,5 +1,6 @@
 use crate::{FromInner, HandleTrait, Inner, IntoInner};
-use std::convert::TryFrom;
+use alloc::boxed::Box;
+use core::convert::TryFrom;
 use uv::{uv_signal_init, uv_signal_start, uv_signal_start_oneshot, uv_signal_stop, uv_signal_t};
 
 callbacks! {
@@ -13,7 +14,7 @@ pub(crate) struct SignalDataFields<'a> {
 }
 
 /// Callback for uv_signal_start
-extern "C" fn uv_signal_cb(handle: *mut uv_signal_t, signum: std::os::raw::c_int) {
+extern "C" fn uv_signal_cb(handle: *mut uv_signal_t, signum: core::ffi::c_int) {
     let dataptr = crate::Handle::get_data(uv_handle!(handle));
     if !dataptr.is_null() {
         unsafe {
@@ -59,15 +60,15 @@ pub struct SignalHandle {
 impl SignalHandle {
     /// Create and initialize a new signal handle
     pub fn new(r#loop: &crate::Loop) -> crate::Result<SignalHandle> {
-        let layout = std::alloc::Layout::new::<uv_signal_t>();
-        let handle = unsafe { std::alloc::alloc(layout) as *mut uv_signal_t };
+        let layout = core::alloc::Layout::new::<uv_signal_t>();
+        let handle = unsafe { alloc::alloc::alloc(layout) as *mut uv_signal_t };
         if handle.is_null() {
             return Err(crate::Error::ENOMEM);
         }
 
         let ret = unsafe { uv_signal_init(r#loop.into_inner(), handle) };
         if ret < 0 {
-            unsafe { std::alloc::dealloc(handle as _, layout) };
+            unsafe { alloc::alloc::dealloc(handle as _, layout) };
             return Err(crate::Error::from_inner(ret as uv::uv_errno_t));
         }
 

@@ -1,4 +1,6 @@
 use crate::{FromInner, Inner, IntoInner};
+use alloc::boxed::Box;
+use alloc::vec::Vec;
 use uv::{uv_random, uv_random_t};
 
 callbacks! {
@@ -17,8 +19,8 @@ pub(crate) struct RandomDataFields<'a> {
 /// Callback for uv_random
 extern "C" fn uv_random_cb(
     req: *mut uv_random_t,
-    status: std::os::raw::c_int,
-    buf: *mut std::os::raw::c_void,
+    status: core::ffi::c_int,
+    buf: *mut core::ffi::c_void,
     buflen: usize,
 ) {
     let dataptr = crate::Req::get_data(uv_handle!(req));
@@ -50,8 +52,8 @@ pub struct RandomReq {
 impl RandomReq {
     /// Create a new random request
     pub fn new<CB: Into<RandomCB<'static>>>(cb: CB) -> crate::Result<RandomReq> {
-        let layout = std::alloc::Layout::new::<uv_random_t>();
-        let req = unsafe { std::alloc::alloc(layout) as *mut uv_random_t };
+        let layout = core::alloc::Layout::new::<uv_random_t>();
+        let req = unsafe { alloc::alloc::alloc(layout) as *mut uv_random_t };
         if req.is_null() {
             return Err(crate::Error::ENOMEM);
         }
@@ -70,8 +72,8 @@ impl RandomReq {
     pub fn destroy(&mut self) {
         crate::Req::free_data(uv_handle!(self.req));
 
-        let layout = std::alloc::Layout::new::<uv_random_t>();
-        unsafe { std::alloc::dealloc(self.req as _, layout) };
+        let layout = core::alloc::Layout::new::<uv_random_t>();
+        unsafe { alloc::alloc::dealloc(self.req as _, layout) };
     }
 }
 
@@ -137,7 +139,7 @@ impl crate::Loop {
         cb: CB,
     ) -> crate::Result<RandomReq> {
         let mut req = RandomReq::new(cb)?;
-        let mut buf = std::mem::ManuallyDrop::new(Vec::<u8>::with_capacity(buflen));
+        let mut buf = core::mem::ManuallyDrop::new(Vec::<u8>::with_capacity(buflen));
         let result = crate::uvret(unsafe {
             uv_random(
                 self.into_inner(),
@@ -181,16 +183,16 @@ impl crate::Loop {
         unsafe { buf.set_len(buflen) };
         crate::uvret(unsafe {
             uv_random(
-                std::ptr::null_mut(),
-                std::ptr::null_mut(),
+                core::ptr::null_mut(),
+                core::ptr::null_mut(),
                 buf.as_mut_ptr() as _,
                 buflen as _,
                 flags as _,
                 None::<
                     unsafe extern "C" fn(
                         *mut uv_random_t,
-                        std::os::raw::c_int,
-                        *mut std::os::raw::c_void,
+                        core::ffi::c_int,
+                        *mut core::ffi::c_void,
                         usize,
                     ),
                 >,

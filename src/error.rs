@@ -1,7 +1,8 @@
 include!("./error.inc.rs");
 
-use std::ffi::CStr;
-use std::fmt::{Display, Formatter};
+use alloc::string::String;
+use core::ffi::CStr;
+use core::fmt::{Display, Formatter};
 use uv::{uv_err_name, uv_strerror};
 
 impl Error {
@@ -25,12 +26,12 @@ impl Error {
 }
 
 impl Display for Error {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}: {}", self.name(), self.message())
     }
 }
 
-impl std::error::Error for Error {}
+impl core::error::Error for Error {}
 
 #[derive(Clone, Copy, Debug)]
 pub struct ConversionError {
@@ -45,9 +46,9 @@ impl ConversionError {
 }
 
 impl Display for ConversionError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         write!(f, "Cannot convert {} to {}", self.from, self.to)
     }
 }
 
-impl std::error::Error for ConversionError {}
+impl core::error::Error for ConversionError {}

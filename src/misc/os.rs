@@ -1,5 +1,7 @@
 use crate::{FromInner, IntoInner};
-use std::ffi::CStr;
+use alloc::string::String;
+use alloc::vec::Vec;
+use core::ffi::CStr;
 use uv::{
     uv_available_parallelism, uv_group_t, uv_os_free_group, uv_os_free_passwd, uv_os_get_group,
     uv_os_get_passwd, uv_os_get_passwd2, uv_os_gethostname, uv_os_getpid, uv_os_getppid,
@@ -126,7 +128,7 @@ impl FromInner<uv_utsname_t> for SystemInfo {
 /// systems, all data comes from getpwuid_r(3). On Windows, uid, gid, and shell are all set to
 /// None.
 pub fn get_passwd() -> crate::Result<User> {
-    let mut passwd: uv_passwd_t = unsafe { std::mem::zeroed() };
+    let mut passwd: uv_passwd_t = unsafe { core::mem::zeroed() };
     crate::uvret(unsafe { uv_os_get_passwd(&mut passwd as _) })?;
 
     let result = passwd.into_inner();
@@ -138,7 +140,7 @@ pub fn get_passwd() -> crate::Result<User> {
 /// username, euid, gid, shell, and home directory. On non-Windows systems, all data comes from
 /// getpwuid_r(3). On Windows, uid, gid, and shell are set to None and have no meaning.
 pub fn get_passwd2(uid: crate::Uid) -> crate::Result<User> {
-    let mut passwd: uv_passwd_t = unsafe { std::mem::zeroed() };
+    let mut passwd: uv_passwd_t = unsafe { core::mem::zeroed() };
     crate::uvret(unsafe { uv_os_get_passwd2(&mut passwd as _, uid) })?;
 
     let result = passwd.into_inner();
@@ -150,7 +152,7 @@ pub fn get_passwd2(uid: crate::Uid) -> crate::Result<User> {
 /// group name, gid, and members. On non-Windows systems, all data comes from getgrgid_r(3). On
 /// Windows, uid and gid are set to None and have no meaning.
 pub fn get_group(gid: crate::Gid) -> crate::Result<Group> {
-    let mut group: uv_group_t = unsafe { std::mem::zeroed() };
+    let mut group: uv_group_t = unsafe { core::mem::zeroed() };
     crate::uvret(unsafe { uv_os_get_group(&mut group as _, gid) })?;
 
     let result = group.into_inner();
@@ -161,7 +163,7 @@ pub fn get_group(gid: crate::Gid) -> crate::Result<Group> {
 /// Returns the hostname
 pub fn gethostname() -> crate::Result<String> {
     let mut size = UV_MAXHOSTNAMESIZE as usize;
-    let mut buf: Vec<std::os::raw::c_uchar> = Vec::with_capacity(size as _);
+    let mut buf: Vec<core::ffi::c_uchar> = Vec::with_capacity(size as _);
     crate::uvret(unsafe { uv_os_gethostname(buf.as_mut_ptr() as _, &mut size as _) }).map(|_| {
         // size is the length of the string, *not* including the null
         unsafe { buf.set_len((size as usize) + 1) };
@@ -225,7 +227,7 @@ pub fn setpriority(pid: Pid, priority: i32) -> crate::Result<()> {
 /// release, version, and machine. On non-Windows systems, uv_os_uname() is a thin wrapper around
 /// uname(2).
 pub fn uname() -> crate::Result<SystemInfo> {
-    let mut buf: uv_utsname_t = unsafe { std::mem::zeroed() };
+    let mut buf: uv_utsname_t = unsafe { core::mem::zeroed() };
     crate::uvret(unsafe { uv_os_uname(&mut buf as _) })?;
     Ok(buf.into_inner())
 }

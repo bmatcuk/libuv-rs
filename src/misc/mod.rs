@@ -1,12 +1,19 @@
 use crate::{FromInner, IntoInner};
-use std::ffi::{CStr, CString};
+use alloc::string::String;
+use alloc::vec::Vec;
+use core::ffi::CStr;
 use uv::{
     uv_clock_gettime, uv_cpu_info, uv_cpu_info_t, uv_cpumask_size, uv_free_cpu_info,
-    uv_get_available_memory, uv_get_constrained_memory, uv_get_free_memory, uv_get_process_title,
-    uv_get_total_memory, uv_getrusage, uv_getrusage_thread, uv_gettimeofday, uv_hrtime,
-    uv_library_shutdown, uv_loadavg, uv_resident_set_memory, uv_rusage_t, uv_set_process_title,
-    uv_setup_args, uv_sleep, uv_timespec64_t, uv_timeval64_t, uv_timeval_t, uv_uptime,
+    uv_get_available_memory, uv_get_constrained_memory, uv_get_free_memory, uv_get_total_memory,
+    uv_getrusage, uv_getrusage_thread, uv_gettimeofday, uv_hrtime, uv_library_shutdown, uv_loadavg,
+    uv_resident_set_memory, uv_rusage_t, uv_sleep, uv_timespec64_t, uv_timeval64_t, uv_timeval_t,
+    uv_uptime,
 };
+
+#[cfg(feature = "std")]
+use alloc::ffi::CString;
+#[cfg(feature = "std")]
+use uv::{uv_get_process_title, uv_set_process_title, uv_setup_args};
 
 pub mod os;
 pub use os::*;
@@ -162,18 +169,19 @@ impl FromInner<uv_timespec64_t> for TimeSpec64 {
 /// Store the program arguments. Required for getting / setting the process title or the executable
 /// path. Libuv may take ownership of the memory that argv points to. This function should be
 /// called exactly once, at program start-up.
-pub fn setup_args() -> Result<Vec<String>, std::ffi::NulError> {
+#[cfg(feature = "std")]
+pub fn setup_args() -> Result<Vec<String>, alloc::ffi::NulError> {
     // Get arguments, transform into CStrings and then into raw bytes
     let mut args = std::env::args()
         .map(|s| CString::new(s).map(|s| s.into_bytes_with_nul()))
-        .collect::<Result<Vec<_>, std::ffi::NulError>>()?;
-    let mut argsptr: Vec<*mut std::os::raw::c_char> =
+        .collect::<Result<Vec<_>, alloc::ffi::NulError>>()?;
+    let mut argsptr: Vec<*mut core::ffi::c_char> =
         args.iter_mut().map(|s| s.as_mut_ptr() as _).collect();
     let argc = args.len();
 
     // rebuild args from the return value
     let args = unsafe { uv_setup_args(argc as _, argsptr.as_mut_ptr()) };
-    let args = unsafe { std::slice::from_raw_parts(args, argc) };
+    let args = unsafe { core::slice::from_raw_parts(args, argc) };
     Ok(args
         .iter()
         .map(|arg| {
@@ -206,9 +214,10 @@ pub fn shutdown() {
 /// This function is thread-safe on all supported platforms.
 ///
 /// Returns an error if setup_args is needed but hasn’t been called.
+#[cfg(feature = "std")]
 pub fn get_process_title() -> crate::Result<String> {
     let mut size = 16usize;
-    let mut buf: Vec<std::os::raw::c_char> = vec![];
+    let mut buf: Vec<core::ffi::c_char> = vec![];
     loop {
         // title didn't fit in old size - double our allocation and try again
         size *= 2;
@@ -239,7 +248,8 @@ pub fn get_process_title() -> crate::Result<String> {
 /// This function is thread-safe on all supported platforms.
 ///
 /// Returns an error if setup_args is needed but hasn’t been called.
-pub fn set_process_title(title: &str) -> Result<(), Box<dyn std::error::Error>> {
+#[cfg(feature = "std")]
+pub fn set_process_title(title: &str) -> Result<(), Box<dyn core::error::Error>> {
     let title = CString::new(title)?;
     crate::uvret(unsafe { uv_set_process_title(title.as_ptr()) }).map_err(|e| Box::new(e) as _)
 }
@@ -262,7 +272,7 @@ pub fn uptime() -> crate::Result<f64> {
 /// Note: On Windows not all fields are set, the unsupported fields are filled with zeroes. See
 /// ResourceUsage for more details.
 pub fn getrusage() -> crate::Result<ResourceUsage> {
-    let mut usage: uv_rusage_t = unsafe { std::mem::zeroed() };
+    let mut usage: uv_rusage_t = unsafe { core::mem::zeroed() };
     crate::uvret(unsafe { uv_getrusage(&mut usage as _) }).map(|_| usage.into_inner())
 }
 
@@ -271,17 +281,17 @@ pub fn getrusage() -> crate::Result<ResourceUsage> {
 /// Note: Not supported on all platforms. May return ENOTSUP. On macOS and Windows not all fields
 /// are set, the unsupported fields are filled with zeroes. See ResourceUsage for more details.
 pub fn getrusage_thread() -> crate::Result<ResourceUsage> {
-    let mut usage: uv_rusage_t = unsafe { std::mem::zeroed() };
+    let mut usage: uv_rusage_t = unsafe { core::mem::zeroed() };
     crate::uvret(unsafe { uv_getrusage_thread(&mut usage as _) }).map(|_| usage.into_inner())
 }
 
 /// Gets information about the CPUs on the system.
 pub fn cpu_info() -> crate::Result<Vec<CpuInfo>> {
-    let mut infos: *mut uv_cpu_info_t = unsafe { std::mem::zeroed() };
-    let mut count: std::os::raw::c_int = 0;
+    let mut infos: *mut uv_cpu_info_t = unsafe { core::mem::zeroed() };
+    let mut count: core::ffi::c_int = 0;
     crate::uvret(unsafe { uv_cpu_info(&mut infos as _, &mut count as _) })?;
 
-    let result = unsafe { std::slice::from_raw_parts(infos, count as _) }
+    let result = unsafe { core::slice::from_raw_parts(infos, count as _) }
         .iter()
         .map(|info| info.into_inner())
         .collect();
@@ -354,7 +364,7 @@ pub fn hrtime() -> u64 {
 ///
 /// The monotonic clock counts from an arbitrary point in the past and never jumps back in time.
 pub fn clock_gettime(clock_id: ClockId) -> crate::Result<TimeSpec64> {
-    let mut timespec: uv_timespec64_t = unsafe { std::mem::zeroed() };
+    let mut timespec: uv_timespec64_t = unsafe { core::mem::zeroed() };
     crate::uvret(unsafe { uv_clock_gettime(clock_id as _, &mut timespec as _) })
         .map(|_| timespec.into_inner())
 }
@@ -362,7 +372,7 @@ pub fn clock_gettime(clock_id: ClockId) -> crate::Result<TimeSpec64> {
 /// Cross-platform implementation of gettimeofday(2). The timezone argument to gettimeofday() is
 /// not supported, as it is considered obsolete.
 pub fn gettimeofday() -> crate::Result<TimeVal> {
-    let mut tv: uv_timeval64_t = unsafe { std::mem::zeroed() };
+    let mut tv: uv_timeval64_t = unsafe { core::mem::zeroed() };
     crate::uvret(unsafe { uv_gettimeofday(&mut tv as _) }).map(|_| tv.into_inner())
 }
 

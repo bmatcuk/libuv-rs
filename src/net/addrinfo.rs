@@ -1,5 +1,7 @@
 use crate::{FromInner, IntoInner};
-use std::net::SocketAddr;
+use alloc::string::String;
+use alloc::vec::Vec;
+use core::net::SocketAddr;
 use uv::addrinfo;
 
 pub struct AddrInfo {
@@ -29,7 +31,7 @@ impl FromInner<*mut addrinfo> for AddrInfo {
                 None
             } else {
                 Some(
-                    std::ffi::CStr::from_ptr((*info).ai_canonname as _)
+                    core::ffi::CStr::from_ptr((*info).ai_canonname as _)
                         .to_string_lossy()
                         .into_owned(),
                 )
@@ -53,7 +55,7 @@ impl FromInner<*mut addrinfo> for AddrInfo {
 
 impl IntoInner<addrinfo> for AddrInfo {
     fn into_inner(self) -> addrinfo {
-        let mut ai: addrinfo = unsafe { std::mem::zeroed() };
+        let mut ai: addrinfo = unsafe { core::mem::zeroed() };
         ai.ai_flags = self.flags as _;
         ai.ai_family = self.family as _;
         ai.ai_socktype = self.socktype as _;

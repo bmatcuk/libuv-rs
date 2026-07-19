@@ -1,9 +1,14 @@
 use crate::IntoInner;
-use std::ffi::{CStr, CString};
+use alloc::boxed::Box;
+use alloc::ffi::CString;
+use alloc::string::String;
+use alloc::vec;
+use alloc::vec::Vec;
+use core::ffi::CStr;
 use uv::{uv_chdir, uv_cwd, uv_exepath, uv_guess_handle};
 
 /// Changes the current working directory.
-pub fn chdir(dir: &str) -> Result<(), Box<dyn std::error::Error>> {
+pub fn chdir(dir: &str) -> Result<(), Box<dyn core::error::Error>> {
     let dir = CString::new(dir)?;
     crate::uvret(unsafe { uv_chdir(dir.as_ptr()) }).map_err(|e| Box::new(e) as _)
 }
@@ -11,9 +16,9 @@ pub fn chdir(dir: &str) -> Result<(), Box<dyn std::error::Error>> {
 /// Gets the current working directory.
 pub fn cwd() -> crate::Result<String> {
     let mut size = 0usize;
-    unsafe { uv_cwd(std::ptr::null_mut(), &mut size as _) };
+    unsafe { uv_cwd(core::ptr::null_mut(), &mut size as _) };
 
-    let mut buf: Vec<std::os::raw::c_uchar> = Vec::with_capacity(size as _);
+    let mut buf: Vec<core::ffi::c_uchar> = Vec::with_capacity(size as _);
     crate::uvret(unsafe { uv_cwd(buf.as_mut_ptr() as _, &mut size as _) }).map(|_| {
         unsafe { buf.set_len(size as _) };
         unsafe { CStr::from_bytes_with_nul_unchecked(&buf) }
@@ -30,7 +35,7 @@ pub fn cwd() -> crate::Result<String> {
 pub fn exepath() -> crate::Result<String> {
     let mut allocated = 32usize;
     let mut size = allocated - 1;
-    let mut buf: Vec<std::os::raw::c_uchar> = vec![];
+    let mut buf: Vec<core::ffi::c_uchar> = vec![];
     while size == allocated - 1 {
         // path didn't fit in old size - double our allocation and try again
         allocated *= 2;

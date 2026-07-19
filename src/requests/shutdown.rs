@@ -1,4 +1,5 @@
 use crate::{FromInner, Inner, IntoInner};
+use alloc::boxed::Box;
 use uv::uv_shutdown_t;
 
 callbacks! {
@@ -11,7 +12,7 @@ pub(crate) struct ShutdownDataFields<'a> {
 }
 
 /// Callback for uv_shutdown
-pub(crate) extern "C" fn uv_shutdown_cb(req: *mut uv_shutdown_t, status: std::os::raw::c_int) {
+pub(crate) extern "C" fn uv_shutdown_cb(req: *mut uv_shutdown_t, status: core::ffi::c_int) {
     let dataptr = crate::Req::get_data(uv_handle!(req));
     if !dataptr.is_null() {
         unsafe {
@@ -40,8 +41,8 @@ pub struct ShutdownReq {
 impl ShutdownReq {
     /// Create a new shutdown request
     pub fn new<CB: Into<ShutdownCB<'static>>>(cb: CB) -> crate::Result<ShutdownReq> {
-        let layout = std::alloc::Layout::new::<uv_shutdown_t>();
-        let req = unsafe { std::alloc::alloc(layout) as *mut uv_shutdown_t };
+        let layout = core::alloc::Layout::new::<uv_shutdown_t>();
+        let req = unsafe { alloc::alloc::alloc(layout) as *mut uv_shutdown_t };
         if req.is_null() {
             return Err(crate::Error::ENOMEM);
         }
@@ -64,8 +65,8 @@ impl ShutdownReq {
     pub fn destroy(&mut self) {
         crate::Req::free_data(uv_handle!(self.req));
 
-        let layout = std::alloc::Layout::new::<uv_shutdown_t>();
-        unsafe { std::alloc::dealloc(self.req as _, layout) };
+        let layout = core::alloc::Layout::new::<uv_shutdown_t>();
+        unsafe { alloc::alloc::dealloc(self.req as _, layout) };
     }
 }
 

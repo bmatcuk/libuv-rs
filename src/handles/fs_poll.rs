@@ -1,6 +1,10 @@
 use crate::{FromInner, HandleTrait, Inner, IntoInner};
-use std::convert::TryFrom;
-use std::ffi::{CStr, CString};
+use alloc::boxed::Box;
+use alloc::ffi::CString;
+use alloc::string::String;
+use alloc::vec::Vec;
+use core::convert::TryFrom;
+use core::ffi::CStr;
 use uv::{uv_fs_poll_getpath, uv_fs_poll_init, uv_fs_poll_start, uv_fs_poll_stop, uv_fs_poll_t};
 
 callbacks! {
@@ -21,7 +25,7 @@ pub(crate) struct FsPollDataFields<'a> {
 /// Callback for uv_fs_poll_start
 extern "C" fn uv_fs_poll_cb(
     handle: *mut uv_fs_poll_t,
-    status: std::os::raw::c_int,
+    status: core::ffi::c_int,
     prev: *const uv::uv_stat_t,
     curr: *const uv::uv_stat_t,
 ) {
@@ -57,15 +61,15 @@ pub struct FsPollHandle {
 impl FsPollHandle {
     /// Create and initialize a new fs poll handle
     pub fn new(r#loop: &crate::Loop) -> crate::Result<FsPollHandle> {
-        let layout = std::alloc::Layout::new::<uv_fs_poll_t>();
-        let handle = unsafe { std::alloc::alloc(layout) as *mut uv_fs_poll_t };
+        let layout = core::alloc::Layout::new::<uv_fs_poll_t>();
+        let handle = unsafe { alloc::alloc::alloc(layout) as *mut uv_fs_poll_t };
         if handle.is_null() {
             return Err(crate::Error::ENOMEM);
         }
 
         let ret = unsafe { uv_fs_poll_init(r#loop.into_inner(), handle) };
         if ret < 0 {
-            unsafe { std::alloc::dealloc(handle as _, layout) };
+            unsafe { alloc::alloc::dealloc(handle as _, layout) };
             return Err(crate::Error::from_inner(ret as uv::uv_errno_t));
         }
 
@@ -83,7 +87,7 @@ impl FsPollHandle {
         path: &str,
         interval: u32,
         cb: CB,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    ) -> Result<(), Box<dyn core::error::Error>> {
         let path = CString::new(path)?;
 
         // uv_cb is either Some(fs_poll_cb) or None
@@ -112,7 +116,7 @@ impl FsPollHandle {
         // retrieve the size of the buffer we need to allocate
         let mut size = 0usize;
         let result = crate::uvret(unsafe {
-            uv_fs_poll_getpath(self.handle, std::ptr::null_mut(), &mut size as _)
+            uv_fs_poll_getpath(self.handle, core::ptr::null_mut(), &mut size as _)
         });
         if let Err(e) = result {
             if e != crate::Error::ENOBUFS {
@@ -121,7 +125,7 @@ impl FsPollHandle {
         }
 
         // On ENOBUFS, size is the length of the required buffer, *including* the null
-        let mut buf: Vec<std::os::raw::c_uchar> = Vec::with_capacity(size as _);
+        let mut buf: Vec<core::ffi::c_uchar> = Vec::with_capacity(size as _);
         crate::uvret(unsafe {
             uv_fs_poll_getpath(self.handle, buf.as_mut_ptr() as _, &mut size as _)
         })

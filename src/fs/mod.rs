@@ -18,7 +18,9 @@ include!("./fs_symlink_flags.inc.rs");
 include!("./fs_types.inc.rs");
 
 use crate::{FromInner, FsReq, Inner, IntoInner};
-use std::ffi::CString;
+use alloc::boxed::Box;
+use alloc::ffi::CString;
+use alloc::string::String;
 use uv::{
     uv_fs_access, uv_fs_chmod, uv_fs_chown, uv_fs_close, uv_fs_closedir, uv_fs_copyfile,
     uv_fs_fchmod, uv_fs_fchown, uv_fs_fdatasync, uv_fs_fstat, uv_fs_fsync, uv_fs_ftruncate,
@@ -47,16 +49,16 @@ pub mod timespec;
 pub use timespec::*;
 
 type FsReqResult = crate::Result<FsReq>;
-type FsReqErrResult = Result<FsReq, Box<dyn std::error::Error>>;
+type FsReqErrResult = Result<FsReq, Box<dyn core::error::Error>>;
 type SyncResult = crate::Result<usize>;
-type SyncErrResult = Result<usize, Box<dyn std::error::Error>>;
+type SyncErrResult = Result<usize, Box<dyn core::error::Error>>;
 
 /// Cross platform representation of a file handle.
 pub type File = i32;
 
 /// Platform dependent representation of a file handle.
 #[cfg(windows)]
-pub type OsFile = *mut std::ffi::c_void;
+pub type OsFile = *mut core::ffi::c_void;
 #[cfg(not(windows))]
 pub type OsFile = i32;
 
@@ -164,7 +166,7 @@ impl crate::Loop {
         path: &str,
         flags: FsOpenFlags,
         mode: FsModeFlags,
-    ) -> Result<File, Box<dyn std::error::Error>> {
+    ) -> Result<File, Box<dyn core::error::Error>> {
         self._fs_open(path, flags, mode, ()).and_then(|mut req| {
             let file = req.result();
             req.destroy();
@@ -381,7 +383,7 @@ impl crate::Loop {
     }
 
     /// Equivalent to mkdtemp(3).
-    pub fn fs_mkdtemp_sync(&self, tpl: &str) -> Result<String, Box<dyn std::error::Error>> {
+    pub fn fs_mkdtemp_sync(&self, tpl: &str) -> Result<String, Box<dyn core::error::Error>> {
         self._fs_mkdtemp(tpl, ()).map(|mut req| {
             let path = req.path();
             req.destroy();
@@ -475,7 +477,7 @@ impl crate::Loop {
     ///
     /// The contents of the directory can be iterated over by passing the resulting Dir to
     /// fs_readdir().
-    pub fn fs_opendir_sync(&self, path: &str) -> Result<crate::Dir, Box<dyn std::error::Error>> {
+    pub fn fs_opendir_sync(&self, path: &str) -> Result<crate::Dir, Box<dyn core::error::Error>> {
         self._fs_opendir(path, ()).and_then(|mut req| {
             let dir = req.dir();
             req.destroy();
@@ -608,7 +610,7 @@ impl crate::Loop {
         &self,
         path: &str,
         flags: FsOpenFlags,
-    ) -> Result<ScandirIter, Box<dyn std::error::Error>> {
+    ) -> Result<ScandirIter, Box<dyn core::error::Error>> {
         self._fs_scandir(path, flags, ())
             .map(|req| ScandirIter { req })
     }
@@ -635,7 +637,7 @@ impl crate::Loop {
     }
 
     /// Equivalent to stat(2).
-    pub fn fs_stat_sync(&self, path: &str) -> Result<Stat, Box<dyn std::error::Error>> {
+    pub fn fs_stat_sync(&self, path: &str) -> Result<Stat, Box<dyn core::error::Error>> {
         self._fs_stat(path, ()).map(|mut req| {
             let stat = req.stat();
             req.destroy();
@@ -692,7 +694,7 @@ impl crate::Loop {
     }
 
     /// Equivalent to lstat(2).
-    pub fn fs_lstat_sync(&self, path: &str) -> Result<Stat, Box<dyn std::error::Error>> {
+    pub fn fs_lstat_sync(&self, path: &str) -> Result<Stat, Box<dyn core::error::Error>> {
         self._fs_lstat(path, ()).map(|mut req| {
             let stat = req.stat();
             req.destroy();
@@ -728,7 +730,7 @@ impl crate::Loop {
     ///
     /// Note: Any fields in the resulting StatFs that are not supported by the underlying operating
     /// system are set to zero.
-    pub fn fs_statfs_sync(&self, path: &str) -> Result<StatFs, Box<dyn std::error::Error>> {
+    pub fn fs_statfs_sync(&self, path: &str) -> Result<StatFs, Box<dyn core::error::Error>> {
         self._fs_statfs(path, ()).and_then(|mut req| {
             let statfs = req.statfs();
             req.destroy();
@@ -1363,7 +1365,7 @@ impl crate::Loop {
     }
 
     /// Equivalent to readlink(2).
-    pub fn fs_readlink_sync(&self, path: &str) -> Result<String, Box<dyn std::error::Error>> {
+    pub fn fs_readlink_sync(&self, path: &str) -> Result<String, Box<dyn core::error::Error>> {
         self._fs_readlink(path, ()).and_then(|mut req| {
             let path = req.real_path();
             req.destroy();
@@ -1436,7 +1438,7 @@ impl crate::Loop {
     ///
     /// Note: This function is not implemented on Windows XP and Windows Server 2003. On these
     /// systems, ENOSYS is returned.
-    pub fn fs_realpath_sync(&self, path: &str) -> Result<String, Box<dyn std::error::Error>> {
+    pub fn fs_realpath_sync(&self, path: &str) -> Result<String, Box<dyn core::error::Error>> {
         self._fs_realpath(path, ()).and_then(|mut req| {
             let path = req.real_path();
             req.destroy();
@@ -1607,7 +1609,7 @@ impl Iterator for ScandirIter {
     type Item = crate::Result<crate::Dirent>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let mut dirent: uv::uv_dirent_t = unsafe { std::mem::zeroed() };
+        let mut dirent: uv::uv_dirent_t = unsafe { core::mem::zeroed() };
         let result =
             crate::uvret(unsafe { uv_fs_scandir_next(self.req.inner(), &mut dirent as _) });
         match result {
@@ -1620,7 +1622,7 @@ impl Iterator for ScandirIter {
     }
 }
 
-impl std::iter::FusedIterator for ScandirIter {}
+impl core::iter::FusedIterator for ScandirIter {}
 
 impl Drop for ScandirIter {
     fn drop(&mut self) {
