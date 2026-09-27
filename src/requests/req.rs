@@ -74,10 +74,13 @@ impl ToReq for Req {
 }
 
 pub trait ReqTrait: ToReq {
-    /// Cancel a pending request. Fails if the request is executing or has finished executing.
+    /// Cancel a pending request. Fails if the request is executing or has finished executing. Write
+    /// requests are an exception: cancellation of a write that is already in progress will attempt
+    /// to interrupt it (the callback may report a partial write), and cancellation of an
+    /// already-completed write is a successful no-op.
     ///
-    /// Only cancellation of FsReq, GetAddrInfoReq, GetNameInfoReq, RandomReq and WorkReq requests
-    /// is currently supported.
+    /// Only cancellation of WriteReq, FsReq, GetAddrInfoReq, GetNameInfoReq, RandomReq and WorkReq
+    /// requests is currently supported.
     ///
     /// Cancelled requests have their callbacks invoked some time in the future. It’s not safe to
     /// free the memory associated with the request until the callback is called.
@@ -86,6 +89,12 @@ pub trait ReqTrait: ToReq {
     ///   * A FsReq request has its req->result field set to UV_ECANCELED.
     ///   * A WorkReq, GetAddrInfoReq, GetNameInfoReq or RandomReq request has its callback invoked
     ///     with status == UV_ECANCELED.
+    ///   * A WriteReq request has its callback invoked with status == UV_ECANCELED. Use nwritten()
+    ///     from the callback to determine how many bytes were written before cancellation. Fully
+    ///     cancelled writes (where no bytes were written) may have their callbacks called out of
+    ///     order with respect to other writes on the same stream. Note that cancelled writes may
+    ///     still succeed or fail with other errors if the kernel finished processing the write
+    ///     before the cancellation took effect.
     fn cancel(&mut self) -> crate::Result<()> {
         crate::uvret(unsafe { uv_cancel(self.to_req().inner()) })
     }

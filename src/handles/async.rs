@@ -27,6 +27,17 @@ extern "C" fn uv_async_cb(handle: *mut uv_async_t) {
 
 /// Async handles allow the user to “wakeup” the event loop and get a callback called from another
 /// thread.
+///
+/// Note: send() and the callback invocation are sequentially consistent (seq_cst) operations for a
+/// given async handle: all memory accesses (reads and writes) made before send() are visible to
+/// that callback.
+///
+/// Warning: libuv will coalesce calls to send(), that is, not every call to it will yield an
+/// execution of the callback. For example: if send() is called 5 times in a row before the callback
+/// is called, the callback will only be called once. If send() is called again after the callback
+/// was called, it will be called again. However, since it is sequentially consistent, the values
+/// read or written in that callback will always be the same (or newer) as those read or written by
+/// the other thread.
 #[derive(Clone, Copy)]
 pub struct AsyncHandle {
     handle: *mut uv_async_t,
@@ -69,13 +80,11 @@ impl AsyncHandle {
     /// Note: It’s safe to call this function from any thread. The callback will be called on the
     /// loop thread.
     ///
-    /// Note: uv_async_send() is async-signal-safe. It’s safe to call this function from a signal
-    /// handler.
+    /// Note: send() is async-signal-safe. It’s safe to call this function from a signal handler.
     ///
-    /// Warning: libuv will coalesce calls to send(), that is, not every call to it will yield an
-    /// execution of the callback. For example: if send() is called 5 times in a row before the
-    /// callback is called, the callback will only be called once. If send() is called again after
-    /// the callback was called, it will be called again.
+    /// Note: This is a full memory fence with respect to other calls and callbacks using this same
+    /// async handle, and so it will order all operations around this call and the corresponding
+    /// callback on the sending thread and receiving thread.
     pub fn send(&mut self) -> crate::Result<()> {
         crate::uvret(unsafe { uv_async_send(self.handle) })
     }

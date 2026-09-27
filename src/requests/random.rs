@@ -121,7 +121,7 @@ impl crate::Loop {
     /// Sources of entropy:
     ///
     ///   * Windows: RtlGenRandom
-    ///     <https://docs.microsoft.com/en-us/windows/desktop/api/ntsecapi/nf-ntsecapi-rtlgenrandom>_.
+    ///     <https://learn.microsoft.com/en-us/windows/desktop/api/ntsecapi/nf-ntsecapi-rtlgenrandom>_.
     ///   * Linux, Android: getrandom(2) if available, or urandom(4) after reading from /dev/random
     ///     once, or the KERN_RANDOM sysctl(2).
     ///   * FreeBSD: getrandom(2) <https://www.freebsd.org/cgi/man.cgi?query=getrandom&sektion=2>_,
@@ -167,7 +167,7 @@ impl crate::Loop {
     /// Sources of entropy:
     ///
     ///   * Windows: RtlGenRandom
-    ///     <https://docs.microsoft.com/en-us/windows/desktop/api/ntsecapi/nf-ntsecapi-rtlgenrandom>_.
+    ///     <https://learn.microsoft.com/en-us/windows/desktop/api/ntsecapi/nf-ntsecapi-rtlgenrandom>_.
     ///   * Linux, Android: getrandom(2) if available, or urandom(4) after reading from /dev/random
     ///     once, or the KERN_RANDOM sysctl(2).
     ///   * FreeBSD: getrandom(2) <https://www.freebsd.org/cgi/man.cgi?query=getrandom&sektion=2>_,

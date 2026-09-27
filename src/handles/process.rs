@@ -240,11 +240,17 @@ impl ProcessHandle {
         unsafe { uv_disable_stdio_inheritance() };
     }
 
-    /// Initializes the process handle and starts the process.
+    /// Initializes the process handle and starts the process. Note that, success or failure, you
+    /// must eventually call close() to close the handle again before freeing the memory of the
+    /// handle, unlike other the other init functions in libuv.
     ///
     /// Possible reasons for failing to spawn would include (but not be limited to) the file to
     /// execute not existing, not having permissions to use the setuid or setgid specified, or not
     /// having enough memory to allocate for the new process.
+    ///
+    /// Warning: On unix, if the process has not yet exited when you call close(), you will create a
+    /// zombie that libuv cannot reap. You are responsible for calling waitpid later. This is not
+    /// relevant on Windows.
     pub fn spawn(
         &mut self,
         r#loop: &crate::Loop,
@@ -344,13 +350,19 @@ impl ProcessHandle {
         result
     }
 
-    /// The PID of the spawned process. It’s set after calling spawn().
+    /// The PID of the spawned process. It’s set after calling spawn() and retains the value even
+    /// after the process exits. The value is only unique while the process is alive; after exit,
+    /// another process may be reassigned the same PID.
     pub fn pid(&self) -> i32 {
         unsafe { uv_process_get_pid(self.handle) as _ }
     }
 
     /// Sends the specified signal to the given process handle. Check the documentation on
     /// SignalHandle for signal support, specially on Windows.
+    ///
+    /// If the specified process is already dead, this will not kill a different process which
+    /// happened to reuse the same pid. By contrast, kill_pid() may kill an arbitrary other process
+    /// if you use a cached value of pid().
     pub fn kill(&mut self, signum: i32) -> crate::Result<()> {
         crate::uvret(unsafe { uv_process_kill(self.handle, signum) })
     }

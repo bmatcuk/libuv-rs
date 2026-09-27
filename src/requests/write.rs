@@ -1,7 +1,7 @@
 use crate::{FromInner, Inner, IntoInner};
 use alloc::boxed::Box;
 use alloc::vec::Vec;
-use uv::uv_write_t;
+use uv::{ uv_write_nwritten, uv_write_t };
 
 callbacks! {
     pub WriteCB(req: WriteReq, status: crate::Result<u32>);
@@ -84,6 +84,17 @@ impl WriteReq {
     /// The stream being sent using this write request
     pub fn send_handle(&self) -> crate::StreamHandle {
         unsafe { (*self.req).send_handle }.into_inner()
+    }
+
+    /// Returns the number of bytes written by a write request. Only valid when called from within
+    /// the write callback.
+    ///
+    /// This is primarily useful when a write has been cancelled via cancel() and the callback
+    /// receives UV_ECANCELED status, to determine how many bytes were actually written before
+    /// cancellation. Note that cancelled writes may still succeed or fail with other errors if the
+    /// kernel finished processing the write before the cancellation took effect.
+    pub fn nwritten(&self) -> usize {
+        unsafe { uv_write_nwritten(self.req) as _ }
     }
 
     /// Deallocate the WriteReq - this is done automatically in the write callback.
